@@ -30,9 +30,11 @@ namespace vir::stdx
 
 #else
 
-#include <type_traits>
 #include <cmath>
+#include <functional>
 #include <limits>
+#include <type_traits>
+#include <utility>
 
 namespace vir::stdx
 {
@@ -78,7 +80,7 @@ namespace vir::stdx
       }
 
     template <typename T>
-      using remove_cvref_t = typename std::remove_cv_t<std::remove_reference_t<T>>::type
+      using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
     template <typename T>
       using L = std::numeric_limits<T>;
@@ -192,6 +194,19 @@ namespace vir::stdx
   template <class T, class A = simd_abi::compatible<T>>
     class simd_mask;
 
+  // aliases //
+  template <class T>
+    using native_simd = simd<T, simd_abi::native<T>>;
+
+  template <class T>
+    using native_simd_mask = simd_mask<T, simd_abi::native<T>>;
+
+  template <class T, int N>
+    using fixed_size_simd = simd<T, simd_abi::fixed_size<N>>;
+
+  template <class T, int N>
+    using fixed_size_simd_mask = simd_mask<T, simd_abi::fixed_size<N>>;
+
   // Traits //
   template <class T>
     struct is_abi_tag : std::false_type
@@ -278,11 +293,11 @@ namespace vir::stdx
 
   template <class T, class U, class A>
     struct rebind_simd<T, simd<U, A>, true>
-    { using type = simd<T, A> };
+    { using type = simd<T, A>; };
 
   template <class T, class U, class A>
     struct rebind_simd<T, simd_mask<U, A>, true>
-    { using type = simd_mask<T, A> };
+    { using type = simd_mask<T, A>; };
 
   template <int N, class V,
             bool = (N > 0) && (is_simd_v<V> || is_simd_mask_v<V>)>
@@ -294,19 +309,19 @@ namespace vir::stdx
   template <int N, class T, class A>
     struct resize_simd<N, simd<T, A>>
     {
-      using type = simd<T, std::conditional_t<N == 1, simd_abi:scalar, simd_abi::fixed_size<N>>>;
+      using type = simd<T, std::conditional_t<N == 1, simd_abi::scalar, simd_abi::fixed_size<N>>>;
     };
 
   template <int N, class T, class A>
     struct resize_simd<N, simd_mask<T, A>>
     {
       using type = simd_mask<T, std::conditional_t<
-                                  N == 1, simd_abi:scalar, simd_abi::fixed_size<N>>>;
+                                  N == 1, simd_abi::scalar, simd_abi::fixed_size<N>>>;
     };
 
-  // simd_mask
+  // simd_mask (scalar)
   template <class T>
-    class simd_mask<T, simd_abi::scalar>
+    class simd_mask<detail::Vectorizable<T>, simd_abi::scalar>
     {
       bool data;
 
@@ -457,7 +472,7 @@ namespace vir::stdx
     constexpr int
     find_first_set(simd_mask<T, simd_abi::scalar> k) noexcept
     {
-      if (not data)
+      if (not k.data)
         detail::invoke_ub("find_first_set(empty mask) is UB");
       return 0;
     }
@@ -466,37 +481,37 @@ namespace vir::stdx
     constexpr int
     find_last_set(simd_mask<T, simd_abi::scalar> k) noexcept
     {
-      if (not data)
+      if (not k.data)
         detail::invoke_ub("find_last_set(empty mask) is UB");
       return 0;
     }
 
   constexpr bool
-  all_of(ExactBool x) noexcept
+  all_of(detail::ExactBool x) noexcept
   { return x; }
 
   constexpr bool
-  any_of(ExactBool x) noexcept
+  any_of(detail::ExactBool x) noexcept
   { return x; }
 
   constexpr bool
-  none_of(ExactBool x) noexcept
+  none_of(detail::ExactBool x) noexcept
   { return !x; }
 
   constexpr bool
-  some_of(ExactBool) noexcept
+  some_of(detail::ExactBool) noexcept
   { return false; }
 
   constexpr int
-  popcount(ExactBool x) noexcept
+  popcount(detail::ExactBool x) noexcept
   { return x; }
 
   constexpr int
-  find_first_set(ExactBool)
+  find_first_set(detail::ExactBool)
   { return 0; }
 
   constexpr int
-  find_last_set(ExactBool)
+  find_last_set(detail::ExactBool)
   { return 0; }
 
   // simd_int_base
@@ -626,8 +641,7 @@ namespace vir::stdx
     class simd<T, simd_abi::scalar>
     : simd_int_base<T>
     {
-      using Base = simd_int_base<T>;
-      friend class Base;
+      friend class simd_int_base<T>;
 
       T data;
 
@@ -648,17 +662,18 @@ namespace vir::stdx
 
       // simd constructors
       template <typename U>
-        constexpr simd(detail::ValuePreservingOrInt<U>&& value) noexcept
+        constexpr
+        simd(detail::ValuePreservingOrInt<U, value_type>&& value) noexcept
         : data(value)
         {}
 
       // generator constructor
       template <typename F>
         explicit constexpr
-        simd(F&& gen, ValuePreservingOrInt<decltype(std::declval<F>()(
-                                                      std::declval<SizeConstant<0>&>())),
-                                           value_type>* = nullptr)
-        : data(gen(SizeConstant<0>()))
+        simd(F&& gen, detail::ValuePreservingOrInt<
+                        decltype(std::declval<F>()(std::declval<detail::SizeConstant<0>&>())),
+                        value_type>* = nullptr)
+        : data(gen(detail::SizeConstant<0>()))
         {}
 
       // load constructor
@@ -670,13 +685,13 @@ namespace vir::stdx
       // loads [simd.load]
       template <typename U, typename Flags>
         void
-        copy_from(const Vectorizable<U>* mem, Flags)
+        copy_from(const detail::Vectorizable<U>* mem, Flags)
         { data = mem[0]; }
 
       // stores [simd.store]
       template <typename U, typename Flags>
         void
-        copy_to(Vectorizable<U>* mem, Flags) const
+        copy_to(detail::Vectorizable<U>* mem, Flags) const
         { mem[0] = data; }
 
       // scalar access
@@ -777,27 +792,27 @@ namespace vir::stdx
       // compares [simd.comparison]
       constexpr friend mask_type
       operator==(const simd& x, const simd& y)
-      { return x.data == y.data; }
+      { return mask_type(x.data == y.data); }
 
       constexpr friend mask_type
       operator!=(const simd& x, const simd& y)
-      { return x.data != y.data; }
+      { return mask_type(x.data != y.data); }
 
       constexpr friend mask_type
       operator<(const simd& x, const simd& y)
-      { return x.data < y.data; }
+      { return mask_type(x.data < y.data); }
 
       constexpr friend mask_type
       operator<=(const simd& x, const simd& y)
-      { return x.data <= y.data; }
+      { return mask_type(x.data <= y.data); }
 
       constexpr friend mask_type
       operator>(const simd& x, const simd& y)
-      { return x.data > y.data; }
+      { return mask_type(x.data > y.data); }
 
       constexpr friend mask_type
       operator>=(const simd& x, const simd& y)
-      { return x.data >= y.data; }
+      { return mask_type(x.data >= y.data); }
     };
 
   // casts [simd.casts]
