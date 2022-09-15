@@ -40,6 +40,18 @@ namespace vir::stdx
 
   namespace detail
   {
+    template <typename T>
+      typename T::value_type
+      value_type_or_identity_impl(int);
+
+    template <typename T>
+      T
+      value_type_or_identity_impl(float);
+
+    template <typename T>
+      using value_type_or_identity_t
+        = decltype(value_type_or_identity_impl<T>(int()));
+
     class ExactBool
     {
       const bool data;
@@ -787,6 +799,81 @@ namespace vir::stdx
       operator>=(const simd& x, const simd& y)
       { return x.data >= y.data; }
     };
+
+  // casts [simd.casts]
+  // static_simd_cast
+  template <typename T, typename U, typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
+    constexpr simd<T>
+    static_simd_cast(const simd<U> x)
+    { return static_cast<T>(x[0]); }
+
+  template <typename V, typename U,
+            typename = std::enable_if_t<V::size() == 1>>
+    constexpr V
+    static_simd_cast(const simd<U> x)
+    { return static_cast<typename V::value_type>(x[0]); }
+
+  template <typename T, typename U, typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
+    constexpr simd_mask<T>
+    static_simd_cast(const simd_mask<U> x)
+    { return simd_mask<T>(x[0]); }
+
+  template <typename M, typename U,
+            typename = std::enable_if_t<M::size() == 1>>
+    constexpr M
+    static_simd_cast(const simd_mask<U> x)
+    { return M(x[0]); }
+
+  // simd_cast
+  template <typename T, typename U, typename A,
+            typename To = detail::value_type_or_identity_t<T>>
+    constexpr auto
+    simd_cast(const simd<detail::ValuePreserving<U, To>, A>& x)
+    -> decltype(static_simd_cast<T>(x))
+    { return static_simd_cast<T>(x); }
+
+  // to_fixed_size
+  template <typename T, int N>
+    constexpr fixed_size_simd<T, N>
+    to_fixed_size(const fixed_size_simd<T, N>& x)
+    { return x; }
+
+  template <typename T, int N>
+    constexpr fixed_size_simd_mask<T, N>
+    to_fixed_size(const fixed_size_simd_mask<T, N>& x)
+    { return x; }
+
+  template <typename T>
+    constexpr fixed_size_simd<T, 1>
+    to_fixed_size(const simd<T> x)
+    { return x[0]; }
+
+  template <typename T>
+    constexpr fixed_size_simd_mask<T, 1>
+    to_fixed_size(const simd_mask<T> x)
+    { return fixed_size_simd_mask<T, 1>(x[0]); }
+
+  // to_native
+  template <typename T>
+    constexpr simd<T>
+    to_native(const fixed_size_simd<T, 1> x)
+    { return x[0]; }
+
+  template <typename T>
+    constexpr simd_mask<T>
+    to_native(const fixed_size_simd_mask<T, 1> x)
+    { return simd_mask<T>(x[0]); }
+
+  // to_compatible
+  template <typename T>
+    constexpr simd<T>
+    to_compatible(const fixed_size_simd<T, 1> x)
+    { return x[0]; }
+
+  template <typename T>
+    constexpr simd_mask<T>
+    to_compatible(const fixed_size_simd_mask<T, 1> x)
+    { return simd_mask<T>(x[0]); }
 }
 
 #endif
