@@ -446,6 +446,186 @@ namespace vir::stdx
       { return simd_mask(x.data != y.data); }
     };
 
+  // simd_mask (fixed_size)
+  template <class T, int N>
+    class simd_mask<detail::Vectorizable<T>, simd_abi::fixed_size<N>>
+    {
+      bool data[N];
+
+    private:
+      template <typename F, size_t... Is>
+        constexpr
+        simd_mask(std::index_sequence<Is...>, F&& init)
+        : data {init(Is)...}
+        {}
+
+      template <typename F>
+        constexpr
+        simd_mask(F&& init)
+        : simd_mask(std::make_index_sequence<N>(), std::forward<F>(init))
+        {}
+
+    public:
+      using value_type = bool;
+      using reference = bool&;
+      using abi_type = simd_abi::fixed_size<N>;
+      using simd_type = simd<T, abi_type>;
+
+      static constexpr size_t size() noexcept
+      { return N; }
+
+      constexpr simd_mask() = default;
+      constexpr simd_mask(const simd_mask&) = default;
+      constexpr simd_mask(simd_mask&&) noexcept = default;
+      constexpr simd_mask& operator=(const simd_mask&) = default;
+      constexpr simd_mask& operator=(simd_mask&&) noexcept = default;
+
+      // explicit broadcast constructor
+      explicit constexpr
+      simd_mask(bool x)
+      : simd_mask([x](size_t) { return x; })
+      {}
+
+      // load constructor
+      template <typename Flags>
+        simd_mask(const value_type* mem, Flags)
+        : simd_mask([mem](size_t i) { return mem[i]; })
+        {}
+
+      template <typename Flags>
+        simd_mask(const value_type* mem, const simd_mask& k, Flags)
+        : simd_mask([mem, &k](size_t i) { return k[i] ? mem[i] : false; })
+        {}
+
+      // loads [simd_mask.load]
+      template <typename Flags>
+        void
+        copy_from(const value_type* mem, Flags)
+        { std::memcpy(data, mem, N * sizeof(bool)); }
+
+      // stores [simd_mask.store]
+      template <typename Flags>
+        void
+        copy_to(value_type* mem, Flags) const
+        { std::memcpy(mem, data, N * sizeof(bool)); }
+
+      // scalar access
+      constexpr reference
+      operator[](size_t i)
+      {
+        if (i >= size())
+          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        return data[i];
+      }
+
+      constexpr value_type
+      operator[](size_t i) const
+      {
+        if (i >= size())
+          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        return data[i];
+      }
+
+      // negation
+      constexpr simd_mask
+      operator!() const
+      {
+        simd_mask r {};
+        for (int i = 0; i < N; ++i)
+          r.data[i] = !data[i];
+        return r;
+      }
+
+      // simd_mask binary operators [simd_mask.binary]
+      friend constexpr simd_mask
+      operator&&(const simd_mask& x, const simd_mask& y)
+      {
+        simd_mask r;
+        for (int i = 0; i < N; ++i)
+          r.data[i] = x.data && y.data;
+        return r;
+      }
+
+      friend constexpr simd_mask
+      operator||(const simd_mask& x, const simd_mask& y)
+      {
+        simd_mask r;
+        for (int i = 0; i < N; ++i)
+          r.data[i] = x.data || y.data;
+        return r;
+      }
+
+      friend constexpr simd_mask
+      operator&(const simd_mask& x, const simd_mask& y)
+      {
+        simd_mask r;
+        for (int i = 0; i < N; ++i)
+          r.data[i] = x.data & y.data;
+        return r;
+      }
+
+      friend constexpr simd_mask
+      operator|(const simd_mask& x, const simd_mask& y)
+      {
+        simd_mask r;
+        for (int i = 0; i < N; ++i)
+          r.data[i] = x.data | y.data;
+        return r;
+      }
+
+      friend constexpr simd_mask
+      operator^(const simd_mask& x, const simd_mask& y)
+      {
+        simd_mask r;
+        for (int i = 0; i < N; ++i)
+          r.data[i] = x.data ^ y.data;
+        return r;
+      }
+
+      friend constexpr simd_mask&
+      operator&=(simd_mask& x, const simd_mask& y)
+      {
+        for (int i = 0; i < N; ++i)
+          x.data[i] &= y.data;
+        return x;
+      }
+
+      friend constexpr simd_mask&
+      operator|=(simd_mask& x, const simd_mask& y)
+      {
+        for (int i = 0; i < N; ++i)
+          x.data[i] |= y.data;
+        return x;
+      }
+
+      friend constexpr simd_mask&
+      operator^=(simd_mask& x, const simd_mask& y)
+      {
+        for (int i = 0; i < N; ++i)
+          x.data[i] ^= y.data;
+        return x;
+      }
+
+      // simd_mask compares [simd_mask.comparison]
+      friend constexpr simd_mask
+      operator==(const simd_mask& x, const simd_mask& y)
+      {
+        simd_mask r;
+        for (int i = 0; i < N; ++i)
+          r.data[i] = x.data == y.data;
+        return r;
+      }
+
+      friend constexpr simd_mask
+      operator!=(const simd_mask& x, const simd_mask& y)
+      {
+        simd_mask r;
+        for (int i = 0; i < N; ++i)
+          r.data[i] = x.data != y.data;
+        return r;
+      }
+    };
+
   // simd_mask reductions [simd_mask.reductions]
   template <typename T>
     constexpr bool
@@ -488,6 +668,89 @@ namespace vir::stdx
       if (not k.data)
         detail::invoke_ub("find_last_set(empty mask) is UB");
       return 0;
+    }
+
+  template <typename T, int N>
+    constexpr bool
+    all_of(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
+    {
+      for (int i = 0; i < N; ++i)
+        {
+          if (not k[i])
+            return false;
+        }
+      return true;
+    }
+
+  template <typename T, int N>
+    constexpr bool
+    any_of(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
+    {
+      for (int i = 0; i < N; ++i)
+        {
+          if (k[i])
+            return true;
+        }
+      return false;
+    }
+
+  template <typename T, int N>
+    constexpr bool
+    none_of(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
+    {
+      for (int i = 0; i < N; ++i)
+        {
+          if (k[i])
+            return false;
+        }
+      return true;
+    }
+
+  template <typename T, int N>
+    constexpr bool
+    some_of(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
+    {
+      bool last = k[0];
+      for (int i = 1; i < N; ++i)
+        {
+          if (last != k[i])
+            return true;
+        }
+      return false;
+    }
+
+  template <typename T, int N>
+    constexpr int
+    popcount(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
+    {
+      int cnt = k[0];
+      for (int i = 1; i < N; ++i)
+        cnt += k[i];
+      return cnt;
+    }
+
+  template <typename T, int N>
+    constexpr int
+    find_first_set(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
+    {
+      for (int i = 0; i < N; ++i)
+        {
+          if (k[i])
+            return i;
+        }
+      detail::invoke_ub("find_first_set(empty mask) is UB");
+    }
+
+  template <typename T, int N>
+    constexpr int
+    find_last_set(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
+    {
+      for (int i = N - 1; i >= 0; --i)
+        {
+          if (k[i])
+            return i;
+        }
+      detail::invoke_ub("find_last_set(empty mask) is UB");
     }
 
   constexpr bool
