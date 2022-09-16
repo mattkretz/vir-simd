@@ -258,18 +258,20 @@ namespace vir::stdx
   template <class T>
     inline constexpr bool is_simd_flag_type_v = is_simd_flag_type<T>::value;
 
-  template <class T>
+  template <class T, class A>
     struct simd_size;
 
-  template <class T>
-    inline constexpr size_t simd_size_v = simd_size<T>::value;
+  template <class T, class A>
+    inline constexpr size_t simd_size_v = simd_size<T, A>::value;
 
   template <class T>
-    struct simd_size<simd<T, simd_abi::scalar>> : std::integral_constant<size_t, 1>
+    struct simd_size<detail::Vectorizable<T>, simd_abi::scalar>
+    : std::integral_constant<size_t, 1>
     {};
 
   template <class T, int N>
-    struct simd_size<simd<T, simd_abi::fixed_size<N>>> : std::integral_constant<size_t, N>
+    struct simd_size<detail::Vectorizable<T>, simd_abi::fixed_size<N>>
+    : std::integral_constant<size_t, N>
     {};
 
   template <class T>
