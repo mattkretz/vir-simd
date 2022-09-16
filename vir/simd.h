@@ -31,6 +31,10 @@ namespace vir::stdx
 #else
 
 #include <cmath>
+#include <cstring>
+#ifdef _GLIBCXX_DEBUG_UB
+#include <cstdio>
+#endif
 #include <functional>
 #include <limits>
 #include <type_traits>
@@ -67,12 +71,12 @@ namespace vir::stdx
     };
 
     template <typename... Args>
-      [[noreturn]] [[gnu::always_inline]] void
+      [[noreturn]] [[gnu::always_inline]] inline void
       invoke_ub([[maybe_unused]] const char* msg,
                 [[maybe_unused]] const Args&... args)
       {
 #ifdef _GLIBCXX_DEBUG_UB
-        __builtin_fprintf(stderr, msg, args...);
+        std::fprintf(stderr, msg, args...);
         __builtin_trap();
 #else
         __builtin_unreachable();
