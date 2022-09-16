@@ -450,19 +450,13 @@ namespace vir::stdx
   template <class T, int N>
     class simd_mask<detail::Vectorizable<T>, simd_abi::fixed_size<N>>
     {
+    private:
       bool data[N];
 
-    private:
       template <typename F, size_t... Is>
         constexpr
         simd_mask(std::index_sequence<Is...>, F&& init)
-        : data {init(Is)...}
-        {}
-
-      template <typename F>
-        constexpr
-        simd_mask(F&& init)
-        : simd_mask(std::make_index_sequence<N>(), std::forward<F>(init))
+        : data {init(detail::SizeConstant<Is>())...}
         {}
 
     public:
@@ -485,6 +479,14 @@ namespace vir::stdx
       simd_mask(bool x)
       : simd_mask([x](size_t) { return x; })
       {}
+
+      template <typename F>
+        explicit constexpr
+        simd_mask(F&& gen, std::enable_if_t<
+                             std::is_same_v<decltype(std::declval<F>()(detail::SizeConstant<0>())),
+                                            value_type>>* = nullptr)
+        : simd_mask(std::make_index_sequence<N>(), std::forward<F>(gen))
+        {}
 
       // load constructor
       template <typename Flags>
@@ -781,13 +783,13 @@ namespace vir::stdx
   find_last_set(detail::ExactBool)
   { return 0; }
 
-  // simd_int_base
+  // scalar_simd_int_base
   template <class T, bool = std::is_integral_v<T>>
-    class simd_int_base
+    class scalar_simd_int_base
     {};
 
   template <class T>
-    class simd_int_base<T, true>
+    class scalar_simd_int_base<T, true>
     {
       using Derived = simd<T, simd_abi::scalar>;
 
@@ -903,12 +905,12 @@ namespace vir::stdx
       { return Derived(static_cast<T>(~data())); }
     };
 
-  // simd
+  // simd (scalar)
   template <class T>
     class simd<T, simd_abi::scalar>
-    : simd_int_base<T>
+    : scalar_simd_int_base<T>
     {
-      friend class simd_int_base<T>;
+      friend class scalar_simd_int_base<T>;
 
       T data;
 
@@ -1080,6 +1082,322 @@ namespace vir::stdx
       constexpr friend mask_type
       operator>=(const simd& x, const simd& y)
       { return mask_type(x.data >= y.data); }
+    };
+
+  // fixed_simd_int_base
+  template <class T, int N, bool = std::is_integral_v<T>>
+    class fixed_simd_int_base
+    {};
+
+  template <class T, int N>
+    class fixed_simd_int_base<T, N, true>
+    {
+      using Derived = simd<T, simd_abi::fixed_size<N>>;
+
+      constexpr T&
+      data() noexcept
+      { return static_cast<Derived*>(this)->data; }
+
+      constexpr const T&
+      data() const noexcept
+      { return static_cast<const Derived*>(this)->data; }
+
+    public:
+      friend constexpr Derived&
+      operator%=(Derived& lhs, const Derived& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] %= x.data[i];
+        return lhs;
+      }
+
+      friend constexpr Derived&
+      operator&=(Derived& lhs, const Derived& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] &= x.data[i];
+        return lhs;
+      }
+
+      friend constexpr Derived&
+      operator|=(Derived& lhs, const Derived& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] |= x.data[i];
+        return lhs;
+      }
+
+      friend constexpr Derived&
+      operator^=(Derived& lhs, const Derived& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] ^= x.data[i];
+        return lhs;
+      }
+
+      friend constexpr Derived&
+      operator<<=(Derived& lhs, const Derived& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] <<= x.data[i];
+        return lhs;
+      }
+
+      friend constexpr Derived&
+      operator>>=(Derived& lhs, const Derived& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] >>= x.data[i];
+        return lhs;
+      }
+
+      friend constexpr Derived
+      operator%(const Derived& x, const Derived& y)
+      { return Derived([&](auto i) -> T { return x[i] % y[i]; }); }
+
+      friend constexpr Derived
+      operator&(const Derived& x, const Derived& y)
+      { return Derived([&](auto i) -> T { return x[i] & y[i]; }); }
+
+      friend constexpr Derived
+      operator|(const Derived& x, const Derived& y)
+      { return Derived([&](auto i) -> T { return x[i] | y[i]; }); }
+
+      friend constexpr Derived
+      operator^(const Derived& x, const Derived& y)
+      { return Derived([&](auto i) -> T { return x[i] ^ y[i]; }); }
+
+      friend constexpr Derived
+      operator<<(const Derived& x, const Derived& y)
+      { return Derived([&](auto i) -> T { return x[i] << y[i]; }); }
+
+      friend constexpr Derived
+      operator>>(const Derived& x, const Derived& y)
+      { return Derived([&](auto i) -> T { return x[i] >> y[i]; }); }
+
+      friend constexpr Derived
+      operator<<(const Derived& x, int y)
+      { return Derived([&](auto i) -> T { return x[i] << y; }); }
+
+      friend constexpr Derived
+      operator>>(const Derived& x, int y)
+      { return Derived([&](auto i) -> T { return x[i] >> y; }); }
+
+      constexpr Derived
+      operator~() const
+      { return Derived([&](auto i) -> T { return ~data()[i]; }); }
+    };
+
+  // simd (fixed_size)
+  template <class T, int N>
+    class simd<T, simd_abi::fixed_size<N>>
+    : fixed_simd_int_base<T, N>
+    {
+    private:
+      friend class fixed_simd_int_base<T, N>;
+
+      T data[N];
+
+      template <typename F, size_t... Is>
+        constexpr
+        simd(std::index_sequence<Is...>, F&& init)
+        : data {init(detail::SizeConstant<Is>())...}
+        {}
+
+    public:
+      using value_type = T;
+      using reference = T&;
+      using abi_type = simd_abi::fixed_size<N>;
+      using mask_type = simd_mask<T, abi_type>;
+
+      static constexpr size_t size() noexcept
+      { return N; }
+
+      constexpr simd() = default;
+      constexpr simd(const simd&) = default;
+      constexpr simd(simd&&) noexcept = default;
+      constexpr simd& operator=(const simd&) = default;
+      constexpr simd& operator=(simd&&) noexcept = default;
+
+      // simd constructors
+      template <typename U>
+        constexpr
+        simd(detail::ValuePreservingOrInt<U, value_type>&& value) noexcept
+        : simd([v = static_cast<value_type>(value)](size_t) { return v; })
+        {}
+
+      // generator constructor
+      template <typename F>
+        explicit constexpr
+        simd(F&& gen, detail::ValuePreservingOrInt<
+                        decltype(std::declval<F>()(std::declval<detail::SizeConstant<0>&>())),
+                        value_type>* = nullptr)
+        : simd(std::make_index_sequence<N>(), std::forward<F>(gen))
+        {}
+
+      // load constructor
+      template <typename U, typename Flags>
+        simd(const U* mem, Flags)
+        : simd([mem](auto i) -> value_type { return mem[i]; })
+        {}
+
+      // loads [simd.load]
+      template <typename U, typename Flags>
+        void
+        copy_from(const detail::Vectorizable<U>* mem, Flags)
+        {
+          for (int i = 0; i < N; ++i)
+            data[i] = mem[i];
+        }
+
+      // stores [simd.store]
+      template <typename U, typename Flags>
+        void
+        copy_to(detail::Vectorizable<U>* mem, Flags) const
+        {
+          for (int i = 0; i < N; ++i)
+            mem[i] = data[i];
+        }
+
+      // scalar access
+      constexpr reference
+      operator[](size_t i)
+      {
+        if (i >= size())
+          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        return data[i];
+      }
+
+      constexpr value_type
+      operator[](size_t i) const
+      {
+        if (i >= size())
+          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        return data[i];
+      }
+
+      // increment and decrement:
+      constexpr simd&
+      operator++()
+      {
+        for (int i = 0; i < N; ++i)
+          ++data[i];
+        return *this;
+      }
+
+      constexpr simd
+      operator++(int)
+      {
+        simd r = *this;
+        for (int i = 0; i < N; ++i)
+          ++data[i];
+        return r;
+      }
+
+      constexpr simd&
+      operator--()
+      {
+        for (int i = 0; i < N; ++i)
+          --data[i];
+        return *this;
+      }
+
+      constexpr simd
+      operator--(int)
+      {
+        simd r = *this;
+        for (int i = 0; i < N; ++i)
+          --data[i];
+        return r;
+      }
+
+      // unary operators
+      constexpr mask_type
+      operator!() const
+      { return mask_type([&](auto i) { return !data[i]; }); }
+
+      constexpr simd
+      operator+() const
+      { return *this; }
+
+      constexpr simd
+      operator-() const
+      { return simd([&](auto i) -> value_type { return -data[i]; }); }
+
+      // compound assignment [simd.cassign]
+      constexpr friend simd&
+      operator+=(simd& lhs, const simd& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] += x.data[i];
+        return lhs;
+      }
+
+      constexpr friend simd&
+      operator-=(simd& lhs, const simd& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] -= x.data[i];
+        return lhs;
+      }
+
+      constexpr friend simd&
+      operator*=(simd& lhs, const simd& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] *= x.data[i];
+        return lhs;
+      }
+
+      constexpr friend simd&
+      operator/=(simd& lhs, const simd& x)
+      {
+        for (int i = 0; i < N; ++i)
+          lhs.data[i] /= x.data[i];
+        return lhs;
+      }
+
+      // binary operators [simd.binary]
+      constexpr friend simd
+      operator+(const simd& x, const simd& y)
+      { return simd([&](auto i) { return x.data[i] + y.data[i]; }); }
+
+      constexpr friend simd
+      operator-(const simd& x, const simd& y)
+      { return simd([&](auto i) { return x.data[i] - y.data[i]; }); }
+
+      constexpr friend simd
+      operator*(const simd& x, const simd& y)
+      { return simd([&](auto i) { return x.data[i] * y.data[i]; }); }
+
+      constexpr friend simd
+      operator/(const simd& x, const simd& y)
+      { return simd([&](auto i) { return x.data[i] / y.data[i]; }); }
+
+      // compares [simd.comparison]
+      constexpr friend mask_type
+      operator==(const simd& x, const simd& y)
+      { return mask_type([&](auto i) { return x.data[i] == y.data[i]; }); }
+
+      constexpr friend mask_type
+      operator!=(const simd& x, const simd& y)
+      { return mask_type([&](auto i) { return x.data[i] != y.data[i]; }); }
+
+      constexpr friend mask_type
+      operator<(const simd& x, const simd& y)
+      { return mask_type([&](auto i) { return x.data[i] < y.data[i]; }); }
+
+      constexpr friend mask_type
+      operator<=(const simd& x, const simd& y)
+      { return mask_type([&](auto i) { return x.data[i] <= y.data[i]; }); }
+
+      constexpr friend mask_type
+      operator>(const simd& x, const simd& y)
+      { return mask_type([&](auto i) { return x.data[i] > y.data[i]; }); }
+
+      constexpr friend mask_type
+      operator>=(const simd& x, const simd& y)
+      { return mask_type([&](auto i) { return x.data[i] >= y.data[i]; }); }
     };
 
   // casts [simd.casts]
