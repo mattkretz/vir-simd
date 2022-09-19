@@ -4,9 +4,9 @@ This project aims to provide a simple fallback for users of
 std::experimental::simd (Parallelism TS 2). Not every user can rely on GCC 11+ 
 and its standard library to be present on all target systems. Therefore, the 
 header `vir/simd.h` provides a fallback implementation of the TS specification 
-that only implements the `scalar` ABI tag. Thus, your code can still compile 
-and run correctly, even if it is missing the performance gains a proper 
-implementation provides.
+that only implements the `scalar` and `fixed_size<N>` ABI tags. Thus, your code 
+can still compile and run correctly, even if it is missing the performance 
+gains a proper implementation provides.
 
 ## Usage
 
