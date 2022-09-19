@@ -47,6 +47,26 @@ namespace vir::stdx
 
   namespace detail
   {
+    constexpr size_t
+    bit_ceil(size_t x)
+    {
+      size_t r = 1;
+      while (r < x)
+        r <<= 1;
+      return r;
+    }
+
+    constexpr size_t
+    bit_floor(size_t x)
+    {
+      size_t r = x;
+      do {
+        r = x;
+        x &= x - 1;
+      } while (x);
+      return r;
+    }
+
     template <typename T>
       typename T::value_type
       value_type_or_identity_impl(int);
@@ -1538,6 +1558,37 @@ namespace vir::stdx
     V
     split(const std::enable_if_t<std::disjunction_v<is_simd<V>, is_simd_mask<V>>, V>& x)
     { return x; }
+
+  // reductions [simd.reductions]
+  template <typename T, typename A, typename BinaryOperation = std::plus<>>
+    constexpr T
+    reduce(const simd<T, A>& v,
+           BinaryOperation binary_op = BinaryOperation())
+    {
+      constexpr int N = simd_size_v<T, A>;
+      if constexpr (N > 3)
+        {
+          constexpr int N2 = detail::bit_floor(N / 2);
+          constexpr int NRem = N - 2 * N2;
+          if constexpr (NRem > 0)
+            {
+              const auto [l, r, rem] = split<N2, N2, N - 2 * N2>(v);
+              return binary_op(reduce(binary_op(l, r), binary_op), reduce(rem, binary_op));
+            }
+          else
+            {
+              const auto [l, r] = split<N2, N2>(v);
+              return reduce(binary_op(l, r), binary_op);
+            }
+        }
+      else
+        {
+          T r = v[0];
+          for (size_t i = 1; i < simd_size_v<T, A>; ++i)
+            r = binary_op(r, v[i]);
+          return r;
+        }
+    }
 }
 
 #endif
