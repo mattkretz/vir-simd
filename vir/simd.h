@@ -37,6 +37,7 @@ namespace vir::stdx
 #endif
 #include <functional>
 #include <limits>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -453,6 +454,10 @@ namespace vir::stdx
     class simd_mask<detail::Vectorizable<T>, simd_abi::fixed_size<N>>
     {
     private:
+      template <typename V, int M, size_t Parts>
+        friend std::enable_if_t<M == Parts * V::size() && is_simd_mask_v<V>, std::array<V, Parts>>
+        split(const simd_mask<typename V::simd_type::value_type, simd_abi::fixed_size<M>>&);
+
       bool data[N];
 
       template <typename F, size_t... Is>
@@ -1198,6 +1203,14 @@ namespace vir::stdx
     private:
       friend class fixed_simd_int_base<T, N>;
 
+      template <typename V, int M, size_t Parts>
+        friend std::enable_if_t<M == Parts * V::size() && is_simd_v<V>, std::array<V, Parts>>
+        split(const simd<typename V::value_type, simd_abi::fixed_size<M>>&);
+
+      template <size_t... Sizes, typename U>
+        friend std::tuple<simd<U, simd_abi::fixed_size<int(Sizes)>>...>
+        split(const simd<U, simd_abi::fixed_size<int((Sizes + ...))>>&);
+
       T data[N];
 
       template <typename F, size_t... Is>
@@ -1476,6 +1489,55 @@ namespace vir::stdx
     constexpr simd_mask<T>
     to_compatible(const fixed_size_simd_mask<T, 1> x)
     { return simd_mask<T>(x[0]); }
+
+  // split(simd)
+  template <typename V, int N, size_t Parts = N / V::size()>
+    std::enable_if_t<N == Parts * V::size() && is_simd_v<V>, std::array<V, Parts>>
+    split(const simd<typename V::value_type, simd_abi::fixed_size<N>>& x)
+    {
+      const auto* data = x.data;
+      return [&]<size_t... Is>(std::index_sequence<Is...>)
+               -> std::array<V, Parts> {
+                 return {V(data + Is * V::size(), element_aligned)...};
+               }(std::make_index_sequence<Parts>());
+    }
+
+  // split(simd_mask)
+  template <typename V, int N, size_t Parts = N / V::size()>
+    std::enable_if_t<N == Parts * V::size() && is_simd_mask_v<V>, std::array<V, Parts>>
+    split(const simd_mask<typename V::simd_type::value_type, simd_abi::fixed_size<N>>& x)
+    {
+      const auto* data = x.data;
+      return [&]<size_t... Is>(std::index_sequence<Is...>)
+               -> std::array<V, Parts> {
+                 return {V(data + Is * V::size(), element_aligned)...};
+               }(std::make_index_sequence<Parts>());
+    }
+
+  // split<Sizes...>
+  template <size_t... Sizes, typename T>
+    std::tuple<simd<T, simd_abi::fixed_size<int(Sizes)>>...>
+    split(const simd<T, simd_abi::fixed_size<int((Sizes + ...))>>& x)
+    {
+      using R = std::tuple<simd<T, simd_abi::fixed_size<int(Sizes)>>...>;
+      const auto* data = x.data;
+      return [&]<size_t... Is>(std::index_sequence<Is...>) -> R {
+        constexpr size_t offsets[sizeof...(Sizes)] = {
+          []<size_t... Js>(std::index_sequence<Js...>) {
+            constexpr size_t sizes[sizeof...(Sizes)] = {Sizes...};
+            return (sizes[Js] + ... + 0);
+          }(std::make_index_sequence<Is>())...
+        };
+        return {simd<T, simd_abi::fixed_size<int(Sizes)>>(data + offsets[Is],
+                                                          element_aligned)...};
+      }(std::make_index_sequence<sizeof...(Sizes)>());
+    }
+
+  // split<V>(V)
+  template <typename V>
+    V
+    split(const std::enable_if_t<std::disjunction_v<is_simd<V>, is_simd_mask<V>>, V>& x)
+    { return x; }
 }
 
 #endif
