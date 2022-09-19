@@ -183,15 +183,32 @@ namespace vir::stdx
     struct scalar
     {};
 
-    template <class>
-      using native = scalar;
-
-    template <class>
-      using compatible = scalar;
-
     template <int N>
       struct fixed_size
       {};
+
+    template <class T>
+      using native =
+        std::conditional_t<(sizeof(T) > 8),
+                           scalar,
+                           fixed_size<
+#ifdef __AVX512F__
+                             64
+#elif defined __AVX2__
+                             32
+#elif defined __AVX__
+                             std::is_floating_point_v<T> ? 32 : 16
+#else
+                             16
+#endif
+                               / sizeof(T)
+                           >
+                          >;
+
+    template <class T>
+      using compatible = std::conditional_t<(sizeof(T) > 8),
+                                            scalar,
+                                            fixed_size<16 / sizeof(T)>>;
   }
 
   // flags //
