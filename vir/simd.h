@@ -116,6 +116,16 @@ namespace vir::stdx
     template <size_t X>
       using SizeConstant = std::integral_constant<size_t, X>;
 
+    template <size_t I, typename T, typename... Ts>
+      constexpr auto
+      pack_simd_subscript(const T& x0, const Ts&... xs)
+      {
+        if constexpr (I >= T::size())
+          return pack_simd_subscript<I - T::size()>(xs...);
+        else
+          return x0[I];
+      }
+
     template <class T>
       struct is_vectorizable : std::is_arithmetic<T>
       {};
@@ -209,6 +219,13 @@ namespace vir::stdx
       using compatible = std::conditional_t<(sizeof(T) > 8),
                                             scalar,
                                             fixed_size<16 / sizeof(T)>>;
+
+    template <typename T, size_t N, typename...>
+      struct deduce
+      { using type = std::conditional_t<N == 1, scalar, fixed_size<int(N)>>; };
+
+    template <typename T, size_t N, typename... Abis>
+      using deduce_t = typename deduce<T, N, Abis...>::type;
   }
 
   // flags //
@@ -1575,6 +1592,56 @@ namespace vir::stdx
     V
     split(const std::enable_if_t<std::disjunction_v<is_simd<V>, is_simd_mask<V>>, V>& x)
     { return x; }
+
+  // concat(simd...)
+  template <typename T, typename... As>
+    inline constexpr
+    simd<T, simd_abi::deduce_t<T, (simd_size_v<T, As> + ...)>>
+    concat(const simd<T, As>&... xs)
+    {
+      using R = simd<T, simd_abi::deduce_t<T, (simd_size_v<T, As> + ...)>>;
+      return R([&](auto i) {
+               return detail::pack_simd_subscript<i>(xs...);
+             });
+    }
+
+  // concat(simd_mask...)
+  template <typename T, typename... As>
+    inline constexpr
+    simd_mask<T, simd_abi::deduce_t<T, (simd_size_v<T, As> + ...)>>
+    concat(const simd_mask<T, As>&... xs)
+    {
+      using R = simd_mask<T, simd_abi::deduce_t<T, (simd_size_v<T, As> + ...)>>;
+      return R([&](auto i) -> bool {
+               return detail::pack_simd_subscript<i>(xs...);
+             });
+    }
+
+  // concat(array<simd>)
+  template <typename T, typename A, size_t N>
+    inline constexpr
+    simd<T, simd_abi::deduce_t<T, N * simd_size_v<T, A>>>
+    concat(const std::array<simd<T, A>, N>& x)
+    {
+      constexpr int K = simd_size_v<T, A>;
+      using R = simd<T, simd_abi::deduce_t<T, N * K>>;
+      return R([&](auto i) {
+               return x[i / K][i % K];
+             });
+    }
+
+  // concat(array<simd_mask>)
+  template <typename T, typename A, size_t N>
+    inline constexpr
+    simd_mask<T, simd_abi::deduce_t<T, N * simd_size_v<T, A>>>
+    concat(const std::array<simd_mask<T, A>, N>& x)
+    {
+      constexpr int K = simd_size_v<T, A>;
+      using R = simd_mask<T, simd_abi::deduce_t<T, N * K>>;
+      return R([&](auto i) -> bool {
+               return x[i / K][i % K];
+             });
+    }
 
   // reductions [simd.reductions]
   template <typename T, typename A, typename BinaryOperation = std::plus<>>
