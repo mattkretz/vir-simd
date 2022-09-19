@@ -544,45 +544,45 @@ namespace vir::stdx
       friend constexpr simd_mask
       operator&&(const simd_mask& x, const simd_mask& y)
       {
-        simd_mask r;
+        simd_mask r {};
         for (int i = 0; i < N; ++i)
-          r.data[i] = x.data && y.data;
+          r.data[i] = x.data[i] & y.data[i];
         return r;
       }
 
       friend constexpr simd_mask
       operator||(const simd_mask& x, const simd_mask& y)
       {
-        simd_mask r;
+        simd_mask r {};
         for (int i = 0; i < N; ++i)
-          r.data[i] = x.data || y.data;
+          r.data[i] = x.data[i] | y.data[i];
         return r;
       }
 
       friend constexpr simd_mask
       operator&(const simd_mask& x, const simd_mask& y)
       {
-        simd_mask r;
+        simd_mask r {};
         for (int i = 0; i < N; ++i)
-          r.data[i] = x.data & y.data;
+          r.data[i] = x.data[i] & y.data[i];
         return r;
       }
 
       friend constexpr simd_mask
       operator|(const simd_mask& x, const simd_mask& y)
       {
-        simd_mask r;
+        simd_mask r {};
         for (int i = 0; i < N; ++i)
-          r.data[i] = x.data | y.data;
+          r.data[i] = x.data[i] | y.data[i];
         return r;
       }
 
       friend constexpr simd_mask
       operator^(const simd_mask& x, const simd_mask& y)
       {
-        simd_mask r;
+        simd_mask r {};
         for (int i = 0; i < N; ++i)
-          r.data[i] = x.data ^ y.data;
+          r.data[i] = x.data[i] ^ y.data[i];
         return r;
       }
 
@@ -590,7 +590,7 @@ namespace vir::stdx
       operator&=(simd_mask& x, const simd_mask& y)
       {
         for (int i = 0; i < N; ++i)
-          x.data[i] &= y.data;
+          x.data[i] &= y.data[i];
         return x;
       }
 
@@ -598,7 +598,7 @@ namespace vir::stdx
       operator|=(simd_mask& x, const simd_mask& y)
       {
         for (int i = 0; i < N; ++i)
-          x.data[i] |= y.data;
+          x.data[i] |= y.data[i];
         return x;
       }
 
@@ -606,7 +606,7 @@ namespace vir::stdx
       operator^=(simd_mask& x, const simd_mask& y)
       {
         for (int i = 0; i < N; ++i)
-          x.data[i] ^= y.data;
+          x.data[i] ^= y.data[i];
         return x;
       }
 
@@ -614,18 +614,18 @@ namespace vir::stdx
       friend constexpr simd_mask
       operator==(const simd_mask& x, const simd_mask& y)
       {
-        simd_mask r;
+        simd_mask r {};
         for (int i = 0; i < N; ++i)
-          r.data[i] = x.data == y.data;
+          r.data[i] = x.data[i] == y.data[i];
         return r;
       }
 
       friend constexpr simd_mask
       operator!=(const simd_mask& x, const simd_mask& y)
       {
-        simd_mask r;
+        simd_mask r {};
         for (int i = 0; i < N; ++i)
-          r.data[i] = x.data != y.data;
+          r.data[i] = x.data[i] != y.data[i];
         return r;
       }
     };
