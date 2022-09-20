@@ -186,6 +186,21 @@ namespace vir::stdx
                                                                std::is_unsigned<To>>,
                                               is_value_preserving<DecayedFrom, To>>>::value>>
       using ValuePreservingOrInt = From;
+
+    // LoadStorePtr / is_possible_loadstore_conversion
+    template <typename Ptr, typename ValueType>
+      struct is_possible_loadstore_conversion
+      : std::conjunction<is_vectorizable<Ptr>, is_vectorizable<ValueType>>
+      {};
+
+    template <>
+      struct is_possible_loadstore_conversion<bool, bool> : std::true_type {};
+
+    // Deduces to a type allowed for load/store with the given value type.
+    template <typename Ptr, typename ValueType,
+              typename = std::enable_if_t<
+                           is_possible_loadstore_conversion<Ptr, ValueType>::value>>
+      using LoadStorePtr = Ptr;
   }
 
   namespace simd_abi
@@ -1642,6 +1657,335 @@ namespace vir::stdx
                return x[i / K][i % K];
              });
     }
+
+  // const_where_expression<M, T>
+  template <typename M, typename V>
+    class const_where_expression
+    {
+      static_assert(std::is_same_v<V, detail::remove_cvref_t<V>>);
+
+      struct Wrapper { using value_type = V; };
+
+    protected:
+      using value_type =
+        typename std::conditional_t<std::is_arithmetic_v<V>, Wrapper, V>::value_type;
+
+      friend const M&
+      get_mask(const const_where_expression& x)
+      { return x.m_k; }
+
+      friend const V&
+      get_lvalue(const const_where_expression& x)
+      { return x.m_value; }
+
+      const M& m_k;
+      V& m_value;
+
+    public:
+      const_where_expression(const const_where_expression&) = delete;
+      const_where_expression& operator=(const const_where_expression&) = delete;
+
+      constexpr const_where_expression(const M& kk, const V& dd)
+      : m_k(kk), m_value(const_cast<V&>(dd)) {}
+
+      constexpr V
+      operator-() const &&
+      {
+        return V([&](auto i) {
+                 return m_k[i] ? static_cast<value_type>(-m_value[i]) : m_value[i];
+               });
+      }
+
+      template <typename Up, typename Flags>
+        [[nodiscard]] constexpr V
+        copy_from(const detail::LoadStorePtr<Up, value_type>* mem, Flags) const &&
+        {
+          return V([&](auto i) {
+                   return m_k[i] ? static_cast<value_type>(mem[i]) : m_value[i];
+                 });
+        }
+
+      template <typename Up, typename Flags>
+        constexpr void
+        copy_to(detail::LoadStorePtr<Up, value_type>* mem, Flags) const &&
+        {
+          for (size_t i = 0; i < V::size(); ++i)
+            {
+              if (m_k[i])
+                mem[i] = static_cast<Up>(m_value[i]);
+            }
+        }
+    };
+
+  // const_where_expression<bool, T>
+  template <typename V>
+    class const_where_expression<bool, V>
+    {
+      using M = bool;
+
+      static_assert(std::is_same_v<V, detail::remove_cvref_t<V>>);
+
+      struct Wrapper { using value_type = V; };
+
+    protected:
+      using value_type =
+        typename std::conditional_t<std::is_arithmetic_v<V>, Wrapper, V>::value_type;
+
+      friend const M&
+      get_mask(const const_where_expression& x)
+      { return x.m_k; }
+
+      friend const V&
+      get_lvalue(const const_where_expression& x)
+      { return x.m_value; }
+
+      const bool m_k;
+      V& m_value;
+
+    public:
+      const_where_expression(const const_where_expression&) = delete;
+      const_where_expression& operator=(const const_where_expression&) = delete;
+
+      constexpr const_where_expression(const bool kk, const V& dd)
+      : m_k(kk), m_value(const_cast<V&>(dd)) {}
+
+      constexpr V
+      operator-() const &&
+      { return m_k ? -m_value : m_value; }
+
+      template <typename Up, typename Flags>
+        [[nodiscard]] constexpr V
+        copy_from(const detail::LoadStorePtr<Up, value_type>* mem, Flags) const &&
+        { return m_k ? static_cast<V>(mem[0]) : m_value; }
+
+      template <typename Up, typename Flags>
+        constexpr void
+        copy_to(detail::LoadStorePtr<Up, value_type>* mem, Flags) const &&
+        {
+          if (m_k)
+            mem[0] = m_value;
+        }
+    };
+
+  // where_expression<M, T>
+  template <typename M, typename V>
+    class where_expression : public const_where_expression<M, V>
+    {
+      static_assert(not std::is_const_v<V>,
+                    "where_expression may only be instantiated with a non-const V parameter");
+
+      using typename const_where_expression<M, V>::value_type;
+      using const_where_expression<M, V>::m_k;
+      using const_where_expression<M, V>::m_value;
+
+      static_assert(std::is_same_v<typename M::abi_type, typename V::abi_type>);
+      static_assert(M::size() == V::size());
+
+      friend V&
+      get_lvalue(where_expression& x)
+      { return x.m_value; }
+
+      template <typename Up>
+        constexpr auto
+        as_simd(Up&& x)
+        {
+          using UU = detail::remove_cvref_t<Up>;
+          if constexpr (std::is_same_v<V, UU>)
+            return x;
+          else if constexpr (std::is_convertible_v<Up&&, value_type>)
+            return V(static_cast<value_type>(static_cast<Up&&>(x)));
+          else
+            return static_simd_cast<V>(static_cast<Up&&>(x));
+        }
+
+    public:
+      where_expression(const where_expression&) = delete;
+      where_expression& operator=(const where_expression&) = delete;
+
+      constexpr where_expression(const M& kk, V& dd)
+      : const_where_expression<M, V>(kk, dd)
+      {}
+
+      template <typename Up>
+        constexpr void
+        operator=(Up&& x) &&
+        {
+          const V& rhs = as_simd(x);
+          for (size_t i = 0; i < V::size(); ++i)
+            {
+              if (m_k[i])
+                m_value[i] = rhs[i];
+            }
+        }
+
+#define SIMD_OP_(op)                              \
+      template <typename Up>                      \
+        constexpr void                            \
+        operator op##=(Up&& x) &&                 \
+        {                                         \
+          const V& rhs = as_simd(x);              \
+          for (size_t i = 0; i < V::size(); ++i)  \
+            {                                     \
+              if (m_k[i])                         \
+                m_value[i] op##= rhs[i];          \
+            }                                     \
+        }                                         \
+      static_assert(true)
+      SIMD_OP_(+);
+      SIMD_OP_(-);
+      SIMD_OP_(*);
+      SIMD_OP_(/);
+      SIMD_OP_(%);
+      SIMD_OP_(&);
+      SIMD_OP_(|);
+      SIMD_OP_(^);
+      SIMD_OP_(<<);
+      SIMD_OP_(>>);
+#undef SIMD_OP_
+
+      constexpr void operator++() &&
+      {
+        for (size_t i = 0; i < V::size(); ++i)
+          {
+            if (m_k[i])
+              ++m_value[i];
+          }
+      }
+
+      constexpr void operator++(int) &&
+      {
+        for (size_t i = 0; i < V::size(); ++i)
+          {
+            if (m_k[i])
+              ++m_value[i];
+          }
+      }
+
+      constexpr void operator--() &&
+      {
+        for (size_t i = 0; i < V::size(); ++i)
+          {
+            if (m_k[i])
+              --m_value[i];
+          }
+      }
+
+      constexpr void operator--(int) &&
+      {
+        for (size_t i = 0; i < V::size(); ++i)
+          {
+            if (m_k[i])
+              --m_value[i];
+          }
+      }
+
+      // intentionally hides const_where_expression::copy_from
+      template <typename Up, typename Flags>
+        constexpr void
+        copy_from(const detail::LoadStorePtr<Up, value_type>* mem, Flags) &&
+        {
+          for (size_t i = 0; i < V::size(); ++i)
+            {
+              if (m_k[i])
+                m_value[i] = mem[i];
+            }
+        }
+    };
+
+  // where_expression<bool, T>
+  template <typename V>
+    class where_expression<bool, V> : public const_where_expression<bool, V>
+    {
+      using M = bool;
+      using typename const_where_expression<M, V>::value_type;
+      using const_where_expression<M, V>::m_k;
+      using const_where_expression<M, V>::m_value;
+
+    public:
+      where_expression(const where_expression&) = delete;
+      where_expression& operator=(const where_expression&) = delete;
+
+      constexpr where_expression(const M& kk, V& dd)
+      : const_where_expression<M, V>(kk, dd) {}
+
+#define SIMD_OP_(op)                                \
+      template <typename Up>                        \
+        constexpr void operator op(Up&& x) &&       \
+        { if (m_k) m_value op static_cast<Up&&>(x); }
+
+      SIMD_OP_(=)
+      SIMD_OP_(+=)
+      SIMD_OP_(-=)
+      SIMD_OP_(*=)
+      SIMD_OP_(/=)
+      SIMD_OP_(%=)
+      SIMD_OP_(&=)
+      SIMD_OP_(|=)
+      SIMD_OP_(^=)
+      SIMD_OP_(<<=)
+      SIMD_OP_(>>=)
+#undef SIMD_OP_
+
+      constexpr void operator++() &&
+      { if (m_k) ++m_value; }
+
+      constexpr void operator++(int) &&
+      { if (m_k) ++m_value; }
+
+      constexpr void operator--() &&
+      { if (m_k) --m_value; }
+
+      constexpr void operator--(int) &&
+      { if (m_k) --m_value; }
+
+      // intentionally hides const_where_expression::copy_from
+      template <typename Up, typename Flags>
+        constexpr void
+        copy_from(const detail::LoadStorePtr<Up, value_type>* mem, Flags) &&
+        { if (m_k) m_value = mem[0]; }
+    };
+
+  // where
+  template <typename Tp, typename Ap>
+    constexpr where_expression<simd_mask<Tp, Ap>, simd<Tp, Ap>>
+    where(const typename simd<Tp, Ap>::mask_type& k, simd<Tp, Ap>& value)
+    { return {k, value}; }
+
+  template <typename Tp, typename Ap>
+    constexpr const_where_expression<simd_mask<Tp, Ap>, simd<Tp, Ap>>
+    where(const typename simd<Tp, Ap>::mask_type& k,
+          const simd<Tp, Ap>& value)
+    { return {k, value}; }
+
+  template <typename Tp, typename Ap>
+    constexpr where_expression<simd_mask<Tp, Ap>, simd_mask<Tp, Ap>>
+    where(const std::remove_const_t<simd_mask<Tp, Ap>>& k,
+          simd_mask<Tp, Ap>& value)
+    { return {k, value}; }
+
+  template <typename Tp, typename Ap>
+    constexpr const_where_expression<simd_mask<Tp, Ap>, simd_mask<Tp, Ap>>
+    where(const std::remove_const_t<simd_mask<Tp, Ap>>& k,
+          const simd_mask<Tp, Ap>& value)
+    { return {k, value}; }
+
+  template <typename Tp>
+    constexpr where_expression<bool, Tp>
+    where(detail::ExactBool k, Tp& value)
+    { return {k, value}; }
+
+  template <typename Tp>
+    constexpr const_where_expression<bool, Tp>
+    where(detail::ExactBool k, const Tp& value)
+    { return {k, value}; }
+
+  template <typename Tp, typename Ap>
+    constexpr void
+    where(bool k, simd<Tp, Ap>& value) = delete;
+
+  template <typename Tp, typename Ap>
+    constexpr void
+    where(bool k, const simd<Tp, Ap>& value) = delete;
 
   // reductions [simd.reductions]
   template <typename T, typename A, typename BinaryOperation = std::plus<>>
