@@ -2017,6 +2017,127 @@ namespace vir::stdx
           return r;
         }
     }
+
+  template <typename M, typename V, typename BinaryOperation = std::plus<>>
+    typename V::value_type
+    reduce(const const_where_expression<M, V>& x,
+        typename V::value_type identity_element,
+        BinaryOperation binary_op)
+    {
+      const M& k = get_mask(x);
+      const V& v = get_lvalue(x);
+      auto r = identity_element;
+      if (any_of(k)) [[likely]]
+        {
+          for (size_t i = 0; i < V::size(); ++i)
+            if (k[i])
+              r = binary_op(r, v[i]);
+        }
+      return r;
+    }
+
+  template <typename M, typename V>
+    typename V::value_type
+    reduce(const const_where_expression<M, V>& x, std::plus<> binary_op = {})
+    { return reduce(x, 0, binary_op); }
+
+  template <typename M, typename V>
+    typename V::value_type
+    reduce(const const_where_expression<M, V>& x, std::multiplies<> binary_op)
+    { return reduce(x, 1, binary_op); }
+
+  template <typename M, typename V>
+    typename V::value_type
+    reduce(const const_where_expression<M, V>& x, std::bit_and<> binary_op)
+    { return reduce(x, ~typename V::value_type(), binary_op); }
+
+  template <typename M, typename V>
+    typename V::value_type
+    reduce(const const_where_expression<M, V>& x, std::bit_or<> binary_op)
+    { return reduce(x, 0, binary_op); }
+
+  template <typename M, typename V>
+    typename V::value_type
+    reduce(const const_where_expression<M, V>& x, std::bit_xor<> binary_op)
+    { return reduce(x, 0, binary_op); }
+
+  template <typename T, typename A>
+    constexpr T
+    hmin(const simd<T, A>& v) noexcept
+    {
+      return reduce(v, [](const auto& l, const auto& r) {
+               using std::min;
+               return min(l, r);
+             });
+    }
+
+  template <typename T, typename A>
+    constexpr T
+    hmax(const simd<T, A>& v) noexcept
+    {
+      return reduce(v, [](const auto& l, const auto& r) {
+               using std::max;
+               return max(l, r);
+             });
+    }
+
+  template <typename M, typename V>
+    constexpr typename V::value_type
+    hmin(const const_where_expression<M, V>& x) noexcept
+    {
+      using T = typename V::value_type;
+      constexpr T id_elem =
+#ifdef __FINITE_MATH_ONLY__
+        std::numeric_limits<T>::max();
+#else
+        std::numeric_limits<T>::infinity();
+#endif
+      return reduce(x, id_elem, [](const auto& l, const auto& r) {
+               using std::min;
+               return min(l, r);
+             });
+    }
+
+  template <typename M, typename V>
+    constexpr
+    typename V::value_type
+    hmax(const const_where_expression<M, V>& x) noexcept
+    {
+      using T = typename V::value_type;
+      constexpr T id_elem =
+#ifdef __FINITE_MATH_ONLY__
+        std::numeric_limits<T>::lowest();
+#else
+        -std::numeric_limits<T>::infinity();
+#endif
+      return reduce(x, id_elem, [](const auto& l, const auto& r) {
+               using std::max;
+               return max(l, r);
+             });
+    }
+
+  // algorithms [simd.alg]
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    min(const simd<T, A>& a, const simd<T, A>& b)
+    { return simd<T, A>([&](auto i) { return std::min(a[i], b[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    max(const simd<T, A>& a, const simd<T, A>& b)
+    { return simd<T, A>([&](auto i) { return std::max(a[i], b[i]); }); }
+
+  template <typename T, typename A>
+    constexpr
+    std::pair<simd<T, A>, simd<T, A>>
+    minmax(const simd<T, A>& a, const simd<T, A>& b)
+    { return {min(a, b), max(a, b)}; }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    clamp(const simd<T, A>& v, const simd<T, A>& lo,
+        const simd<T, A>& hi)
+    { return simd<T, A>([&](auto i) { return std::clamp(v[i], lo[i], hi[i]); }); }
 }
 
 #endif
