@@ -708,17 +708,17 @@ namespace vir::stdx
   template <typename T>
     constexpr bool
     all_of(simd_mask<T, simd_abi::scalar> k) noexcept
-    { return k.data; }
+    { return k[0]; }
 
   template <typename T>
     constexpr bool
     any_of(simd_mask<T, simd_abi::scalar> k) noexcept
-    { return k.data; }
+    { return k[0]; }
 
   template <typename T>
     constexpr bool
     none_of(simd_mask<T, simd_abi::scalar> k) noexcept
-    { return not k.data; }
+    { return not k[0]; }
 
   template <typename T>
     constexpr bool
@@ -728,13 +728,13 @@ namespace vir::stdx
   template <typename T>
     constexpr int
     popcount(simd_mask<T, simd_abi::scalar> k) noexcept
-    { return static_cast<int>(k.data); }
+    { return static_cast<int>(k[0]); }
 
   template <typename T>
     constexpr int
     find_first_set(simd_mask<T, simd_abi::scalar> k) noexcept
     {
-      if (not k.data)
+      if (not k[0])
         detail::invoke_ub("find_first_set(empty mask) is UB");
       return 0;
     }
