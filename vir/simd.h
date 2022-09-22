@@ -1288,7 +1288,7 @@ namespace vir::stdx
       template <typename F, size_t... Is>
         constexpr
         simd(std::index_sequence<Is...>, F&& init)
-        : data {init(detail::SizeConstant<Is>())...}
+        : data {static_cast<value_type>(init(detail::SizeConstant<Is>()))...}
         {}
 
     public:
