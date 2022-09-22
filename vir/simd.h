@@ -145,6 +145,32 @@ namespace vir::stdx
     template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
       using FloatingPoint = T;
 
+    // is_higher_integer_rank<T, U> (T has higher or equal integer rank than U)
+    template <typename T, typename U, bool = (sizeof(T) > sizeof(U)),
+              bool = (sizeof(T) == sizeof(U))>
+      struct is_higher_integer_rank;
+
+    template <typename T>
+      struct is_higher_integer_rank<T, T, false, true>
+      : public std::true_type
+      {};
+
+    template <typename T, typename U>
+      struct is_higher_integer_rank<T, U, true, false>
+      : public std::true_type
+      {};
+
+    template <typename T, typename U>
+      struct is_higher_integer_rank<T, U, false, false>
+      : public std::false_type
+      {};
+
+    // this may fail for char -> short if sizeof(char) == sizeof(short)
+    template <typename T, typename U>
+      struct is_higher_integer_rank<T, U, false, true>
+      : public std::is_same<decltype(std::declval<T>() + std::declval<U>()), T>
+      {};
+
     // is_value_preserving<From, To>
     template <typename From, typename To, bool = std::is_arithmetic_v<From>,
               bool = std::is_arithmetic_v<To>>
@@ -1315,6 +1341,16 @@ namespace vir::stdx
         constexpr
         simd(detail::ValuePreservingOrInt<U, value_type>&& value) noexcept
         : simd([v = static_cast<value_type>(value)](size_t) { return v; })
+        {}
+
+      // conversion constructors
+      template <typename U,
+                typename = std::enable_if_t<
+                             std::conjunction_v<detail::is_value_preserving<U, value_type>,
+                                                detail::is_higher_integer_rank<value_type, U>>>>
+        constexpr
+        simd(const simd<U, abi_type>& x)
+        : simd([&x](auto i) { return static_cast<value_type>(x[i]); })
         {}
 
       // generator constructor
