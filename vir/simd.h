@@ -454,6 +454,14 @@ namespace vir::stdx
       simd_mask(bool x)
       : data(x) {}
 
+      template <typename F>
+        explicit constexpr
+        simd_mask(F&& gen, std::enable_if_t<
+                             std::is_same_v<decltype(std::declval<F>()(detail::SizeConstant<0>())),
+                                            value_type>>* = nullptr)
+        : data(gen(detail::SizeConstant<0>()))
+        {}
+
       // load constructor
       template <typename Flags>
         simd_mask(const value_type* mem, Flags)
