@@ -141,6 +141,10 @@ namespace vir::stdx
     template <typename T, typename = std::enable_if_t<is_vectorizable_v<T>>>
       using Vectorizable = T;
 
+    // Deduces to a floating-point type
+    template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
+      using FloatingPoint = T;
+
     // is_value_preserving<From, To>
     template <typename From, typename To, bool = std::is_arithmetic_v<From>,
               bool = std::is_arithmetic_v<To>>
@@ -2143,6 +2147,17 @@ namespace vir::stdx
     clamp(const simd<T, A>& v, const simd<T, A>& lo,
         const simd<T, A>& hi)
     { return simd<T, A>([&](auto i) { return std::clamp(v[i], lo[i], hi[i]); }); }
+
+  // math
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    abs(const simd<T, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::abs(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd_mask<T, A>
+    isnan(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd_mask<T, A>([&x](auto i) { return std::isnan(x[i]); }); }
 }
 
 #endif
