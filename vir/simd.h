@@ -377,20 +377,20 @@ namespace vir::stdx
     : std::integral_constant<size_t, N>
     {};
 
-  template <class T>
+  template <class T, class U = typename T::value_type>
     struct memory_alignment;
 
-  template <class T>
-    inline constexpr size_t memory_alignment_v = memory_alignment<T>::value;
+  template <class T, class U = typename T::value_type>
+    inline constexpr size_t memory_alignment_v = memory_alignment<T, U>::value;
 
-  template <class T>
-    struct memory_alignment<simd<T, simd_abi::scalar>>
+  template <class T, class A, class U>
+    struct memory_alignment<simd<T, A>, detail::Vectorizable<U>>
     : std::integral_constant<size_t, alignof(T)>
     {};
 
-  template <class T, int N>
-    struct memory_alignment<simd<T, simd_abi::fixed_size<N>>>
-    : std::integral_constant<size_t, alignof(T)>
+  template <class T, class A>
+    struct memory_alignment<simd_mask<T, A>, bool>
+    : std::integral_constant<size_t, alignof(bool)>
     {};
 
   template <class T, class V,
