@@ -1489,27 +1489,29 @@ namespace vir::stdx
 
   // casts [simd.casts]
   // static_simd_cast
-  template <typename T, typename U, typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
-    constexpr simd<T>
-    static_simd_cast(const simd<U> x)
-    { return static_cast<T>(x[0]); }
+  template <typename T, typename U, typename A,
+            typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
+    constexpr simd<T, A>
+    static_simd_cast(const simd<U, A>& x)
+    { return simd<T, A>([&x](auto i) { return static_cast<T>(x[i]); }); }
 
-  template <typename V, typename U,
-            typename = std::enable_if_t<V::size() == 1>>
+  template <typename V, typename U, typename A,
+            typename = std::enable_if_t<is_simd_v<V>>>
     constexpr V
-    static_simd_cast(const simd<U> x)
-    { return static_cast<typename V::value_type>(x[0]); }
+    static_simd_cast(const simd<U, A>& x)
+    { return V([&x](auto i) { return static_cast<typename V::value_type>(x[i]); }); }
 
-  template <typename T, typename U, typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
-    constexpr simd_mask<T>
-    static_simd_cast(const simd_mask<U> x)
-    { return simd_mask<T>(x[0]); }
+  template <typename T, typename U, typename A,
+            typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
+    constexpr simd_mask<T, A>
+    static_simd_cast(const simd_mask<U, A>& x)
+    { return simd_mask<T>([&x](auto i) { return x[i]; }); }
 
-  template <typename M, typename U,
-            typename = std::enable_if_t<M::size() == 1>>
+  template <typename M, typename U, typename A,
+            typename = std::enable_if_t<M::size() == simd_size_v<U, A>>>
     constexpr M
-    static_simd_cast(const simd_mask<U> x)
-    { return M(x[0]); }
+    static_simd_cast(const simd_mask<U, A>& x)
+    { return M([&x](auto i) { return x[i]; }); }
 
   // simd_cast
   template <typename T, typename U, typename A,
