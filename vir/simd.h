@@ -497,7 +497,7 @@ namespace vir::stdx
       // negation
       constexpr simd_mask
       operator!() const
-      { return !data; }
+      { return simd_mask(not data); }
 
       // simd_mask binary operators [simd_mask.binary]
       friend constexpr simd_mask
@@ -1123,7 +1123,7 @@ namespace vir::stdx
       // unary operators
       constexpr mask_type
       operator!() const
-      { return !data; }
+      { return mask_type(not data); }
 
       constexpr simd
       operator+() const
