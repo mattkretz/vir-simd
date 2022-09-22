@@ -2198,10 +2198,45 @@ namespace vir::stdx
     abs(const simd<T, A>& x) noexcept
     { return simd<T, A>([&x](auto i) { return std::abs(x[i]); }); }
 
+  // classification functions
   template <typename T, typename A>
     constexpr simd_mask<T, A>
     isnan(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd_mask<T, A>([&x](auto i) { return std::isnan(x[i]); }); }
+    { return simd_mask<T, A>([&x](auto i) -> bool { return std::isnan(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd_mask<T, A>
+    isfinite(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd_mask<T, A>([&x](auto i) -> bool { return std::isfinite(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd_mask<T, A>
+    isinf(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd_mask<T, A>([&x](auto i) -> bool { return std::isinf(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd_mask<T, A>
+    isnormal(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd_mask<T, A>([&x](auto i) -> bool { return std::isnormal(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd_mask<T, A>
+    isunordered(const simd<detail::FloatingPoint<T>, A>& x, const simd<T, A>& y) noexcept
+    { return simd_mask<T, A>([&x, &y](auto i) -> bool { return std::isunordered(x[i], y[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd_mask<T, A>
+    signbit(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd_mask<T, A>([&x](auto i) -> bool { return std::signbit(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr fixed_size_simd<int, simd_size_v<T, A>>
+    fpclassify(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    {
+      return fixed_size_simd<int, simd_size_v<T, A>>([&x](auto i) -> int {
+                                                    return std::fpclassify(x[i]);
+                                                  });
+    }
 }
 
 #endif
