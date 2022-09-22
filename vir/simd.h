@@ -208,6 +208,9 @@ namespace vir::stdx
     struct scalar
     {};
 
+    template <typename>
+      inline constexpr int max_fixed_size = 32;
+
     template <int N>
       struct fixed_size
       {};
