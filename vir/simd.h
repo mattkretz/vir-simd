@@ -361,10 +361,10 @@ namespace vir::stdx
   template <class T>
     inline constexpr bool is_simd_flag_type_v = is_simd_flag_type<T>::value;
 
-  template <class T, class A>
+  template <class T, class A = simd_abi::compatible<T>>
     struct simd_size;
 
-  template <class T, class A>
+  template <class T, class A = simd_abi::compatible<T>>
     inline constexpr size_t simd_size_v = simd_size<T, A>::value;
 
   template <class T>
