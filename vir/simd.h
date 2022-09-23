@@ -1325,7 +1325,7 @@ namespace vir::stdx
         split(const simd<typename V::value_type, simd_abi::fixed_size<M>>&);
 
       template <size_t... Sizes, typename U>
-        friend std::tuple<simd<U, simd_abi::fixed_size<int(Sizes)>>...>
+        friend std::tuple<simd<U, simd_abi::deduce_t<U, int(Sizes)>>...>
         split(const simd<U, simd_abi::fixed_size<int((Sizes + ...))>>&);
 
       T data[N];
@@ -1645,10 +1645,10 @@ namespace vir::stdx
 
   // split<Sizes...>
   template <size_t... Sizes, typename T>
-    std::tuple<simd<T, simd_abi::fixed_size<int(Sizes)>>...>
+    std::tuple<simd<T, simd_abi::deduce_t<T, int(Sizes)>>...>
     split(const simd<T, simd_abi::fixed_size<int((Sizes + ...))>>& x)
     {
-      using R = std::tuple<simd<T, simd_abi::fixed_size<int(Sizes)>>...>;
+      using R = std::tuple<simd<T, simd_abi::deduce_t<T, int(Sizes)>>...>;
       const auto* data = x.data;
       return [&]<size_t... Is>(std::index_sequence<Is...>) -> R {
         constexpr size_t offsets[sizeof...(Sizes)] = {
@@ -1657,16 +1657,16 @@ namespace vir::stdx
             return (sizes[Js] + ... + 0);
           }(std::make_index_sequence<Is>())...
         };
-        return {simd<T, simd_abi::fixed_size<int(Sizes)>>(data + offsets[Is],
-                                                          element_aligned)...};
+        return {simd<T, simd_abi::deduce_t<T, int(Sizes)>>(data + offsets[Is],
+                                                           element_aligned)...};
       }(std::make_index_sequence<sizeof...(Sizes)>());
     }
 
   // split<V>(V)
   template <typename V>
-    V
-    split(const std::enable_if_t<std::disjunction_v<is_simd<V>, is_simd_mask<V>>, V>& x)
-    { return x; }
+    std::enable_if_t<std::disjunction_v<is_simd<V>, is_simd_mask<V>>, std::array<V, 1>>
+    split(const V& x)
+    { return {x}; }
 
   // concat(simd...)
   template <typename T, typename... As>
