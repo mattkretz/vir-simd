@@ -2246,6 +2246,163 @@ namespace vir::stdx
                                                     return std::fpclassify(x[i]);
                                                   });
     }
+
+  // hypot
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    hypot(const simd<T, A>& x, const simd<T, A>& y) noexcept
+    { return simd<T, A>([&](auto i) { return std::hypot(x[i], y[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    hypot(const simd<T, A>& x, const simd<T, A>& y, const simd<T, A>& z) noexcept
+    { return simd<T, A>([&](auto i) { return std::hypot(x[i], y[i], z[i]); }); }
+
+  // frexp, scalbn, scalbln, ldexp, modf
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    modf(const simd<detail::FloatingPoint<T>, A>& x, simd<T, A>* iptr) noexcept
+    { return simd<T, A>([&x, iptr](auto i) { return std::modf(x[i], &(*iptr)[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    frexp(const simd<detail::FloatingPoint<T>, A>& x,
+          fixed_size_simd<int, simd_size_v<T, A>>* exp) noexcept
+    { return simd<T, A>([&x, exp](auto i) { return std::frexp(x[i], &(*exp)[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    scalbln(const simd<detail::FloatingPoint<T>, A>& x,
+            const fixed_size_simd<long int, simd_size_v<T, A>>& exp) noexcept
+    { return simd<T, A>([&x, &exp](auto i) { return std::scalbln(x[i], exp[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    scalbn(const simd<detail::FloatingPoint<T>, A>& x,
+           const fixed_size_simd<int, simd_size_v<T, A>>& exp) noexcept
+    { return simd<T, A>([&x, &exp](auto i) { return std::scalbn(x[i], exp[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    ldexp(const simd<detail::FloatingPoint<T>, A>& x,
+          const fixed_size_simd<int, simd_size_v<T, A>>& exp) noexcept
+    { return simd<T, A>([&x, &exp](auto i) { return std::ldexp(x[i], exp[i]); }); }
+
+  // fma
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    fma(const simd<detail::FloatingPoint<T>, A>& x,
+          const simd<T, A>& y, const simd<T, A>& z) noexcept
+    { return simd<T, A>([&](auto i) { return std::fma(x[i], y[i], z[i]); }); }
+
+  // rounding functions
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    trunc(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::trunc(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    ceil(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::ceil(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    floor(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::floor(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    round(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::round(x[i]); }); }
+
+  // trig functions
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    sin(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::sin(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    cos(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::cos(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    tan(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::tan(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    asin(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::asin(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    acos(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::acos(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    atan(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::atan(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    sinh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::sinh(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    cosh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::cosh(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    tanh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::tanh(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    asinh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::asinh(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    acosh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::acosh(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    atanh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::atanh(x[i]); }); }
+
+  // logarithms
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    log(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::log(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    log10(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::log10(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    log1p(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::log1p(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    log2(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::log2(x[i]); }); }
+
+  template <typename T, typename A>
+    constexpr simd<T, A>
+    logb(const simd<detail::FloatingPoint<T>, A>& x) noexcept
+    { return simd<T, A>([&x](auto i) { return std::logb(x[i]); }); }
+
 }
 
 #endif
