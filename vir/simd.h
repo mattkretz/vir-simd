@@ -17,7 +17,14 @@
 
 */
 
-#if __cplusplus >= 201703L && __has_include (<experimental/simd>)
+#ifndef VIR_SIMD_H_
+#define VIR_SIMD_H_
+
+#if __cplusplus < 201703L
+#error "simd requires C++17 or later"
+#endif
+
+#if __has_include (<experimental/simd>) && !defined VIR_DISABLE_STDX_SIMD
 #include <experimental/simd>
 #endif
 
@@ -41,7 +48,13 @@ namespace vir::stdx
 #include <type_traits>
 #include <utility>
 
+#ifdef VIR_SIMD_TS_DROPIN
+namespace std::experimental
+{
+  inline namespace [[gnu::diagnose_as("virx")]] parallelism_v2
+#else
 namespace vir::stdx
+#endif
 {
   using std::size_t;
 
@@ -2404,5 +2417,14 @@ namespace vir::stdx
     { return simd<T, A>([&x](auto i) { return std::logb(x[i]); }); }
 
 }
+#ifdef VIR_SIMD_TS_DROPIN
+}
+
+namespace vir::stdx
+{
+  using namespace std::experimental::parallelism_v2;
+}
+#endif
 
 #endif
+#endif  // VIR_SIMD_H_

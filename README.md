@@ -22,6 +22,16 @@ using floatv = stdx::native_simd<float>;
 The `vir/simd.h` header will include `<experimental/simd>` if it is available, 
 so you don't have to add any buildsystem support. It should just work.
 
+## Options
+
+* `VIR_SIMD_TS_DROPIN`: Define the macro `VIR_SIMD_TS_DROPIN` before including 
+`<vir/simd.h>` to define everything in the namespace specified in the 
+Parallelism TS 2 (namely `std::experimental::parallelism_v2`).
+
+* `VIR_DISABLE_STDX_SIMD`: Do not include `<experimental/simd>` even if it is 
+available. This allows compiling your code with the `<vir/simd.h>` 
+implementation unconditionally. This is useful for testing.
+
 ## Debugging
 
 Compile with `-D _GLIBCXX_DEBUG_UB` to get runtime checks for undefined 
