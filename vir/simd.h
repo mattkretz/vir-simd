@@ -605,6 +605,13 @@ namespace vir::stdx
         : simd_mask(std::make_index_sequence<N>(), std::forward<F>(gen))
         {}
 
+      // implicit conversions
+      template <typename U>
+        constexpr
+        simd_mask(const simd_mask<U, abi_type>& x)
+        : simd_mask([&x](auto i) { return x[i]; })
+        {}
+
       // load constructor
       template <typename Flags>
         simd_mask(const value_type* mem, Flags)
