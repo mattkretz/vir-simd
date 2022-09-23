@@ -1854,6 +1854,8 @@ namespace vir::stdx
             return x;
           else if constexpr (std::is_convertible_v<Up&&, value_type>)
             return V(static_cast<value_type>(static_cast<Up&&>(x)));
+          else if constexpr (std::is_convertible_v<Up&&, V>)
+            return static_cast<V>(static_cast<Up&&>(x));
           else
             return static_simd_cast<V>(static_cast<Up&&>(x));
         }
