@@ -918,121 +918,121 @@ namespace vir::stdx
       using Derived = simd<T, simd_abi::scalar>;
 
       constexpr T&
-      data() noexcept
+      d() noexcept
       { return static_cast<Derived*>(this)->data; }
 
       constexpr const T&
-      data() const noexcept
+      d() const noexcept
       { return static_cast<const Derived*>(this)->data; }
 
     public:
       friend constexpr Derived&
       operator%=(Derived& lhs, Derived x)
       {
-        lhs.data %= x.data;
+        lhs.d() %= x.d();
         return lhs;
       }
 
       friend constexpr Derived&
       operator&=(Derived& lhs, Derived x)
       {
-        lhs.data &= x.data;
+        lhs.d() &= x.d();
         return lhs;
       }
 
       friend constexpr Derived&
       operator|=(Derived& lhs, Derived x)
       {
-        lhs.data |= x.data;
+        lhs.d() |= x.d();
         return lhs;
       }
 
       friend constexpr Derived&
       operator^=(Derived& lhs, Derived x)
       {
-        lhs.data ^= x.data;
+        lhs.d() ^= x.d();
         return lhs;
       }
 
       friend constexpr Derived&
       operator<<=(Derived& lhs, Derived x)
       {
-        lhs.data <<= x.data;
+        lhs.d() <<= x.d();
         return lhs;
       }
 
       friend constexpr Derived&
       operator>>=(Derived& lhs, Derived x)
       {
-        lhs.data >>= x.data;
+        lhs.d() >>= x.d();
         return lhs;
       }
 
       friend constexpr Derived
       operator%(Derived x, Derived y)
       {
-        x.data %= y.data;
+        x.d() %= y.d();
         return x;
       }
 
       friend constexpr Derived
       operator&(Derived x, Derived y)
       {
-        x.data &= y.data;
+        x.d() &= y.d();
         return x;
       }
 
       friend constexpr Derived
       operator|(Derived x, Derived y)
       {
-        x.data |= y.data;
+        x.d() |= y.d();
         return x;
       }
 
       friend constexpr Derived
       operator^(Derived x, Derived y)
       {
-        x.data ^= y.data;
+        x.d() ^= y.d();
         return x;
       }
 
       friend constexpr Derived
       operator<<(Derived x, Derived y)
       {
-        x.data <<= y.data;
+        x.d() <<= y.d();
         return x;
       }
 
       friend constexpr Derived
       operator>>(Derived x, Derived y)
       {
-        x.data >>= y.data;
+        x.d() >>= y.d();
         return x;
       }
 
       friend constexpr Derived
       operator<<(Derived x, int y)
       {
-        x.data <<= y;
+        x.d() <<= y;
         return x;
       }
 
       friend constexpr Derived
       operator>>(Derived x, int y)
       {
-        x.data >>= y;
+        x.d() >>= y;
         return x;
       }
 
       constexpr Derived
       operator~() const
-      { return Derived(static_cast<T>(~data())); }
+      { return Derived(static_cast<T>(~d())); }
     };
 
   // simd (scalar)
   template <class T>
     class simd<T, simd_abi::scalar>
-    : scalar_simd_int_base<T>
+    : public scalar_simd_int_base<T>
     {
       friend class scalar_simd_int_base<T>;
 
@@ -1219,19 +1219,19 @@ namespace vir::stdx
       using Derived = simd<T, simd_abi::fixed_size<N>>;
 
       constexpr T&
-      data() noexcept
-      { return static_cast<Derived*>(this)->data; }
+      d(int i) noexcept
+      { return static_cast<Derived*>(this)->data[i]; }
 
       constexpr const T&
-      data() const noexcept
-      { return static_cast<const Derived*>(this)->data; }
+      d(int i) const noexcept
+      { return static_cast<const Derived*>(this)->data[i]; }
 
     public:
       friend constexpr Derived&
       operator%=(Derived& lhs, const Derived& x)
       {
         for (int i = 0; i < N; ++i)
-          lhs.data[i] %= x.data[i];
+          lhs.d(i) %= x.d(i);
         return lhs;
       }
 
@@ -1239,7 +1239,7 @@ namespace vir::stdx
       operator&=(Derived& lhs, const Derived& x)
       {
         for (int i = 0; i < N; ++i)
-          lhs.data[i] &= x.data[i];
+          lhs.d(i) &= x.d(i);
         return lhs;
       }
 
@@ -1247,7 +1247,7 @@ namespace vir::stdx
       operator|=(Derived& lhs, const Derived& x)
       {
         for (int i = 0; i < N; ++i)
-          lhs.data[i] |= x.data[i];
+          lhs.d(i) |= x.d(i);
         return lhs;
       }
 
@@ -1255,7 +1255,7 @@ namespace vir::stdx
       operator^=(Derived& lhs, const Derived& x)
       {
         for (int i = 0; i < N; ++i)
-          lhs.data[i] ^= x.data[i];
+          lhs.d(i) ^= x.d(i);
         return lhs;
       }
 
@@ -1263,7 +1263,7 @@ namespace vir::stdx
       operator<<=(Derived& lhs, const Derived& x)
       {
         for (int i = 0; i < N; ++i)
-          lhs.data[i] <<= x.data[i];
+          lhs.d(i) <<= x.d(i);
         return lhs;
       }
 
@@ -1271,7 +1271,7 @@ namespace vir::stdx
       operator>>=(Derived& lhs, const Derived& x)
       {
         for (int i = 0; i < N; ++i)
-          lhs.data[i] >>= x.data[i];
+          lhs.d(i) >>= x.d(i);
         return lhs;
       }
 
@@ -1309,13 +1309,13 @@ namespace vir::stdx
 
       constexpr Derived
       operator~() const
-      { return Derived([&](auto i) -> T { return ~data()[i]; }); }
+      { return Derived([&](auto i) -> T { return ~d(i); }); }
     };
 
   // simd (fixed_size)
   template <class T, int N>
     class simd<T, simd_abi::fixed_size<N>>
-    : fixed_simd_int_base<T, N>
+    : public fixed_simd_int_base<T, N>
     {
     private:
       friend class fixed_simd_int_base<T, N>;
