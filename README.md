@@ -32,6 +32,35 @@ Parallelism TS 2 (namely `std::experimental::parallelism_v2`).
 available. This allows compiling your code with the `<vir/simd.h>` 
 implementation unconditionally. This is useful for testing.
 
+## Additional Features
+
+* Bitwise operators for floating-point `simd`:
+```c++
+#include <vir/simd_float_ops.h>
+
+using namespace vir::simd_float_ops;
+```
+Then the `&`, `|`, and `^` binary operators can be used with objects of type 
+`simd<`floating-point`, A>`.
+
+* Conversion between `std::bitset` and `simd_mask`:
+```c++
+#include <vir/simd_bitset.h>
+
+vir::stdx::simd_mask<int> k;
+std::bitset b = vir::to_bitset(k);
+vir::stdx::simd_mask k2 = vir::to_simd_mask<float>;
+```
+
+There are two overloads of `vir::to_simd_mask`:
+```c++
+to_simd_mask<T, A>(bitset<simd_size_v<T, A>>)
+```
+and
+```c++
+to_simd_mask<T, N>(bitset<N>)
+```
+
 ## Debugging
 
 Compile with `-D _GLIBCXX_DEBUG_UB` to get runtime checks for undefined 
