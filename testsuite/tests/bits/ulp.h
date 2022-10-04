@@ -66,8 +66,8 @@ namespace vir {
 	    else
 	      {
 		using I = vir::meta::as_unsigned_t<value_type_t<T1>>;
-		eps1 *= __builtin_bit_cast(T0, __builtin_bit_cast(I, ref1)
-						 & __builtin_bit_cast(I, signexp_mask));
+		eps1 *= vir::detail::bit_cast<T0>(vir::detail::bit_cast<I>(ref1)
+						    & vir::detail::bit_cast<I>(signexp_mask));
 	      }
 	    using std::abs;
 	    const auto subnormal = abs(ref1) < std::__norm_min_v<T>;

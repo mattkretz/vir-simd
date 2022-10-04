@@ -7,12 +7,30 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
+  gcc11:
+    runs-on: ubuntu-22.04
+    env:
+      CXX: g++-11
     steps:
     - uses: actions/checkout@v3
-
     - name: Run check
       run: make check DRIVEROPTS=-vvf
+
+  gcc9:
+    runs-on: ubuntu-20.04
+    env:
+      CXX: g++-9
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run check
+      run: make check DRIVEROPTS=-vvf
+
+  clang14:
+    runs-on: ubuntu-22.04
+    env:
+      CXX: clang++-14
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run check
+      run: make check DRIVEROPTS=-vvf
+

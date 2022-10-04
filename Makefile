@@ -1,15 +1,16 @@
 CXXFLAGS+=-DVIR_DISABLE_STDX_SIMD
 CXXFLAGS+=-DVIR_SIMD_TS_DROPIN
+CXXFLAGS+=-Wno-attributes
 CXXFLAGS+=-I$(PWD)
-CXXFLAGS+=-static-libstdc++ -static-libgcc
 
 srcdir=.
 testdir=testsuite/build
 sim=
-testflags=-march=native -std=c++20
+testflags=-march=native -std=c++2a
 
 check: $(srcdir)/testsuite/generate_makefile.sh
 	@rm -f .simd.summary
+	$(CXX) --version
 	@echo "Generating simd testsuite subdirs and Makefiles ..."
 	@$(srcdir)/testsuite/generate_makefile.sh --destination="$(testdir)" --sim="$(sim)" --testflags="$(testflags)" $(CXX) $(CXXFLAGS)
 	@$(MAKE) -C "$(testdir)"

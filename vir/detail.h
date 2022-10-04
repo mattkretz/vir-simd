@@ -24,6 +24,88 @@
 #include <type_traits>
 #include <bit>
 
+namespace vir::meta
+{
+    template <typename T>
+      struct type_identity
+      { using type = T; };
+
+    template <typename T>
+      using type_identity_t = typename type_identity<T>::type;
+
+    template <typename T, typename U = long long, bool = (sizeof(T) == sizeof(U))>
+      struct as_int;
+
+    template <typename T, typename U>
+      struct as_int<T, U, true>
+      { using type = U; };
+
+    template <typename T>
+      struct as_int<T, long long, false>
+      : as_int<T, long> {};
+
+    template <typename T>
+      struct as_int<T, long, false>
+      : as_int<T, int> {};
+
+    template <typename T>
+      struct as_int<T, int, false>
+      : as_int<T, short> {};
+
+    template <typename T>
+      struct as_int<T, short, false>
+      : as_int<T, signed char> {};
+
+    template <typename T>
+      struct as_int<T, signed char, false>
+  #ifdef __SIZEOF_INT128__
+      : as_int<T, __int128> {};
+
+    template <typename T>
+      struct as_int<T, __int128, false>
+  #endif // __SIZEOF_INT128__
+      {};
+
+    template <typename T>
+      using as_int_t = typename as_int<T>::type;
+
+    template <typename T, typename U = unsigned long long, bool = (sizeof(T) == sizeof(U))>
+      struct as_unsigned;
+
+    template <typename T, typename U>
+      struct as_unsigned<T, U, true>
+      { using type = U; };
+
+    template <typename T>
+      struct as_unsigned<T, unsigned long long, false>
+      : as_unsigned<T, unsigned long> {};
+
+    template <typename T>
+      struct as_unsigned<T, unsigned long, false>
+      : as_unsigned<T, unsigned int> {};
+
+    template <typename T>
+      struct as_unsigned<T, unsigned int, false>
+      : as_unsigned<T, unsigned short> {};
+
+    template <typename T>
+      struct as_unsigned<T, unsigned short, false>
+      : as_unsigned<T, unsigned char> {};
+
+    template <typename T>
+      struct as_unsigned<T, unsigned char, false>
+  #ifdef __SIZEOF_INT128__
+      : as_unsigned<T, unsigned __int128> {};
+
+    template <typename T>
+      struct as_unsigned<T, unsigned __int128, false>
+  #endif // __SIZEOF_INT128__
+      {};
+
+    template <typename T>
+      using as_unsigned_t = typename as_unsigned<T>::type;
+}
+
 namespace vir::detail
 {
   template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
@@ -36,6 +118,22 @@ namespace vir::detail
 
   template <typename T, int N>
     using deduced_simd_mask = stdx::simd_mask<T, stdx::simd_abi::deduce_t<T, N>>;
+
+  template <typename To, typename From>
+#ifdef __cpp_lib_bit_cast
+    constexpr
+#endif
+    std::enable_if_t<sizeof(To) == sizeof(From), To>
+    bit_cast(const From& x)
+    {
+#ifdef __cpp_lib_bit_cast
+      return std::bit_cast<To>(x);
+#else
+      To r;
+      std::memcpy(&r, &x, sizeof(x));
+      return r;
+#endif
+    }
 }
 
 #endif // VIR_DETAILS_H

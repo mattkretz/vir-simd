@@ -216,7 +216,7 @@ template <class V>
     using T = typename V::value_type;
     if constexpr (sizeof(T) <= sizeof(double))
       {
-	using I = rebind_simd_t<__int_for_sizeof_t<T>, V>;
+	using I = rebind_simd_t<vir::meta::as_int<T>, V>;
 	const I abs_x = simd_bit_cast<I>(abs(x));
 	const I min = simd_bit_cast<I>(V(std::__norm_min_v<T>));
 	const I max = simd_bit_cast<I>(V(std::__finite_max_v<T>));
@@ -253,7 +253,7 @@ template <typename TestF, typename RefF, typename ExcF>
       using V = decltype(testfun(inputs...));
       using RT = decltype(reffun(as_scalar(inputs, 0)...));
       using RV = typename std::conditional_t<std::is_same_v<RT, typename V::value_type>,
-					     std::__type_identity<V>, rebind_simd<RT, V>>::type;
+					     vir::meta::type_identity<V>, rebind_simd<RT, V>>::type;
       auto&& expected = [](const auto& fun, const auto&... vs) {
 	RV r{};
 	for (std::size_t i = 0; i < RV::size(); ++i)

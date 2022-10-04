@@ -22,85 +22,9 @@
 
 #include "detail.h"
 #include <type_traits>
-#include <bit>
 
 namespace vir
 {
-  namespace meta
-  {
-    template <typename T, typename U = long long, bool = (sizeof(T) == sizeof(U))>
-      struct as_int;
-
-    template <typename T, typename U>
-      struct as_int<T, U, true>
-      { using type = U; };
-
-    template <typename T>
-      struct as_int<T, long long, false>
-      : as_int<T, long> {};
-
-    template <typename T>
-      struct as_int<T, long, false>
-      : as_int<T, int> {};
-
-    template <typename T>
-      struct as_int<T, int, false>
-      : as_int<T, short> {};
-
-    template <typename T>
-      struct as_int<T, short, false>
-      : as_int<T, signed char> {};
-
-    template <typename T>
-      struct as_int<T, signed char, false>
-  #ifdef __SIZEOF_INT128__
-      : as_int<T, __int128> {};
-
-    template <typename T>
-      struct as_int<T, __int128, false>
-  #endif // __SIZEOF_INT128__
-      {};
-
-    template <typename T>
-      using as_int_t = typename as_int<T>::type;
-
-    template <typename T, typename U = unsigned long long, bool = (sizeof(T) == sizeof(U))>
-      struct as_unsigned;
-
-    template <typename T, typename U>
-      struct as_unsigned<T, U, true>
-      { using type = U; };
-
-    template <typename T>
-      struct as_unsigned<T, unsigned long long, false>
-      : as_unsigned<T, unsigned long> {};
-
-    template <typename T>
-      struct as_unsigned<T, unsigned long, false>
-      : as_unsigned<T, unsigned int> {};
-
-    template <typename T>
-      struct as_unsigned<T, unsigned int, false>
-      : as_unsigned<T, unsigned short> {};
-
-    template <typename T>
-      struct as_unsigned<T, unsigned short, false>
-      : as_unsigned<T, unsigned char> {};
-
-    template <typename T>
-      struct as_unsigned<T, unsigned char, false>
-  #ifdef __SIZEOF_INT128__
-      : as_unsigned<T, unsigned __int128> {};
-
-    template <typename T>
-      struct as_unsigned<T, unsigned __int128, false>
-  #endif // __SIZEOF_INT128__
-      {};
-
-    template <typename T>
-      using as_unsigned_t = typename as_unsigned<T>::type;
-  }
-
   namespace simd_float_ops
   {
     template <typename T, typename A>
@@ -112,12 +36,12 @@ namespace vir
           {
             using V = stdx::simd<T, A>;
             using I = stdx::rebind_simd_t<meta::as_unsigned_t<T>, V>;
-            return std::bit_cast<V>(std::bit_cast<I>(a) & std::bit_cast<I>(b));
+            return detail::bit_cast<V>(detail::bit_cast<I>(a) & detail::bit_cast<I>(b));
           }
         else
           return stdx::simd<T, A>([&](auto i) {
             using I = meta::as_unsigned_t<T>;
-            return std::bit_cast<T>(std::bit_cast<I>(a[i]) & std::bit_cast<I>(a[i]));
+            return detail::bit_cast<T>(detail::bit_cast<I>(a[i]) & detail::bit_cast<I>(b[i]));
           });
       }
 
@@ -130,12 +54,12 @@ namespace vir
           {
             using V = stdx::simd<T, A>;
             using I = stdx::rebind_simd_t<meta::as_unsigned_t<T>, V>;
-            return std::bit_cast<V>(std::bit_cast<I>(a) | std::bit_cast<I>(b));
+            return detail::bit_cast<V>(detail::bit_cast<I>(a) | detail::bit_cast<I>(b));
           }
         else
           return stdx::simd<T, A>([&](auto i) {
             using I = meta::as_unsigned_t<T>;
-            return std::bit_cast<T>(std::bit_cast<I>(a[i]) | std::bit_cast<I>(a[i]));
+            return detail::bit_cast<T>(detail::bit_cast<I>(a[i]) | detail::bit_cast<I>(b[i]));
           });
       }
 
@@ -148,12 +72,12 @@ namespace vir
           {
             using V = stdx::simd<T, A>;
             using I = stdx::rebind_simd_t<meta::as_unsigned_t<T>, V>;
-            return std::bit_cast<V>(std::bit_cast<I>(a) ^ std::bit_cast<I>(b));
+            return detail::bit_cast<V>(detail::bit_cast<I>(a) ^ detail::bit_cast<I>(b));
           }
         else
           return stdx::simd<T, A>([&](auto i) {
             using I = meta::as_unsigned_t<T>;
-            return std::bit_cast<T>(std::bit_cast<I>(a[i]) ^ std::bit_cast<I>(a[i]));
+            return detail::bit_cast<T>(detail::bit_cast<I>(a[i]) ^ detail::bit_cast<I>(b[i]));
           });
       }
   }

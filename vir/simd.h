@@ -419,35 +419,39 @@ namespace vir::stdx
     {};
 
   template <class T, class V,
-            bool = detail::is_vectorizable_v<T> && (is_simd_v<V> || is_simd_mask_v<V>)>
+            class = typename std::conjunction<detail::is_vectorizable<T>,
+                                              std::disjunction<is_simd<V>, is_simd_mask<V>>>::type>
     struct rebind_simd;
 
   template <class T, class V>
     using rebind_simd_t = typename rebind_simd<T, V>::type;
 
   template <class T, class U, class A>
-    struct rebind_simd<T, simd<U, A>, true>
+    struct rebind_simd<T, simd<U, A>, std::true_type>
     { using type = simd<T, A>; };
 
   template <class T, class U, class A>
-    struct rebind_simd<T, simd_mask<U, A>, true>
+    struct rebind_simd<T, simd_mask<U, A>, std::true_type>
     { using type = simd_mask<T, A>; };
 
   template <int N, class V,
-            bool = (N > 0) && (is_simd_v<V> || is_simd_mask_v<V>)>
+            class = typename std::conjunction<
+                               detail::BoolConstant<(N > 0)>,
+                               std::disjunction<is_simd<V>, is_simd_mask<V>>
+                             >::type>
     struct resize_simd;
 
   template <int N, class V>
     using resize_simd_t = typename resize_simd<N, V>::type;
 
   template <int N, class T, class A>
-    struct resize_simd<N, simd<T, A>>
+    struct resize_simd<N, simd<T, A>, std::true_type>
     {
       using type = simd<T, std::conditional_t<N == 1, simd_abi::scalar, simd_abi::fixed_size<N>>>;
     };
 
   template <int N, class T, class A>
-    struct resize_simd<N, simd_mask<T, A>>
+    struct resize_simd<N, simd_mask<T, A>, std::true_type>
     {
       using type = simd_mask<T, std::conditional_t<
                                   N == 1, simd_abi::scalar, simd_abi::fixed_size<N>>>;
@@ -2285,9 +2289,9 @@ namespace vir::stdx
          const simd<detail::FloatingPoint<T>, A> &z) noexcept                                      \
     { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }
 
-  template <typename T, typename A>
+  template <typename T, typename A, typename U = detail::SignedIntegral<T>>
     constexpr simd<T, A>
-    abs(const simd<detail::SignedIntegral<T>, A>& x) noexcept
+    abs(const simd<T, A>& x) noexcept
     { return simd<T, A>([&x](auto i) { return std::abs(x[i]); }); }
 
   SIMD_MATH_1ARG(abs, simd)
