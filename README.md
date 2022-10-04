@@ -34,7 +34,8 @@ implementation unconditionally. This is useful for testing.
 
 ## Additional Features
 
-* Bitwise operators for floating-point `simd`:
+### Bitwise operators for floating-point `simd`:
+
 ```c++
 #include <vir/simd_float_ops.h>
 
@@ -43,7 +44,8 @@ using namespace vir::simd_float_ops;
 Then the `&`, `|`, and `^` binary operators can be used with objects of type 
 `simd<`floating-point`, A>`.
 
-* Conversion between `std::bitset` and `simd_mask`:
+### Conversion between `std::bitset` and `simd_mask`:
+
 ```c++
 #include <vir/simd_bitset.h>
 
@@ -60,6 +62,28 @@ and
 ```c++
 to_simd_mask<T, N>(bitset<N>)
 ```
+
+### vir::simd_resize and vir::simd_size_cast
+
+The header
+```c++
+#include <vir/simd_resize.h>
+```
+declares the functions
+
+* `vir::simd_resize<N>(simd)`,
+
+* `vir::simd_resize<N>(simd_mask)`,
+
+* `vir::simd_size_cast<V>(simd)`, and
+
+* `vir::simd_size_cast<M>(simd_mask)`.
+
+These functions can resize a given `simd` or `simd_mask` object. If the return 
+type requires more elements than the input parameter, the new elements are 
+default-initialized and appended at the end. Both functions do not allow a 
+change of the `value_type`. However, implicit conversions can happen on 
+parameter passing to `simd_size_cast`.
 
 ## Debugging
 

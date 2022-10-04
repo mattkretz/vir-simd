@@ -20,6 +20,7 @@
 #ifndef VIR_DETAILS_H
 #define VIR_DETAILS_H
 
+#include "simd.h"
 #include <type_traits>
 #include <bit>
 
@@ -29,6 +30,12 @@ namespace vir::detail
     using FloatingPoint = T;
 
   using namespace vir::stdx;
+
+  template <typename T, int N>
+    using deduced_simd = stdx::simd<T, stdx::simd_abi::deduce_t<T, N>>;
+
+  template <typename T, int N>
+    using deduced_simd_mask = stdx::simd_mask<T, stdx::simd_abi::deduce_t<T, N>>;
 }
 
 #endif // VIR_DETAILS_H
