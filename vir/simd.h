@@ -60,6 +60,13 @@ namespace vir::stdx
 
   namespace detail
   {
+    template <typename T>
+      struct type_identity
+      { using type = T; };
+
+    template <typename T>
+      using type_identity_t = typename type_identity<T>::type;
+
     constexpr size_t
     bit_ceil(size_t x)
     {
@@ -157,6 +164,11 @@ namespace vir::stdx
     // Deduces to a floating-point type
     template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
       using FloatingPoint = T;
+
+    // Deduces to a signed integer type
+    template <typename T, typename = std::enable_if_t<std::conjunction_v<std::is_integral<T>,
+                                                                         std::is_signed<T>>>>
+      using SignedIntegral = T;
 
     // is_higher_integer_rank<T, U> (T has higher or equal integer rank than U)
     template <typename T, typename U, bool = (sizeof(T) > sizeof(U)),
@@ -2215,63 +2227,106 @@ namespace vir::stdx
     { return simd<T, A>([&](auto i) { return std::clamp(v[i], lo[i], hi[i]); }); }
 
   // math
+#define SIMD_MATH_1ARG(name, return_temp)                                                          \
+  template <typename T, typename A>                                                                \
+    constexpr return_temp<T, A>                                                                    \
+    name(const simd<detail::FloatingPoint<T>, A>& x) noexcept                                      \
+    { return return_temp<T, A>([&x](auto i) { return std::name(x[i]); }); }
+
+#define SIMD_MATH_1ARG_FIXED(name, R)                                                              \
+  template <typename T, typename A>                                                                \
+    constexpr fixed_size_simd<R, simd_size_v<T, A>>                                                \
+    name(const simd<detail::FloatingPoint<T>, A>& x) noexcept                                      \
+    { return fixed_size_simd<R, simd_size_v<T, A>>([&x](auto i) { return std::name(x[i]); }); }
+
+#define SIMD_MATH_2ARG(name, return_temp)                                                          \
+  template <typename T, typename A>                                                                \
+    constexpr return_temp<T, A>                                                                    \
+    name(const simd<detail::FloatingPoint<T>, A>& x, const simd<T, A>& y) noexcept                 \
+    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i]); }); }                   \
+                                                                                                   \
+  template <typename T, typename A>                                                                \
+    constexpr return_temp<T, A>                                                                    \
+    name(const simd<detail::FloatingPoint<T>, A>& x,                                               \
+         const detail::type_identity_t<simd<T, A>>& y) noexcept                                    \
+    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i]); }); }                   \
+                                                                                                   \
+  template <typename T, typename A>                                                                \
+    constexpr return_temp<T, A>                                                                    \
+    name(const detail::type_identity_t<simd<T, A>>& x,                                             \
+         const simd<detail::FloatingPoint<T>, A>& y) noexcept                                      \
+    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i]); }); }
+
+#define SIMD_MATH_3ARG(name, return_temp)                                                          \
+  template <typename T, typename A>                                                                \
+    constexpr return_temp<T, A>                                                                    \
+    name(const simd<detail::FloatingPoint<T>, A>& x,                                               \
+         const simd<T, A>& y, const simd<T, A> &z) noexcept                                        \
+    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }             \
+                                                                                                   \
+  template <typename T, typename A>                                                                \
+    constexpr return_temp<T, A>                                                                    \
+    name(const simd<detail::FloatingPoint<T>, A>& x,                                               \
+         const detail::type_identity_t<simd<T, A>>& y,                                             \
+         const detail::type_identity_t<simd<T, A>> &z) noexcept                                    \
+    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }             \
+                                                                                                   \
+  template <typename T, typename A>                                                                \
+    constexpr return_temp<T, A>                                                                    \
+    name(const detail::type_identity_t<simd<T, A>>& x,                                             \
+         const simd<detail::FloatingPoint<T>, A>& y,                                               \
+         const detail::type_identity_t<simd<T, A>> &z) noexcept                                    \
+    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }             \
+                                                                                                   \
+  template <typename T, typename A>                                                                \
+    constexpr return_temp<T, A>                                                                    \
+    name(const detail::type_identity_t<simd<T, A>>& x,                                             \
+         const detail::type_identity_t<simd<T, A>>& y,                                             \
+         const simd<detail::FloatingPoint<T>, A> &z) noexcept                                      \
+    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }
+
   template <typename T, typename A>
     constexpr simd<T, A>
-    abs(const simd<T, A>& x) noexcept
+    abs(const simd<detail::SignedIntegral<T>, A>& x) noexcept
     { return simd<T, A>([&x](auto i) { return std::abs(x[i]); }); }
 
-  // classification functions
-  template <typename T, typename A>
-    constexpr simd_mask<T, A>
-    isnan(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd_mask<T, A>([&x](auto i) -> bool { return std::isnan(x[i]); }); }
+  SIMD_MATH_1ARG(abs, simd)
+  SIMD_MATH_1ARG(isnan, simd_mask)
+  SIMD_MATH_1ARG(isfinite, simd_mask)
+  SIMD_MATH_1ARG(isinf, simd_mask)
+  SIMD_MATH_1ARG(isnormal, simd_mask)
+  SIMD_MATH_1ARG(signbit, simd_mask)
+  SIMD_MATH_1ARG_FIXED(fpclassify, int)
 
-  template <typename T, typename A>
-    constexpr simd_mask<T, A>
-    isfinite(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd_mask<T, A>([&x](auto i) -> bool { return std::isfinite(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd_mask<T, A>
-    isinf(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd_mask<T, A>([&x](auto i) -> bool { return std::isinf(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd_mask<T, A>
-    isnormal(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd_mask<T, A>([&x](auto i) -> bool { return std::isnormal(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd_mask<T, A>
-    isunordered(const simd<detail::FloatingPoint<T>, A>& x, const simd<T, A>& y) noexcept
-    { return simd_mask<T, A>([&x, &y](auto i) -> bool { return std::isunordered(x[i], y[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd_mask<T, A>
-    signbit(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd_mask<T, A>([&x](auto i) -> bool { return std::signbit(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr fixed_size_simd<int, simd_size_v<T, A>>
-    fpclassify(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    {
-      return fixed_size_simd<int, simd_size_v<T, A>>([&x](auto i) -> int {
-                                                    return std::fpclassify(x[i]);
-                                                  });
-    }
-
-  // hypot
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    hypot(const simd<T, A>& x, const simd<T, A>& y) noexcept
-    { return simd<T, A>([&](auto i) { return std::hypot(x[i], y[i]); }); }
+  SIMD_MATH_2ARG(hypot, simd)
+  SIMD_MATH_3ARG(hypot, simd)
 
   template <typename T, typename A>
     constexpr simd<T, A>
-    hypot(const simd<T, A>& x, const simd<T, A>& y, const simd<T, A>& z) noexcept
-    { return simd<T, A>([&](auto i) { return std::hypot(x[i], y[i], z[i]); }); }
+    remquo(const simd<T, A>& x, const simd<T, A>& y,
+           fixed_size_simd<int, simd_size_v<T, A>>* quo) noexcept
+    { return simd<T, A>([&x, &y, quo](auto i) { return std::remquo(x[i], y[i], &(*quo)[i]); }); }
 
-  // frexp, scalbn, scalbln, ldexp, modf
+  SIMD_MATH_1ARG(erf, simd)
+  SIMD_MATH_1ARG(erfc, simd)
+  SIMD_MATH_1ARG(tgamma, simd)
+  SIMD_MATH_1ARG(lgamma, simd)
+
+  SIMD_MATH_2ARG(pow, simd)
+  SIMD_MATH_2ARG(fmod, simd)
+  SIMD_MATH_2ARG(remainder, simd)
+  SIMD_MATH_2ARG(nextafter, simd)
+  SIMD_MATH_2ARG(copysign, simd)
+  SIMD_MATH_2ARG(fdim, simd)
+  SIMD_MATH_2ARG(fmax, simd)
+  SIMD_MATH_2ARG(fmin, simd)
+  SIMD_MATH_2ARG(isgreater, simd_mask)
+  SIMD_MATH_2ARG(isgreaterequal, simd_mask)
+  SIMD_MATH_2ARG(isless, simd_mask)
+  SIMD_MATH_2ARG(islessequal, simd_mask)
+  SIMD_MATH_2ARG(islessgreater, simd_mask)
+  SIMD_MATH_2ARG(isunordered, simd_mask)
+
   template <typename T, typename A>
     constexpr simd<T, A>
     modf(const simd<detail::FloatingPoint<T>, A>& x, simd<T, A>* iptr) noexcept
@@ -2301,121 +2356,48 @@ namespace vir::stdx
           const fixed_size_simd<int, simd_size_v<T, A>>& exp) noexcept
     { return simd<T, A>([&x, &exp](auto i) { return std::ldexp(x[i], exp[i]); }); }
 
-  // fma
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    fma(const simd<detail::FloatingPoint<T>, A>& x,
-          const simd<T, A>& y, const simd<T, A>& z) noexcept
-    { return simd<T, A>([&](auto i) { return std::fma(x[i], y[i], z[i]); }); }
+  SIMD_MATH_1ARG(sqrt, simd)
 
-  // rounding functions
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    trunc(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::trunc(x[i]); }); }
+  SIMD_MATH_3ARG(fma, simd)
 
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    ceil(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::ceil(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    floor(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::floor(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    round(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::round(x[i]); }); }
+  SIMD_MATH_1ARG(trunc, simd)
+  SIMD_MATH_1ARG(ceil, simd)
+  SIMD_MATH_1ARG(floor, simd)
+  SIMD_MATH_1ARG(round, simd)
+  SIMD_MATH_1ARG_FIXED(lround, long)
+  SIMD_MATH_1ARG_FIXED(llround, long long)
+  SIMD_MATH_1ARG(nearbyint, simd)
+  SIMD_MATH_1ARG(rint, simd)
+  SIMD_MATH_1ARG_FIXED(lrint, long)
+  SIMD_MATH_1ARG_FIXED(llrint, long long)
+  SIMD_MATH_1ARG_FIXED(ilogb, int)
 
   // trig functions
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    sin(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::sin(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    cos(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::cos(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    tan(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::tan(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    asin(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::asin(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    acos(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::acos(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    atan(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::atan(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    sinh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::sinh(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    cosh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::cosh(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    tanh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::tanh(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    asinh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::asinh(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    acosh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::acosh(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    atanh(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::atanh(x[i]); }); }
+  SIMD_MATH_1ARG(sin, simd)
+  SIMD_MATH_1ARG(cos, simd)
+  SIMD_MATH_1ARG(tan, simd)
+  SIMD_MATH_1ARG(asin, simd)
+  SIMD_MATH_1ARG(acos, simd)
+  SIMD_MATH_1ARG(atan, simd)
+  SIMD_MATH_2ARG(atan2, simd)
+  SIMD_MATH_1ARG(sinh, simd)
+  SIMD_MATH_1ARG(cosh, simd)
+  SIMD_MATH_1ARG(tanh, simd)
+  SIMD_MATH_1ARG(asinh, simd)
+  SIMD_MATH_1ARG(acosh, simd)
+  SIMD_MATH_1ARG(atanh, simd)
 
   // logarithms
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    log(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::log(x[i]); }); }
+  SIMD_MATH_1ARG(log, simd)
+  SIMD_MATH_1ARG(log10, simd)
+  SIMD_MATH_1ARG(log1p, simd)
+  SIMD_MATH_1ARG(log2, simd)
+  SIMD_MATH_1ARG(logb, simd)
 
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    log10(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::log10(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    log1p(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::log1p(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    log2(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::log2(x[i]); }); }
-
-  template <typename T, typename A>
-    constexpr simd<T, A>
-    logb(const simd<detail::FloatingPoint<T>, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::logb(x[i]); }); }
-
+#undef SIMD_MATH_1ARG
+#undef SIMD_MATH_1ARG_FIXED
+#undef SIMD_MATH_2ARG
+#undef SIMD_MATH_3ARG
 }
 #ifdef VIR_SIMD_TS_DROPIN
 }
