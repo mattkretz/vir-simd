@@ -804,7 +804,7 @@ namespace vir::stdx
     constexpr int
     find_last_set(simd_mask<T, simd_abi::scalar> k) noexcept
     {
-      if (not k.data)
+      if (not k[0])
         detail::invoke_ub("find_last_set(empty mask) is UB");
       return 0;
     }
@@ -1573,7 +1573,7 @@ namespace vir::stdx
             typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
     constexpr simd_mask<T, A>
     static_simd_cast(const simd_mask<U, A>& x)
-    { return simd_mask<T>([&x](auto i) { return x[i]; }); }
+    { return simd_mask<T, A>([&x](auto i) { return x[i]; }); }
 
   template <typename M, typename U, typename A,
             typename = std::enable_if_t<M::size() == simd_size_v<U, A>>>
