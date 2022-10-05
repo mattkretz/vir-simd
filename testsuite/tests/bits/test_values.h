@@ -205,7 +205,12 @@ template <class V, class... F>
       }
   }
 
-#if __GCC_IEC_559 < 2
+#if defined(__GCC_IEC_559) && __GCC_IEC_559 < 2
+#define COMPLETE_IEC559_SUPPORT (__GCC_IEC_559 >= 2)
+#else
+#define COMPLETE_IEC559_SUPPORT (__STDC_IEC_559__ == 1)
+#endif
+#if !COMPLETE_IEC559_SUPPORT
 // Without IEC559 we consider -0, subnormals, +/-inf, and all NaNs to be
 // invalid (potential UB when used or "produced"). This can't use isnormal (or
 // any other classification function), since they know about the UB.
@@ -261,10 +266,25 @@ template <typename TestF, typename RefF, typename ExcF>
           r[i] = fun(as_scalar(vs, i)...);
 	return r;
       };
-#if __GCC_IEC_559 < 2
-      ((where(!isvalid(inputs), inputs) = 1), ...);
-      if constexpr (std::is_floating_point_v<RT>)
-	((where(!isvalid(expected(reffun, inputs...)), inputs) = 1), ...);
+#if !COMPLETE_IEC559_SUPPORT
+      auto&& replace_invalid = [&]<typename T>(T& x, const RV& e) {
+	if constexpr (is_simd_v<T>)
+	  {
+	    where(!isvalid(x), x) = 1;
+	    if constexpr (std::is_floating_point_v<RT>)
+	      where(!isvalid(e), x) = 1;
+	  }
+        else
+	  {
+	    using TS = simd<T, simd_abi::scalar>;
+	    if (!isvalid(TS(x))[0])
+	      x = 1;
+	    else if constexpr (std::is_floating_point_v<RT>)
+	      if (!isvalid(e)[0])
+		x = 1;
+	  }
+      };
+      (replace_invalid(inputs, expected(reffun, inputs...)), ...);
 #endif
       FloatExceptCompare fec;
       const auto totest = testfun(inputs...);
@@ -279,7 +299,7 @@ template <typename TestF, typename RefF, typename ExcF>
 	}
       if constexpr (std::is_floating_point_v<RT>)
 	{
-#if __GCC_IEC_559 >= 2
+#if COMPLETE_IEC559_SUPPORT
 	  const auto nan_expect = static_simd_cast<typename V::mask_type>(isnan(expect));
 	  COMPARE(isnan(totest), nan_expect)
 	    .on_failure('\n', file, ':', line, ": ", fun_name, '(', inputs..., ") =\ntotest = ",
