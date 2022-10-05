@@ -410,7 +410,7 @@ namespace vir::stdx
 
   template <class T, class A, class U>
     struct memory_alignment<simd<T, A>, detail::Vectorizable<U>>
-    : std::integral_constant<size_t, alignof(T)>
+    : std::integral_constant<size_t, alignof(U)>
     {};
 
   template <class T, class A>
