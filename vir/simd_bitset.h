@@ -33,7 +33,7 @@ namespace vir
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD_H && defined __cpp_lib_experimental_parallel_simd
       return k.__to_bitset();
 #else
-      if constexpr (k.size() == 1)
+      if constexpr (stdx::simd_size_v<T, A> == 1)
         return k[0];
       else
         {
