@@ -217,7 +217,7 @@ template <class V>
     using T = typename V::value_type;
     if constexpr (sizeof(T) <= sizeof(double))
       {
-	using I = rebind_simd_t<vir::meta::as_int<T>, V>;
+	using I = rebind_simd_t<vir::meta::as_int_t<T>, V>;
 	const I abs_x = vir::simd_bit_cast<I>(abs(x));
 	const I min = vir::simd_bit_cast<I>(V(std::__norm_min_v<T>));
 	const I max = vir::simd_bit_cast<I>(V(std::__finite_max_v<T>));
