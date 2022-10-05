@@ -434,6 +434,7 @@ verify_test() {
       fail "timeout: execution test"
     elif [ "$xfail" = "run" ]; then
       xfail "execution test"
+      exit 0
     else
       fail "execution test"
     fi
