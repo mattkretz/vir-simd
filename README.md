@@ -85,6 +85,16 @@ default-initialized and appended at the end. Both functions do not allow a
 change of the `value_type`. However, implicit conversions can happen on 
 parameter passing to `simd_size_cast`.
 
+### vir::simd_bit_cast
+
+The header
+```c++
+#include <vir/simd_bit.h>
+```
+declares the function `vir::simd_bit_cast<To>(from)`. This function serves the 
+same purpose as `std::bit_cast` but additionally works in cases where a `simd` 
+type is not trivially copyable.
+
 ## Debugging
 
 Compile with `-D _GLIBCXX_DEBUG_UB` to get runtime checks for undefined 

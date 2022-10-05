@@ -26,6 +26,13 @@
 
 namespace vir::meta
 {
+  template <typename T>
+    using is_simd_or_mask = std::disjunction<stdx::is_simd<T>, stdx::is_simd_mask<T>>;
+
+  template <typename T>
+    inline constexpr bool is_simd_or_mask_v = std::disjunction_v<stdx::is_simd<T>,
+                                                                 stdx::is_simd_mask<T>>;
+
     template <typename T>
       struct type_identity
       { using type = T; };
