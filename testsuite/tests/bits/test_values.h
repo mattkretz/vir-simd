@@ -16,6 +16,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <vir/simd.h>
+#include <vir/simd_bit.h>
 #include <initializer_list>
 #include <random>
 #include "floathelpers.h"
@@ -217,11 +218,11 @@ template <class V>
     if constexpr (sizeof(T) <= sizeof(double))
       {
 	using I = rebind_simd_t<vir::meta::as_int<T>, V>;
-	const I abs_x = simd_bit_cast<I>(abs(x));
-	const I min = simd_bit_cast<I>(V(std::__norm_min_v<T>));
-	const I max = simd_bit_cast<I>(V(std::__finite_max_v<T>));
+	const I abs_x = vir::simd_bit_cast<I>(abs(x));
+	const I min = vir::simd_bit_cast<I>(V(std::__norm_min_v<T>));
+	const I max = vir::simd_bit_cast<I>(V(std::__finite_max_v<T>));
 	return static_simd_cast<typename V::mask_type>(
-		 simd_bit_cast<I>(x) == 0 || (abs_x >= min && abs_x <= max));
+		 vir::simd_bit_cast<I>(x) == 0 || (abs_x >= min && abs_x <= max));
       }
     else
       {
