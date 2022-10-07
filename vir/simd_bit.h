@@ -32,8 +32,8 @@ namespace vir
                                         meta::is_simd_or_mask<From>>, To>
     simd_bit_cast(const From& x)
     {
-#if defined _GLIBCXX_EXPERIMENTAL_SIMD_H && defined __cpp_lib_experimental_parallel_simd
-      return std::experimental::parallelism_v2::simd_bit_cast(x);
+#if VIR_GLIBCXX_STDX_SIMD
+      return std::experimental::__proposed::simd_bit_cast<To>(x);
 #else
       return detail::bit_cast<To>(x);
 #endif

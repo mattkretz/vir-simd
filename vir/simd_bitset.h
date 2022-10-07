@@ -30,7 +30,7 @@ namespace vir
     std::bitset<stdx::simd_size_v<T, A>>
     to_bitset(const stdx::simd_mask<T, A>& k)
     {
-#if defined _GLIBCXX_EXPERIMENTAL_SIMD_H && defined __cpp_lib_experimental_parallel_simd
+#if VIR_GLIBCXX_STDX_SIMD
       return k.__to_bitset();
 #else
       if constexpr (stdx::simd_size_v<T, A> == 1)
@@ -50,7 +50,7 @@ namespace vir
     std::enable_if_t<stdx::is_simd_mask_v<M>, M>
     to_simd_mask(std::bitset<M::size()> bits)
     {
-#if defined _GLIBCXX_EXPERIMENTAL_SIMD_H && defined __cpp_lib_experimental_parallel_simd
+#if VIR_GLIBCXX_STDX_SIMD
       return M::__from_bitset(bits);
 #else
       if constexpr (M::size() == 1)
