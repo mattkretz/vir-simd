@@ -49,8 +49,8 @@ namespace vir {
 	    using std::isnan;
             const int fp_exceptions = std::fetestexcept(FE_ALL_EXCEPT);
 	    using T = value_type_t<T0>;
-	    constexpr int mant_bits = std::__digits_v<T> - 1;
-	    constexpr T signexp_mask = -std::__infinity_v<T>;
+	    constexpr int mant_bits = vir::digits_v<T> - 1;
+	    constexpr T signexp_mask = -vir::infinity_v<T>;
 	    auto&& cast = [](auto x) {
 	      using Other = std::conditional_t<std::is_same_v<decltype(x), T0>, T1, T0>;
 	      if constexpr (stdx::is_simd_v<decltype(x)>)
@@ -60,7 +60,7 @@ namespace vir {
 	    };
 	    T0 ref0 = cast(ref1);
 	    T1 val1 = cast(val0);
-	    T1 eps1 = std::__epsilon_v<T>;
+	    T1 eps1 = vir::epsilon_v<T>;
 	    if constexpr (stdx::is_simd_v<T0>)
 	      eps1 *= ref1 & T0(signexp_mask);
 	    else
@@ -70,8 +70,8 @@ namespace vir {
 						    & vir::detail::bit_cast<I>(signexp_mask));
 	      }
 	    using std::abs;
-	    const auto subnormal = abs(ref1) < std::__norm_min_v<T>;
-	    stdx::where(subnormal, eps1) = std::__denorm_min_v<T>;
+	    const auto subnormal = abs(ref1) < vir::norm_min_v<T>;
+	    stdx::where(subnormal, eps1) = vir::denorm_min_v<T>;
 	    T0 ulp = cast((ref1 - val1) / eps1);
 	    stdx::where(val0 == ref0 || (isnan(val0) && isnan(ref0)), ulp) = 0;
 	    std::feclearexcept(FE_ALL_EXCEPT ^ fp_exceptions);

@@ -67,7 +67,7 @@ namespace vir
     template <class A, class B>
       constexpr bool
       has_less_bits()
-      { return std::__digits_v<A> < std::__digits_v<B>; }
+      { return vir::digits_v<A> < vir::digits_v<B>; }
 
   }  // namespace test
 }  // namespace vir

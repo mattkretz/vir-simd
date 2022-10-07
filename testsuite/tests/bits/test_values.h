@@ -20,6 +20,7 @@
 #include <initializer_list>
 #include <random>
 #include "floathelpers.h"
+#include "numeric_traits.h"
 
 template <class T, class A>
   std::experimental::simd<T, A>
@@ -71,18 +72,18 @@ template <class V>
 
     const bool uniform;
 
-    const T abs_max = std::__finite_max_v<T>;
+    const T abs_max = vir::finite_max_v<T>;
 
     RandomValues(std::size_t count_, T min, T max)
     : count(count_), dist(min, max), uniform(true)
     {
       if constexpr (std::is_floating_point_v<T>)
-	VERIFY(max - min <= std::__finite_max_v<T>);
+	VERIFY(max - min <= vir::finite_max_v<T>);
     }
 
     RandomValues(std::size_t count_)
-    : count(count_), dist(isfp ? 1 : std::__finite_min_v<T>,
-			  isfp ? 2 : std::__finite_max_v<T>),
+    : count(count_), dist(isfp ? 1 : vir::finite_min_v<T>,
+			  isfp ? 2 : vir::finite_max_v<T>),
       uniform(!isfp)
     {}
 
@@ -103,14 +104,14 @@ template <class V>
 	  {
 	    auto exp_dist
 	      = std::normal_distribution<float>(0.f,
-						std::__max_exponent_v<T> * .5f);
+						vir::max_exponent_v<T> * .5f);
 	    return V([&](int) {
 		     const T mant = dist(gen);
 		     T fp = 0;
 		     do {
 		       const int exp = exp_dist(gen);
 		       fp = std::ldexp(mant, exp);
-		     } while (fp >= abs_max || fp <= std::__denorm_min_v<T>);
+		     } while (fp >= abs_max || fp <= vir::denorm_min_v<T>);
 		     fp = gen() & 0x4 ? fp : -fp;
 		     return fp;
 		   });
@@ -224,19 +225,19 @@ template <class V>
       {
 	using I = rebind_simd_t<vir::meta::as_int_t<T>, V>;
 	const I abs_x = vir::simd_bit_cast<I>(abs(x));
-	const I min = vir::simd_bit_cast<I>(V(std::__norm_min_v<T>));
-	const I max = vir::simd_bit_cast<I>(V(std::__finite_max_v<T>));
+	const I min = vir::simd_bit_cast<I>(V(vir::norm_min_v<T>));
+	const I max = vir::simd_bit_cast<I>(V(vir::finite_max_v<T>));
 	return static_simd_cast<typename V::mask_type>(
 		 vir::simd_bit_cast<I>(x) == 0 || (abs_x >= min && abs_x <= max));
       }
     else
       {
 	const V abs_x = abs(x);
-	const V min = std::__norm_min_v<T>;
+	const V min = vir::norm_min_v<T>;
 	// Make max non-const static to inhibit constprop. Otherwise the
 	// compiler might decide `abs_x <= max` is constexpr true, by definition
 	// (-ffinite-math-only)
-	static V max = std::__finite_max_v<T>;
+	static V max = vir::finite_max_v<T>;
 	return (x == 0 && copysign(V(1), x) == V(1))
 		 || (abs_x >= min && abs_x <= max);
       }
