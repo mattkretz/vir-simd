@@ -17,6 +17,7 @@
 
 #include <vir/simd.h>
 #include <vir/simd_bit.h>
+#include <vir/simd_cast.h>
 #include <initializer_list>
 #include <random>
 #include "floathelpers.h"
@@ -301,7 +302,7 @@ template <typename TestF, typename RefF, typename ExcF>
       if constexpr (std::is_floating_point_v<RT>)
 	{
 #if COMPLETE_IEC559_SUPPORT
-	  const auto nan_expect = static_simd_cast<typename V::mask_type>(isnan(expect));
+	  const auto nan_expect = vir::static_simd_cast<typename V::mask_type>(isnan(expect));
 	  COMPARE(isnan(totest), nan_expect)
 	    .on_failure('\n', file, ':', line, ": ", fun_name, '(', inputs..., ") =\ntotest = ",
 			totest, " !=\nexpect = ", expect);

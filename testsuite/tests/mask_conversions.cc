@@ -19,6 +19,7 @@
 #include "bits/verify.h"
 #include <vir/simd_resize.h>
 #include <vir/simd_bitset.h>
+#include <vir/simd_cast.h>
 
 namespace stdx = std::experimental;
 
@@ -33,11 +34,11 @@ template <typename From, typename To>
     using stdx::static_simd_cast;
     using vir::simd_size_cast;
 
-    auto x = simd_size_cast<To>(static_simd_cast<ToT>(From()));
+    auto x = simd_size_cast<To>(vir::static_simd_cast<ToT>(From()));
     COMPARE(typeid(x), typeid(To));
     COMPARE(x, To());
 
-    x = simd_size_cast<To>(static_simd_cast<ToT>(From(true)));
+    x = simd_size_cast<To>(vir::static_simd_cast<ToT>(From(true)));
     const To ref = ToV([](auto i) { return i; }) < int(From::size());
     COMPARE(x, ref) << "converted from: " << From(true);
 
@@ -47,7 +48,7 @@ template <typename From, typename To>
 	for (ullong bits : {bit_pos & all_bits, ~bit_pos & all_bits})
 	  {
 	    const auto from = vir::to_simd_mask<From>(bits);
-	    const auto to = simd_size_cast<To>(static_simd_cast<ToT>(from));
+	    const auto to = simd_size_cast<To>(vir::static_simd_cast<ToT>(from));
 	    COMPARE(to, vir::to_simd_mask<To>(bits))
 	      << "\nfrom: " << from << "\nbits: " << std::hex << bits << std::dec;
 	    for (std::size_t i = 0; i < To::size(); ++i)
