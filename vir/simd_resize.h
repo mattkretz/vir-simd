@@ -69,6 +69,9 @@ namespace vir
     constexpr std::enable_if_t<stdx::is_simd_mask_v<M>, M>
     simd_size_cast(const stdx::simd_mask<typename M::simd_type::value_type, A>& x)
     {
+#if VIR_GLIBCXX_STDX_SIMD
+      return std::experimental::parallelism_v2::__proposed::resizing_simd_cast<M>(x);
+#else
       using T = typename M::simd_type::value_type;
       constexpr int xn = stdx::simd_size_v<T, A>;
       return M([&x](auto i) {
@@ -77,6 +80,7 @@ namespace vir
                else
                  return false;
              });
+#endif
     }
 }
 
