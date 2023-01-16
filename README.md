@@ -1,5 +1,7 @@
 # vir::stdx::simd
 
+[![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8B%20%20%E2%97%8B-orange)](https://fair-software.eu)
+
 This project aims to provide a simple fallback for users of 
 std::experimental::simd (Parallelism TS 2). Not every user can rely on GCC 11+ 
 and its standard library to be present on all target systems. Therefore, the 
