@@ -49,7 +49,6 @@ namespace vir {
 	    using std::isnan;
             const int fp_exceptions = std::fetestexcept(FE_ALL_EXCEPT);
 	    using T = value_type_t<T0>;
-	    constexpr int mant_bits = vir::digits_v<T> - 1;
 	    constexpr T signexp_mask = -vir::infinity_v<T>;
 	    auto&& cast = [](auto x) {
 	      using Other = std::conditional_t<std::is_same_v<decltype(x), T0>, T1, T0>;
