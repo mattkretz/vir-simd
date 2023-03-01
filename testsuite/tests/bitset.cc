@@ -1,7 +1,6 @@
 
 // expensive: * [1-9] * *
-#include <vir/simd_bitset.h>
-#include "bits/verify.h"
+#include "bits/main.h"
 
 template <typename V>
   void
