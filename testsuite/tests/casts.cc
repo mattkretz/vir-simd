@@ -99,9 +99,9 @@ template <typename V, typename To>
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
 	COMPARE(is_simd_cast_allowed::value,
-		std::__digits<From>::value <= std::__digits<To>::value
-		  && std::__finite_max<From>::value
-		  <= std::__finite_max<To>::value
+		vir::digits<From>::value <= vir::digits<To>::value
+		  && vir::finite_max<From>::value
+		  <= vir::finite_max<To>::value
 		  && !(std::is_signed<From>::value
 		       && std::is_unsigned<To>::value));
 #pragma clang diagnostic pop

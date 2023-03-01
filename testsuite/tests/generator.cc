@@ -55,7 +55,7 @@ template <typename V>
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
     COMPARE(sfinae_is_callable<ullong (&)(int)>(call_generator<V>()),
-      std::__finite_max_v<T> >= std::__finite_max_v<ullong>
-      && std::__digits_v<T> >= std::__digits_v<ullong>);
+      vir::finite_max_v<T> >= vir::finite_max_v<ullong>
+      && vir::digits_v<T> >= vir::digits_v<ullong>);
 #pragma clang diagnostic pop
   }

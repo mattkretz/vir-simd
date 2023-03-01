@@ -121,7 +121,7 @@ template <typename V>
 	      const V seq = make_value_unknown(V([&](T i) {
 		if constexpr (std::is_signed_v<T>)
 		  {
-		    const T max = std::__finite_max_v<T> >> shift;
+		    const T max = vir::finite_max_v<T> >> shift;
 		    return max == 0 ? 1 : (std::abs(max - i) % max) + 1;
 		  }
 		else
@@ -150,7 +150,7 @@ template <typename V>
 	      constexpr int shift_count = nbits - 1;
 	      COMPARE(V(1) << shift_count, V(T(1) << shift_count));
 	      constexpr T max = // avoid overflow warning in the last COMPARE
-		std::is_unsigned<T>::value ? std::__finite_max_v<T> : T(1);
+		std::is_unsigned<T>::value ? vir::finite_max_v<T> : T(1);
 	      COMPARE(V(max) << shift_count, V(max << shift_count))
 		<< "shift_count: " << shift_count;
 	    }

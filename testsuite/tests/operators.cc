@@ -24,9 +24,9 @@ template <typename V>
   {
     using M = typename V::mask_type;
     using T = typename V::value_type;
-    constexpr auto min = std::__finite_min_v<T>;
-    constexpr auto norm_min = std::__norm_min_v<T>;
-    constexpr auto max = std::__finite_max_v<T>;
+    constexpr auto min = vir::finite_min_v<T>;
+    constexpr auto norm_min = vir::norm_min_v<T>;
+    constexpr auto max = vir::finite_max_v<T>;
     { // compares
       COMPARE(V(0) == make_vec<V>({0, 1}, 0), make_mask<M>({1, 0}));
       COMPARE(V(0) == make_vec<V>({0, 1, 2}, 0), make_mask<M>({1, 0, 0}));

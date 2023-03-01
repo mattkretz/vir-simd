@@ -111,18 +111,18 @@ template <class F, class T>
     static_assert(std::is_floating_point<T>::value, "");
     static const auto cache
       = std::string("reference-") + F::str
-      + (sizeof(T) == 4 && std::__digits_v<T> == 24
-	 && std::__max_exponent_v<T> == 128
+      + (sizeof(T) == 4 && vir::digits_v<T> == 24
+	 && vir::max_exponent_v<T> == 128
 	 ? "-sp"
 	 : (sizeof(T) == 8
-	    && std::__digits_v<T> == 53
-	    && std::__max_exponent_v<T> == 1024
+	    && vir::digits_v<T> == 53
+	    && vir::max_exponent_v<T> == 1024
 	    ? "-dp"
-	    : (sizeof(T) == 16 && std::__digits_v<T> == 64
-	       && std::__max_exponent_v<T> == 16384
+	    : (sizeof(T) == 16 && vir::digits_v<T> == 64
+	       && vir::max_exponent_v<T> == 16384
 	       ? "-ep"
-	       : (sizeof(T) == 16 && std::__digits_v<T> == 113
-		  && std::__max_exponent_v<T> == 16384
+	       : (sizeof(T) == 16 && vir::digits_v<T> == 113
+		  && vir::max_exponent_v<T> == 16384
 		  ? "-qp"
 		  : "-unknown"))))
       + ".dat";

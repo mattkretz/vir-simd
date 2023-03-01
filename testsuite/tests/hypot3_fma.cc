@@ -31,9 +31,9 @@ template <typename T>
     y = std::abs(y);
     z = std::abs(z);
     if (std::isinf(x) || std::isinf(y) || std::isinf(z))
-      return std::__infinity_v<T>;
+      return vir::infinity_v<T>;
     else if (std::isnan(x) || std::isnan(y) || std::isnan(z))
-      return std::__quiet_NaN_v<T>;
+      return vir::quiet_NaN_v<T>;
     else if (x == y && y == z)
       return x * std::sqrt(T(3));
     else if (z == 0 && y == 0)
@@ -69,46 +69,46 @@ template <typename V>
     test_values_3arg<V>(
       {
 #ifdef __STDC_IEC_559__
-	std::__quiet_NaN_v<T>,
-	std::__infinity_v<T>,
-	-std::__infinity_v<T>,
-	std::__norm_min_v<T> / 3,
+	vir::quiet_NaN_v<T>,
+	vir::infinity_v<T>,
+	-vir::infinity_v<T>,
+	vir::norm_min_v<T> / 3,
 	-0.,
-	std::__denorm_min_v<T>,
+	vir::denorm_min_v<T>,
 #endif
 	0.,
 	1.,
 	-1.,
-	std::__norm_min_v<T>,
-	-std::__norm_min_v<T>,
+	vir::norm_min_v<T>,
+	-vir::norm_min_v<T>,
 	2.,
 	-2.,
-	std::__finite_max_v<T> / 5,
-	std::__finite_max_v<T> / 3,
-	std::__finite_max_v<T> / 2,
-	-std::__finite_max_v<T> / 5,
-	-std::__finite_max_v<T> / 3,
-	-std::__finite_max_v<T> / 2,
+	vir::finite_max_v<T> / 5,
+	vir::finite_max_v<T> / 3,
+	vir::finite_max_v<T> / 2,
+	-vir::finite_max_v<T> / 5,
+	-vir::finite_max_v<T> / 3,
+	-vir::finite_max_v<T> / 2,
 #ifdef __FAST_MATH__
 	// fast-math hypot is imprecise for the max exponent
       },
-      {100000, std::__finite_max_v<T> / 2},
+      {100000, vir::finite_max_v<T> / 2},
 #else
-	std::__finite_max_v<T>, -std::__finite_max_v<T>},
+	vir::finite_max_v<T>, -vir::finite_max_v<T>},
       {100000},
 #endif
       MAKE_TESTER_2(hypot, hypot3));
 #if !__FINITE_MATH_ONLY__
-    COMPARE(hypot(V(std::__finite_max_v<T>), V(std::__finite_max_v<T>), V()),
-	    V(std::__infinity_v<T>));
-    COMPARE(hypot(V(std::__finite_max_v<T>), V(), V(std::__finite_max_v<T>)),
-	    V(std::__infinity_v<T>));
-    COMPARE(hypot(V(), V(std::__finite_max_v<T>), V(std::__finite_max_v<T>)),
-	    V(std::__infinity_v<T>));
+    COMPARE(hypot(V(vir::finite_max_v<T>), V(vir::finite_max_v<T>), V()),
+	    V(vir::infinity_v<T>));
+    COMPARE(hypot(V(vir::finite_max_v<T>), V(), V(vir::finite_max_v<T>)),
+	    V(vir::infinity_v<T>));
+    COMPARE(hypot(V(), V(vir::finite_max_v<T>), V(vir::finite_max_v<T>)),
+	    V(vir::infinity_v<T>));
 #endif
-    COMPARE(hypot(V(std::__norm_min_v<T>), V(std::__norm_min_v<T>),
-		  V(std::__norm_min_v<T>)),
-	    V(std::__norm_min_v<T> * std::sqrt(T(3))));
+    COMPARE(hypot(V(vir::norm_min_v<T>), V(vir::norm_min_v<T>),
+		  V(vir::norm_min_v<T>)),
+	    V(vir::norm_min_v<T> * std::sqrt(T(3))));
     auto&& hypot3_test
       = [](auto a, auto b, auto c) -> decltype(hypot(a, b, c)) { return {}; };
     VERIFY((sfinae_is_callable<V, V, V>(hypot3_test)));
@@ -131,11 +131,11 @@ template <typename V>
     test_values_3arg<V>(
       {
 #ifdef __STDC_IEC_559__
-	std::__quiet_NaN_v<T>, std::__infinity_v<T>, -std::__infinity_v<T>, -0.,
-	std::__norm_min_v<T> / 3, std::__denorm_min_v<T>,
+	vir::quiet_NaN_v<T>, vir::infinity_v<T>, -vir::infinity_v<T>, -0.,
+	vir::norm_min_v<T> / 3, vir::denorm_min_v<T>,
 #endif
-	0., std::__norm_min_v<T>, std::__finite_max_v<T>},
-      {10000, -std::__finite_max_v<T> / 2, std::__finite_max_v<T> / 2},
+	0., vir::norm_min_v<T>, vir::finite_max_v<T>},
+      {10000, -vir::finite_max_v<T> / 2, vir::finite_max_v<T> / 2},
       MAKE_TESTER(fma));
     auto&& fma_test
       = [](auto a, auto b, auto c) -> decltype(fma(a, b, c)) { return {}; };

@@ -47,8 +47,8 @@ template <typename To, typename From>
   constexpr bool
   is_conversion_undefined_impl(From x, std::true_type)
   {
-    return x > static_cast<long double>(std::__finite_max_v<To>)
-	     || x < static_cast<long double>(std::__finite_min_v<To>);
+    return x > static_cast<long double>(vir::finite_max_v<To>)
+	     || x < static_cast<long double>(vir::finite_min_v<To>);
   }
 
 template <typename To, typename From>
@@ -92,7 +92,7 @@ template <class T>
     if constexpr (std::is_floating_point_v<T>)
       return 0;
     else
-      return std::__finite_max_v<T> >> (std::__digits_v<T> / 2);
+      return vir::finite_max_v<T> >> (vir::digits_v<T> / 2);
   }
 
 template <class U, class T, class UU>
@@ -132,10 +132,10 @@ template <class U, class T>
     avoid_ub<U, T>(-0x100011111LL),
     avoid_ub<U, T>(-0x100111111LL),
     avoid_ub<U, T>(-0x101111111LL),
-    avoid_ub<U, T>(std::__norm_min_v<U>),
-    avoid_ub<U, T>(std::__norm_min_v<U> + 1),
-    avoid_ub<U, T>(std::__finite_min_v<U>),
-    avoid_ub<U, T>(std::__finite_min_v<U> + 1),
+    avoid_ub<U, T>(vir::norm_min_v<U>),
+    avoid_ub<U, T>(vir::norm_min_v<U> + 1),
+    avoid_ub<U, T>(vir::finite_min_v<U>),
+    avoid_ub<U, T>(vir::finite_min_v<U> + 1),
     avoid_ub<U, T>(-1),
     avoid_ub<U, T>(-10),
     avoid_ub<U, T>(-100),
@@ -146,21 +146,21 @@ template <class U, class T>
     avoid_ub<U, T>(genHalfBits<U>() - 1),
     avoid_ub<U, T>(genHalfBits<U>()),
     avoid_ub<U, T>(genHalfBits<U>() + 1),
-    avoid_ub<U, T>(std::__finite_max_v<U> - 1),
-    avoid_ub<U, T>(std::__finite_max_v<U>),
-    avoid_ub<U, T>(std::__finite_max_v<U> - 0xff),
-    avoid_ub<U, T>(std::__finite_max_v<U> - 0xff),
-    avoid_ub<U, T>(std::__finite_max_v<U> - 0x55),
-    avoid_ub<U, T>(-(std::__finite_min_v<U> + 1)),
-    avoid_ub<U, T>(-std::__finite_max_v<U>),
-    avoid_ub<U, T>(std::__finite_max_v<U> / std::pow(2., sizeof(T) * 6 - 1)),
-    avoid_ub2<U, T>(-std::__finite_max_v<U> / std::pow(2., sizeof(T) * 6 - 1)),
-    avoid_ub<U, T>(std::__finite_max_v<U> / std::pow(2., sizeof(T) * 4 - 1)),
-    avoid_ub2<U, T>(-std::__finite_max_v<U> / std::pow(2., sizeof(T) * 4 - 1)),
-    avoid_ub<U, T>(std::__finite_max_v<U> / std::pow(2., sizeof(T) * 2 - 1)),
-    avoid_ub2<U, T>(-std::__finite_max_v<U> / std::pow(2., sizeof(T) * 2 - 1)),
-    avoid_ub<U, T>(std::__finite_max_v<T> - 1),
-    avoid_ub<U, T>(std::__finite_max_v<T> * 0.75),
+    avoid_ub<U, T>(vir::finite_max_v<U> - 1),
+    avoid_ub<U, T>(vir::finite_max_v<U>),
+    avoid_ub<U, T>(vir::finite_max_v<U> - 0xff),
+    avoid_ub<U, T>(vir::finite_max_v<U> - 0xff),
+    avoid_ub<U, T>(vir::finite_max_v<U> - 0x55),
+    avoid_ub<U, T>(-(vir::finite_min_v<U> + 1)),
+    avoid_ub<U, T>(-vir::finite_max_v<U>),
+    avoid_ub<U, T>(vir::finite_max_v<U> / std::pow(2., sizeof(T) * 6 - 1)),
+    avoid_ub2<U, T>(-vir::finite_max_v<U> / std::pow(2., sizeof(T) * 6 - 1)),
+    avoid_ub<U, T>(vir::finite_max_v<U> / std::pow(2., sizeof(T) * 4 - 1)),
+    avoid_ub2<U, T>(-vir::finite_max_v<U> / std::pow(2., sizeof(T) * 4 - 1)),
+    avoid_ub<U, T>(vir::finite_max_v<U> / std::pow(2., sizeof(T) * 2 - 1)),
+    avoid_ub2<U, T>(-vir::finite_max_v<U> / std::pow(2., sizeof(T) * 2 - 1)),
+    avoid_ub<U, T>(vir::finite_max_v<T> - 1),
+    avoid_ub<U, T>(vir::finite_max_v<T> * 0.75),
   }};
 
 template <class T, class U>

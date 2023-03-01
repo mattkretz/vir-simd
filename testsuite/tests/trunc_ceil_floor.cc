@@ -24,11 +24,11 @@ template <typename V>
   test()
   {
     using T = typename V::value_type;
-    constexpr T inf = std::__infinity_v<T>;
-    constexpr T denorm_min = std::__denorm_min_v<T>;
-    constexpr T norm_min = std::__norm_min_v<T>;
-    constexpr T max = std::__finite_max_v<T>;
-    constexpr T min = std::__finite_min_v<T>;
+    constexpr T inf = vir::infinity_v<T>;
+    constexpr T denorm_min = vir::denorm_min_v<T>;
+    constexpr T norm_min = vir::norm_min_v<T>;
+    constexpr T max = vir::finite_max_v<T>;
+    constexpr T min = vir::finite_min_v<T>;
     test_values<V>(
       {2.1,
        2.0,
@@ -90,9 +90,9 @@ template <typename V>
     test_values<V>(
       {
 #ifdef __SUPPORT_SNAN__
-	std::__signaling_NaN_v<T>,
+	vir::signaling_NaN_v<T>,
 #endif
-	std::__quiet_NaN_v<T>},
+	vir::quiet_NaN_v<T>},
       [](const V input) {
 	const V expected([&](auto i) { return std::trunc(input[i]); });
 	COMPARE(isnan(trunc(input)), isnan(expected)) << input;

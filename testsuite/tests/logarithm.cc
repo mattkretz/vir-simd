@@ -27,12 +27,12 @@ template <typename V>
     vir::test::setFuzzyness<double>(1);
 
     using T = typename V::value_type;
-    constexpr T nan = std::__quiet_NaN_v<T>;
-    constexpr T inf = std::__infinity_v<T>;
-    constexpr T denorm_min = std::__denorm_min_v<T>;
-    constexpr T norm_min = std::__norm_min_v<T>;
-    constexpr T min = std::__finite_min_v<T>;
-    constexpr T max = std::__finite_max_v<T>;
+    constexpr T nan = vir::quiet_NaN_v<T>;
+    constexpr T inf = vir::infinity_v<T>;
+    constexpr T denorm_min = vir::denorm_min_v<T>;
+    constexpr T norm_min = vir::norm_min_v<T>;
+    constexpr T min = vir::finite_min_v<T>;
+    constexpr T max = vir::finite_max_v<T>;
     test_values<V>({1,
 		    2,
 		    4,

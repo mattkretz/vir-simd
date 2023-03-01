@@ -27,21 +27,21 @@ template <typename V>
     vir::test::setFuzzyness<double>(0);
 
     using T = typename V::value_type;
-    constexpr T inf = std::__infinity_v<T>;
-    constexpr T nan = std::__quiet_NaN_v<T>;
-    constexpr T denorm_min = std::__denorm_min_v<T>;
-    constexpr T norm_min = std::__norm_min_v<T>;
-    constexpr T max = std::__finite_max_v<T>;
+    constexpr T inf = vir::infinity_v<T>;
+    constexpr T nan = vir::quiet_NaN_v<T>;
+    constexpr T denorm_min = vir::denorm_min_v<T>;
+    constexpr T norm_min = vir::norm_min_v<T>;
+    constexpr T max = vir::finite_max_v<T>;
 #if defined __LONG_DOUBLE_IBM128__
     // On POWER with IBM128 long double, 1+eps and 2-eps is not a constant
     // expression. Until this is fixed, just use const instead of constexpr.
     // (error: '(1.0e+0l + 4.94065645841246544176568792868221e-324l)' is not a
     // constant expression)
-    const T after_one = 1 + std::__epsilon_v<T>;
-    const T before_one = (2 - std::__epsilon_v<T>) / 2;
+    const T after_one = 1 + vir::epsilon_v<T>;
+    const T before_one = (2 - vir::epsilon_v<T>) / 2;
 #else
-    constexpr T after_one = 1 + std::__epsilon_v<T>;
-    constexpr T before_one = (2 - std::__epsilon_v<T>) / 2;
+    constexpr T after_one = 1 + vir::epsilon_v<T>;
+    constexpr T before_one = (2 - vir::epsilon_v<T>) / 2;
 #endif
     const std::initializer_list<T>
       input_values = {+0.,

@@ -30,10 +30,10 @@ template <typename V>
     test_values<V>(
       {
 #ifdef __STDC_IEC_559__
-	std::__quiet_NaN_v<T>, std::__infinity_v<T>, -std::__infinity_v<T>, -0.,
-	std::__denorm_min_v<T>, std::__norm_min_v<T> / 3,
+	vir::quiet_NaN_v<T>, vir::infinity_v<T>, -vir::infinity_v<T>, -0.,
+	vir::denorm_min_v<T>, vir::norm_min_v<T> / 3,
 #endif
-	+0., std::__norm_min_v<T>, std::__finite_max_v<T>},
+	+0., vir::norm_min_v<T>, vir::finite_max_v<T>},
       {10000}, MAKE_TESTER(acos), MAKE_TESTER(tan), MAKE_TESTER(acosh),
       MAKE_TESTER(asinh), MAKE_TESTER(atanh), MAKE_TESTER(cosh),
       MAKE_TESTER(sinh), MAKE_TESTER(tanh));

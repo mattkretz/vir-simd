@@ -25,11 +25,11 @@ template <typename V>
   {
     using int_v = std::experimental::fixed_size_simd<int, V::size()>;
     using T = typename V::value_type;
-    constexpr auto denorm_min = std::__denorm_min_v<T>;
-    constexpr auto norm_min = std::__norm_min_v<T>;
-    constexpr auto max = std::__finite_max_v<T>;
-    constexpr auto nan = std::__quiet_NaN_v<T>;
-    constexpr auto inf = std::__infinity_v<T>;
+    constexpr auto denorm_min = vir::denorm_min_v<T>;
+    constexpr auto norm_min = vir::norm_min_v<T>;
+    constexpr auto max = vir::finite_max_v<T>;
+    constexpr auto nan = vir::quiet_NaN_v<T>;
+    constexpr auto inf = vir::infinity_v<T>;
     test_values<V>(
       {0, 0.25, 0.5, 1, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 31, -0., -0.25, -0.5, -1,

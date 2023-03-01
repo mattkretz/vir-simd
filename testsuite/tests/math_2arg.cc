@@ -32,27 +32,27 @@ template <typename V>
     test_values_2arg<V>(
       {
 #ifdef __STDC_IEC_559__
-	std::__quiet_NaN_v<T>, std::__infinity_v<T>, -std::__infinity_v<T>, -0.,
-	std::__denorm_min_v<T>, std::__norm_min_v<T> / 3,
+	vir::quiet_NaN_v<T>, vir::infinity_v<T>, -vir::infinity_v<T>, -0.,
+	vir::denorm_min_v<T>, vir::norm_min_v<T> / 3,
 #endif
-	+0., std::__norm_min_v<T>, 1., 2., std::__finite_max_v<T> / 5,
-	std::__finite_max_v<T> / 3, std::__finite_max_v<T> / 2,
+	+0., vir::norm_min_v<T>, 1., 2., vir::finite_max_v<T> / 5,
+	vir::finite_max_v<T> / 3, vir::finite_max_v<T> / 2,
 #ifdef __FAST_MATH__
 	// fast-math hypot is imprecise for the max exponent
       },
-      {100000, std::__finite_max_v<T> / 2},
+      {100000, vir::finite_max_v<T> / 2},
 #else
-	std::__finite_max_v<T>},
+	vir::finite_max_v<T>},
       {100000},
 #endif
       MAKE_TESTER(hypot));
     FloatExceptCompare::ignore = false;
 #if !__FINITE_MATH_ONLY__
-    COMPARE(hypot(V(std::__finite_max_v<T>), V(std::__finite_max_v<T>)),
-	    V(std::__infinity_v<T>));
+    COMPARE(hypot(V(vir::finite_max_v<T>), V(vir::finite_max_v<T>)),
+	    V(vir::infinity_v<T>));
 #endif
-    COMPARE(hypot(V(std::__norm_min_v<T>), V(std::__norm_min_v<T>)),
-	    V(std::__norm_min_v<T> * std::sqrt(T(2))));
+    COMPARE(hypot(V(vir::norm_min_v<T>), V(vir::norm_min_v<T>)),
+	    V(vir::norm_min_v<T> * std::sqrt(T(2))));
     VERIFY((sfinae_is_callable<V, V>(
 	  [](auto a, auto b) -> decltype(hypot(a, b)) { return {}; })));
     VERIFY((sfinae_is_callable<typename V::value_type, V>(
@@ -66,10 +66,10 @@ template <typename V>
     test_values_2arg<V>(
       {
 #ifdef __STDC_IEC_559__
-	std::__quiet_NaN_v<T>, std::__infinity_v<T>, -std::__infinity_v<T>,
-	std::__denorm_min_v<T>, std::__norm_min_v<T> / 3, -0.,
+	vir::quiet_NaN_v<T>, vir::infinity_v<T>, -vir::infinity_v<T>,
+	vir::denorm_min_v<T>, vir::norm_min_v<T> / 3, -0.,
 #endif
-	+0., std::__norm_min_v<T>, std::__finite_max_v<T>},
+	+0., vir::norm_min_v<T>, vir::finite_max_v<T>},
       {10000}, MAKE_TESTER(pow), MAKE_TESTER(fmod), MAKE_TESTER(remainder),
       MAKE_TESTER(copysign),
       MAKE_TESTER(nextafter), // MAKE_TESTER(nexttoward),

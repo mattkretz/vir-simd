@@ -38,11 +38,11 @@ template <typename V>
   {
     using T = typename V::value_type;
     using intv = std::experimental::fixed_size_simd<int, V::size()>;
-    constexpr T inf = std::__infinity_v<T>;
-    constexpr T denorm_min = std::__infinity_v<T>;
-    constexpr T nan = std::__quiet_NaN_v<T>;
-    constexpr T max = std::__finite_max_v<T>;
-    constexpr T norm_min = std::__norm_min_v<T>;
+    constexpr T inf = vir::infinity_v<T>;
+    constexpr T denorm_min = vir::infinity_v<T>;
+    constexpr T nan = vir::quiet_NaN_v<T>;
+    constexpr T max = vir::finite_max_v<T>;
+    constexpr T norm_min = vir::norm_min_v<T>;
     test_values<V>(
       {0., 1., -1.,
 #if __GCC_IEC_559 >= 2
@@ -78,7 +78,7 @@ template <typename V>
 	  << input;
       });
 #ifdef __SUPPORT_SNAN__
-    const V snan = std::__signaling_NaN_v<T>;
+    const V snan = vir::signaling_NaN_v<T>;
     COMPARE(isfinite(snan),
 	    !V([&](auto i) { return std::isfinite(snan[i]) ? 0 : 1; }))
       << snan;
