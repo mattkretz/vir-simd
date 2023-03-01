@@ -1,6 +1,6 @@
 CXXFLAGS+=-DVIR_DISABLE_STDX_SIMD
 CXXFLAGS+=-DVIR_SIMD_TS_DROPIN
-CXXFLAGS+=-Wno-attributes
+CXXFLAGS+=-Wno-attributes -Wno-unknown-pragmas
 CXXFLAGS+=-I$(PWD)
 
 srcdir=.
@@ -19,3 +19,7 @@ check: $(srcdir)/testsuite/generate_makefile.sh
 
 clean:
 	@rm -r "$(testdir)"
+
+help:
+	@echo "... check"
+	@echo "... clean"
