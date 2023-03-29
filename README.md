@@ -11,6 +11,21 @@ that only implements the `scalar` and `fixed_size<N>` ABI tags. Thus, your code
 can still compile and run correctly, even if it is missing the performance 
 gains a proper implementation provides.
 
+## Installation
+
+This is a header-only library. Installation is a simple copy of the headers to 
+wherever you want them. Per default `make install` copies the headers into 
+`/usr/local/include/vir/`.
+
+Examples:
+```sh
+# installs to $HOME/.local/include/vir
+make install prefix=~/.local
+
+# installs to $HOME/src/myproject/3rdparty/vir
+make install includedir=~/src/myproject/3rdparty
+```
+
 ## Usage
 
 ```c++

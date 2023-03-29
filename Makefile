@@ -2,6 +2,8 @@ CXXFLAGS+=-DVIR_DISABLE_STDX_SIMD
 CXXFLAGS+=-DVIR_SIMD_TS_DROPIN
 CXXFLAGS+=-Wno-attributes -Wno-unknown-pragmas
 CXXFLAGS+=-I$(PWD)
+prefix=/usr/local
+includedir=$(prefix)/include
 
 srcdir=.
 testdir=testsuite/build
@@ -17,9 +19,14 @@ check: $(srcdir)/testsuite/generate_makefile.sh
 	@tail -n20 $(testdir)/simd_testsuite.sum | grep -A20 -B1 'Summary ===' >> .simd.summary
 	@cat .simd.summary && rm .simd.summary
 
+install:
+	install -d $(includedir)/vir
+	install -m 644 -t $(includedir)/vir vir/*.h
+
 clean:
 	@rm -r "$(testdir)"
 
 help:
 	@echo "... check"
 	@echo "... clean"
+	@echo "... install (using prefix=$(prefix))"
