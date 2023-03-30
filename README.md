@@ -11,6 +11,7 @@ that only implements the `scalar` and `fixed_size<N>` ABI tags. Thus, your code
 can still compile and run correctly, even if it is missing the performance 
 gains a proper implementation provides.
 
+
 ## Installation
 
 This is a header-only library. Installation is a simple copy of the headers to 
@@ -26,6 +27,7 @@ make install prefix=~/.local
 make install includedir=~/src/myproject/3rdparty
 ```
 
+
 ## Usage
 
 ```c++
@@ -40,6 +42,7 @@ using floatv = stdx::native_simd<float>;
 The `vir/simd.h` header will include `<experimental/simd>` if it is available, 
 so you don't have to add any buildsystem support. It should just work.
 
+
 ## Options
 
 * `VIR_SIMD_TS_DROPIN`: Define the macro `VIR_SIMD_TS_DROPIN` before including 
@@ -50,7 +53,9 @@ Parallelism TS 2 (namely `std::experimental::parallelism_v2`).
 available. This allows compiling your code with the `<vir/simd.h>` 
 implementation unconditionally. This is useful for testing.
 
+
 ## Additional Features
+
 
 ### Bitwise operators for floating-point `simd`:
 
@@ -61,6 +66,7 @@ using namespace vir::simd_float_ops;
 ```
 Then the `&`, `|`, and `^` binary operators can be used with objects of type 
 `simd<`floating-point`, A>`.
+
 
 ### Conversion between `std::bitset` and `simd_mask`:
 
@@ -80,6 +86,7 @@ and
 ```c++
 to_simd_mask<T, N>(bitset<N>)
 ```
+
 
 ### vir::simd_resize and vir::simd_size_cast
 
@@ -103,6 +110,7 @@ default-initialized and appended at the end. Both functions do not allow a
 change of the `value_type`. However, implicit conversions can happen on 
 parameter passing to `simd_size_cast`.
 
+
 ### vir::simd_bit_cast
 
 The header
@@ -112,6 +120,83 @@ The header
 declares the function `vir::simd_bit_cast<To>(from)`. This function serves the 
 same purpose as `std::bit_cast` but additionally works in cases where a `simd` 
 type is not trivially copyable.
+
+
+### Concepts
+
+The header
+```c++
+#include <vir/simd_concepts.h>
+```
+defines the following concepts:
+
+* `arithmetic<T>`: What `std::arithmetic<T>` should be: satisfied if `T` is an 
+  arithmetic type (as specified by the C++ core language).
+
+* `vectorizable<T>`: Satisfied if `T` is a valid element type for `simd` and 
+  `simd_mask`.
+
+* `simd_abi_tag<T>`: Satisfied if `T` is a valid ABI tag for `simd` and 
+  `simd_mask`.
+
+* `any_simd<V>`: Satisfied if `V` is a specialization of `simd<T, Abi>` and the 
+  types `T` and `Abi` satisfy `vectorizable<T>` and `simd_abi_tag<Abi>`.
+
+* `any_simd_mask<V>`: Analogue to `any_simd<V>` for `simd_mask` instead of 
+  `simd`.
+
+* `typed_simd<V, T>`: Satisfied if `any_simd<V>` and `T` is the element type of 
+  `V`.
+
+* `sized_simd<V, Width>`: Satisfied if `any_simd<V>` and `Width` is the width 
+  of `V`.
+
+* `sized_simd_mask<V, Width>`: Analogue to `sized_simd<V, Width>` for 
+  `simd_mask` instead of `simd`.
+
+
+### simdize type transformation
+
+:warning: consider this interface under :construction:
+
+The header
+```c++
+#include <vir/simdize.h>
+```
+defines the following types and constants:
+
+* `simdize<T, N>`: `N` is optional. Type alias for a `simd` or `simd_tuple` 
+  type determined from the type `T`.
+
+  - If `vectorizable<T>` is satisfied, then `simd<T, Abi>` is produced. `Abi` 
+    is determined from `N` and will be `simd_abi::native<T>` is `N` was 
+    omitted.
+
+  - Otherwise, if `T` is a `std::tuple` or aggregate that can be reflected, 
+    then a specialization of `simd_tuple` is produced. This specialization will 
+    be derived from `std::tuple` and the tuple elements will either be 
+    `simd_tuple` or `simd` types. `simdize` is applied recursively to the 
+    `tuple`/aggregate data members.
+    If `N` was omitted, the resulting width of *all* `simd` types in the 
+    resulting type will match the largest `native_simd` width.
+
+  Example: `simdize<std::tuple<double, short>>` produces a tuple with the 
+  element types `rebind_simd_t<double, native_simd<short>>` and
+  `native_simd<short>`.
+
+* `simd_tuple<reflectable_struct T, size_t N>`: Don't use this class template 
+  directly. Let `simdize` instantiate specializations of this class template. 
+  `simd_tuple` derives from `std::tuple` and adds the following interface on 
+  top of `std::tuple`:
+
+  - `size`
+
+  - `mask_type`
+
+  - `copy_from`
+
+* `simdize_size<T>`, `simdize_size_v<T>`
+
 
 ## Debugging
 
