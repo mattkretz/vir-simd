@@ -25,12 +25,19 @@ jobs:
     - name: Run check
       run: make check DRIVEROPTS=-vvf
 
-  clang14:
+  clang15:
     runs-on: ubuntu-22.04
     env:
-      CXX: clang++-14
+      CXX: clang++-15
+      CXXFLAGS: -stdlib=libc++
     steps:
     - uses: actions/checkout@v3
+    - name: Install clang-15
+      run: |
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
+        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-15 main'
+        sudo apt update
+        sudo apt install -y clang-15 libc++-15-dev libc++abi-15-dev
     - name: Run check
       run: make check DRIVEROPTS=-vvf
 

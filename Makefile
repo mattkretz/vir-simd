@@ -10,7 +10,7 @@ testdir=testsuite/build
 sim=
 testflags=-march=native -std=c++2a
 
-check: $(srcdir)/testsuite/generate_makefile.sh
+check: check-extensions $(srcdir)/testsuite/generate_makefile.sh
 	@rm -f .simd.summary
 	$(CXX) --version
 	@echo "Generating simd testsuite subdirs and Makefiles ..."
@@ -23,10 +23,14 @@ install:
 	install -d $(includedir)/vir
 	install -m 644 -t $(includedir)/vir vir/*.h
 
+check-extensions:
+	$(CXX) -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o /dev/null
+
 clean:
 	@rm -r "$(testdir)"
 
 help:
 	@echo "... check"
+	@echo "... check-extensions"
 	@echo "... clean"
 	@echo "... install (using prefix=$(prefix))"
