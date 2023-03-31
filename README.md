@@ -130,29 +130,30 @@ The header
 ```
 defines the following concepts:
 
-* `arithmetic<T>`: What `std::arithmetic<T>` should be: satisfied if `T` is an 
-  arithmetic type (as specified by the C++ core language).
+* `vir::arithmetic<T>`: What `std::arithmetic<T>` should be: satisfied if `T` 
+  is an arithmetic type (as specified by the C++ core language).
 
-* `vectorizable<T>`: Satisfied if `T` is a valid element type for `simd` and 
-  `simd_mask`.
+* `vir::vectorizable<T>`: Satisfied if `T` is a valid element type for 
+  `stdx::simd` and `stdx::simd_mask`.
 
-* `simd_abi_tag<T>`: Satisfied if `T` is a valid ABI tag for `simd` and 
-  `simd_mask`.
+* `vir::simd_abi_tag<T>`: Satisfied if `T` is a valid ABI tag for `stdx::simd` 
+  and `stdx::simd_mask`.
 
-* `any_simd<V>`: Satisfied if `V` is a specialization of `simd<T, Abi>` and the 
-  types `T` and `Abi` satisfy `vectorizable<T>` and `simd_abi_tag<Abi>`.
+* `vir::any_simd<V>`: Satisfied if `V` is a specialization of `stdx::simd<T, 
+  Abi>` and the types `T` and `Abi` satisfy `vir::vectorizable<T>` and 
+  `vir::simd_abi_tag<Abi>`.
 
-* `any_simd_mask<V>`: Analogue to `any_simd<V>` for `simd_mask` instead of 
-  `simd`.
+* `vir::any_simd_mask<V>`: Analogue to `vir::any_simd<V>` for `stdx::simd_mask` 
+  instead of `stdx::simd`.
 
-* `typed_simd<V, T>`: Satisfied if `any_simd<V>` and `T` is the element type of 
-  `V`.
+* `vir::typed_simd<V, T>`: Satisfied if `vir::any_simd<V>` and `T` is the 
+  element type of `V`.
 
-* `sized_simd<V, Width>`: Satisfied if `any_simd<V>` and `Width` is the width 
-  of `V`.
+* `vir::sized_simd<V, Width>`: Satisfied if `vir::any_simd<V>` and `Width` is 
+  the width of `V`.
 
-* `sized_simd_mask<V, Width>`: Analogue to `sized_simd<V, Width>` for 
-  `simd_mask` instead of `simd`.
+* `vir::sized_simd_mask<V, Width>`: Analogue to `vir::sized_simd<V, Width>` for 
+  `stdx::simd_mask` instead of `stdx::simd`.
 
 
 ### simdize type transformation
@@ -165,37 +166,53 @@ The header
 ```
 defines the following types and constants:
 
-* `simdize<T, N>`: `N` is optional. Type alias for a `simd` or `simd_tuple` 
-  type determined from the type `T`.
+* `vir::simdize<T, N>`: `N` is optional. Type alias for a `simd` or 
+  `vir::simd_tuple` type determined from the type `T`.
 
-  - If `vectorizable<T>` is satisfied, then `simd<T, Abi>` is produced. `Abi` 
-    is determined from `N` and will be `simd_abi::native<T>` is `N` was 
-    omitted.
+  - If `vir::vectorizable<T>` is satisfied, then `stdx::simd<T, Abi>` is 
+    produced. `Abi` is determined from `N` and will be `simd_abi::native<T>` is 
+    `N` was omitted.
 
   - Otherwise, if `T` is a `std::tuple` or aggregate that can be reflected, 
-    then a specialization of `simd_tuple` is produced. This specialization will 
-    be derived from `std::tuple` and the tuple elements will either be 
-    `simd_tuple` or `simd` types. `simdize` is applied recursively to the 
-    `tuple`/aggregate data members.
+    then a specialization of `vir::simd_tuple` is produced. This specialization 
+    will be derived from `std::tuple` and the tuple elements will either be 
+    `vir::simd_tuple` or `stdx::simd` types. `vir::simdize` is applied 
+    recursively to the `std::tuple`/aggregate data members.
     If `N` was omitted, the resulting width of *all* `simd` types in the 
     resulting type will match the largest `native_simd` width.
 
-  Example: `simdize<std::tuple<double, short>>` produces a tuple with the 
-  element types `rebind_simd_t<double, native_simd<short>>` and
-  `native_simd<short>`.
+  Example: `vir::simdize<std::tuple<double, short>>` produces a tuple with the 
+  element types `stdx::rebind_simd_t<double, stdx::native_simd<short>>` and
+  `stdx::native_simd<short>`.
 
-* `simd_tuple<reflectable_struct T, size_t N>`: Don't use this class template 
-  directly. Let `simdize` instantiate specializations of this class template. 
-  `simd_tuple` derives from `std::tuple` and adds the following interface on 
-  top of `std::tuple`:
-
-  - `size`
+* `vir::simd_tuple<reflectable_struct T, size_t N>`: Don't use this class 
+  template directly. Let `vir::simdize` instantiate specializations of this 
+  class template. `vir::simd_tuple` mostly behaves like a `std::tuple` and adds 
+  the following interface on top of `std::tuple`:
 
   - `mask_type`
 
-  - `copy_from`
+  - `size`
 
-* `simdize_size<T>`, `simdize_size_v<T>`
+  - tuple-like constructors
+
+  - broadcast constructors
+
+  - `as_tuple()`: Returns the data members as a `std::tuple`.
+
+  - `operator[](size_t)`: Copy of a single `T` stored in the `simd_tuple`. This 
+  is not a cheap operation because there are no `T` objects stored in the 
+  `simd_tuple`.
+
+  - `copy_from(std::contiguous_iterator)`: :construction: unoptimized load from 
+  a contiguous array of struct (e.g. `std::vector<T>`).
+
+  - `copy_to(std::contiguous_iterator)`: :construction: unoptimized store to a 
+  contiguous array of struct.
+
+* `vir::get<I>(simd_tuple)`: Access to the `I`-th data member (a `simd`).
+
+* `vir::simdize_size<T>`, `vir::simdize_size_v<T>`
 
 
 ## Debugging
