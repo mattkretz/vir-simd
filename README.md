@@ -215,6 +215,23 @@ defines the following types and constants:
 * `vir::simdize_size<T>`, `vir::simdize_size_v<T>`
 
 
+### Benchmark support functions
+
+The header
+```c++
+#include <vir/simd_benchmarking.h>
+```
+defines the following functions:
+
+* `vir::fake_modify(...)`: Let the compiler assume that all arguments passed to 
+  this functions are modified. This inhibits constant propagation, hoisting of 
+  code sections, and dead-code elimination.
+
+* `vir::fake_read(...)`: Let the compiler assume that all arguments passed to 
+  this function are read (in the cheapest manner). This inhibits dead-code 
+  elimination leading up to the results passed to this function.
+
+
 ## Debugging
 
 Compile with `-D _GLIBCXX_DEBUG_UB` to get runtime checks for undefined 
