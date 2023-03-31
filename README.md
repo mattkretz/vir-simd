@@ -2,7 +2,7 @@
 
 [![Makefile CI](https://github.com/mattkretz/vir-simd/actions/workflows/makefile.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/makefile.yml)
 [![DOI](https://zenodo.org/badge/536945709.svg)](https://zenodo.org/badge/latestdoi/536945709)
-[![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8B%20%20%E2%97%8B-orange)](https://fair-software.eu)
+[![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8B-orange)](https://fair-software.eu)
 
 This project aims to provide a simple fallback for users of 
 std::experimental::simd (Parallelism TS 2). Not every user can rely on GCC 11+ 
