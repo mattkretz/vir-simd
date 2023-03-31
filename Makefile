@@ -24,7 +24,7 @@ install:
 	install -m 644 -t $(includedir)/vir vir/*.h
 
 check-extensions:
-	$(CXX) -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o /dev/null
+	$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o test.S
 
 clean:
 	@rm -r "$(testdir)"

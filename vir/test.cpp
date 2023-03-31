@@ -5,6 +5,7 @@
 
 #include "vir/simd.h"
 #include "vir/simdize.h"
+#include "vir/simd_benchmarking.h"
 
 namespace stdx = vir::stdx;
 
@@ -132,5 +133,16 @@ static_assert(vir::simdize<Point>(Point{2.f, 1.f, 0.f})[0] == Point{2.f, 1.f, 0.
 
 #endif  // VIR_HAVE_SIMDIZE
 #endif  // VIR_HAVE_STRUCT_REFLECT
+
+#if VIR_HAVE_SIMD_BENCHMARKING
+void
+f()
+{
+  V<float> x {};
+  vir::fake_modify(x);
+  x += 1;
+  vir::fake_read(x);
+}
+#endif  // VIR_HAVE_SIMD_BENCHMARKING
 
 // vim: noet cc=101 tw=100 sw=2 ts=8
