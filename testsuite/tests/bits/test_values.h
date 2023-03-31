@@ -64,6 +64,38 @@ template <class V, class... F>
     }((fun_pack(epilogue_load<V>(inputs.begin(), inputs.size())), 0)...);
   }
 
+template <typename T, typename U = long long, bool = (sizeof(T) == sizeof(U))>
+  struct int_for_dist;
+
+template <typename T, typename U>
+  struct int_for_dist<T, U, true>
+  {
+    using type = typename std::conditional_t<std::is_unsigned_v<T>,
+                                             std::make_unsigned<U>, std::make_signed<U>>::type;
+  };
+
+template <typename T>
+  struct int_for_dist<T, long long, false>
+  : int_for_dist<T, long> {};
+
+template <typename T>
+  struct int_for_dist<T, long, false>
+  : int_for_dist<T, int> {};
+
+template <typename T>
+  struct int_for_dist<T, int, false>
+  : int_for_dist<T, short> {};
+
+template <typename T>
+  struct int_for_dist<T, short, false>
+  {
+    using type = std::conditional_t<sizeof(T) == sizeof(char),
+                                    typename int_for_dist<T, short, true>::type, T>;
+  };
+
+template <typename T>
+using int_for_dist_t = typename int_for_dist<T>::type;
+
 template <class V>
   struct RandomValues
   {
@@ -73,7 +105,7 @@ template <class V>
 
     std::conditional_t<std::is_floating_point_v<T>,
 		       std::uniform_real_distribution<T>,
-		       std::uniform_int_distribution<T>>
+                       std::uniform_int_distribution<int_for_dist_t<T>>>
       dist;
 
     const bool uniform;
@@ -103,16 +135,16 @@ template <class V>
       operator()(URBG& gen)
       {
 	if constexpr (!isfp)
-	  return V([&](int) { return dist(gen); });
+          return V([&](int) { return T(dist(gen)); });
 	else if (uniform)
-	  return V([&](int) { return dist(gen); });
+          return V([&](int) { return T(dist(gen)); });
 	else
 	  {
 	    auto exp_dist
 	      = std::normal_distribution<float>(0.f,
 						vir::max_exponent_v<T> * .5f);
 	    return V([&](int) {
-		     const T mant = dist(gen);
+                     const T mant = T(dist(gen));
 		     T fp = 0;
 		     do {
 		       const int exp = exp_dist(gen);
