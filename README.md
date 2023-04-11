@@ -62,6 +62,21 @@ The TS curiously forgot to add `simd_cast` and `static_simd_cast` overloads for
 `simd_mask`. With `vir::stdx::(static_)simd_cast`, casts will also work for 
 `simd_mask`. This does not require any additional includes.
 
+### Simple iota `simd` constants:
+
+```c++
+#include <vir/simd_iota.h>
+
+constexpr auto a = vir::iota_v<stdx::simd<float>> * 3; // 0, 3, 6, 9, ...
+```
+
+The variable template `vir::iota_v<T>` can be instantiated with arithmetic 
+types, array types (`std::array` and C-arrays), and `simd` types. In all cases, 
+the elements of the variable will be initialized to `0, 1, 2, 3, 4, ...`, 
+depending on the number of elements in `T`. For arithmetic types 
+`vir::iota_v<T>` is always just `0`.
+
+
 ### Bitwise operators for floating-point `simd`:
 
 ```c++
