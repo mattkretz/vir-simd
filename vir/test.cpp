@@ -6,6 +6,7 @@
 #include "vir/simd.h"
 #include "vir/simdize.h"
 #include "vir/simd_benchmarking.h"
+#include "vir/simd_iota.h"
 
 namespace stdx = vir::stdx;
 
@@ -14,6 +15,21 @@ template <typename T>
 
 template <typename T, std::size_t N>
   using DV = stdx::simd<T, stdx::simd_abi::deduce_t<T, N>>;
+
+#if VIR_HAVE_SIMD_IOTA
+//arithmetic
+static_assert(vir::iota_v<int> == 0);
+static_assert(vir::iota_v<float> == 0.f);
+// array
+static_assert(vir::iota_v<int[4]>[0] == 0);
+static_assert(vir::iota_v<int[4]>[1] == 1);
+static_assert(vir::iota_v<int[4]>[2] == 2);
+static_assert(vir::iota_v<int[4]>[3] == 3);
+static_assert(vir::iota_v<std::array<int, 5>> == std::array<int, 5>{0, 1, 2, 3, 4});
+// simd
+static_assert(vir::iota_v<V<int>>[0] == 0);
+static_assert(all_of(vir::iota_v<V<short>> == V<short>([](short i) { return i; })));
+#endif // VIR_HAVE_SIMD_IOTA
 
 #if VIR_HAVE_STRUCT_REFLECT
 
@@ -117,12 +133,12 @@ static_assert(std::same_as<vir::as_tuple_t<Line>,
 static_assert(std::same_as<vir::simdize<Line>,
 			   vir::simd_tuple<Line, V<float>::size()>>);
 
-constexpr vir::simdize<Point> point{V<float>([](auto i) { return float(i); }), 2.f, 3.f};
+constexpr vir::simdize<Point> point{vir::iota_v<V<float>>, 2.f, 3.f};
 static_assert(point[0].x == 0.f);
 static_assert(point[0].y == 2.f);
 static_assert(point[0].z == 3.f);
 static_assert([]() {
-  constexpr vir::simdize<Point> point{V<float>([](auto i) { return float(i); }), 2.f, 3.f};
+  constexpr vir::simdize<Point> point{vir::iota_v<V<float>>, 2.f, 3.f};
   for (std::size_t i = 0; i < V<float>::size(); ++i)
     if (point[i] != Point {float(i), 2.f, 3.f})
       return false;
