@@ -58,6 +58,9 @@ implementation unconditionally. This is useful for testing.
 
 ## Additional Features
 
+The TS curiously forgot to add `simd_cast` and `static_simd_cast` overloads for 
+`simd_mask`. With `vir::stdx::(static_)simd_cast`, casts will also work for 
+`simd_mask`. This does not require any additional includes.
 
 ### Bitwise operators for floating-point `simd`:
 
