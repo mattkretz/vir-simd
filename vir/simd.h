@@ -19,6 +19,7 @@
 namespace vir::stdx
 {
   using namespace std::experimental::parallelism_v2;
+  using namespace std::experimental::parallelism_v2::__proposed;
 }
 
 #else
