@@ -7,6 +7,7 @@
 #include "vir/simdize.h"
 #include "vir/simd_benchmarking.h"
 #include "vir/simd_iota.h"
+#include "vir/simd_cvt.h"
 
 namespace stdx = vir::stdx;
 
@@ -15,6 +16,9 @@ template <typename T>
 
 template <typename T, std::size_t N>
   using DV = stdx::simd<T, stdx::simd_abi::deduce_t<T, N>>;
+
+template <typename T, typename U>
+  using RV = stdx::rebind_simd_t<T, V<U>>;
 
 #if VIR_HAVE_SIMD_IOTA
 //arithmetic
@@ -30,6 +34,24 @@ static_assert(vir::iota_v<std::array<int, 5>> == std::array<int, 5>{0, 1, 2, 3, 
 static_assert(vir::iota_v<V<int>>[0] == 0);
 static_assert(all_of(vir::iota_v<V<short>> == V<short>([](short i) { return i; })));
 #endif // VIR_HAVE_SIMD_IOTA
+
+#if VIR_HAVE_SIMD_CVT
+namespace
+{
+  using vir::cvt;
+  // simd:
+  static_assert(all_of(cvt(RV<int, float>(2)) * V<float>(1) == V<float>(2)));
+  static_assert(all_of(cvt(10 * RV<float, int>(cvt(V<int>(2)))) == V<int>(20)));
+  static_assert(all_of([](auto x) -> RV<float, int> {
+		  auto y = cvt(x);
+		  return y;
+		}(V<int>(1)) == 1.f));
+  // simd_mask:
+  static_assert(all_of(cvt(RV<int, float>(2) == 2) == (V<float>(1) == 1.f)));
+  // arithmetic:
+  static_assert(float(cvt(1)) == 1.f);
+}
+#endif // VIR_HAVE_SIMD_CVT
 
 #if VIR_HAVE_STRUCT_REFLECT
 
@@ -62,7 +84,7 @@ static_assert(std::same_as<std::tuple_element_t<0, vir::simdize<std::tuple<int, 
 			   V<int>>);
 
 static_assert(std::same_as<std::tuple_element_t<1, vir::simdize<std::tuple<int, double>>>,
-			   stdx::rebind_simd_t<double, V<int>>>);
+			   RV<double, int>>);
 
 static_assert(
   std::same_as<vir::simdize<std::tuple<std::tuple<int, double>, short, std::tuple<float>>>,
@@ -79,7 +101,7 @@ static_assert(
     std::tuple_element_t<
       0, std::tuple_element_t<
 	   0, vir::simdize<std::tuple<std::tuple<int, double>, short, std::tuple<float>>>>>,
-    stdx::rebind_simd_t<int, V<short>>>);
+    RV<int, short>>);
 
 static_assert(
   std::same_as<std::tuple_element_t<
