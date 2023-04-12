@@ -76,6 +76,41 @@ the elements of the variable will be initialized to `0, 1, 2, 3, 4, ...`,
 depending on the number of elements in `T`. For arithmetic types 
 `vir::iota_v<T>` is always just `0`.
 
+### Making `simd` conversions more convenient:
+
+The TS is way too strict about conversions, requiring verbose 
+`std::experimental::static_simd_cast<T>(x)` instead of a concise `T(x)` or 
+`static_cast<T>(x)`. (`std::simd` in C++26 will fix this.)
+
+`vir::cvt(x)` provides a tool to make `x` implicitly convertible into whatever 
+the expression wants in order to be well-formed. This only works, if there is 
+an unambiguous type that is required.
+
+```c++
+#include <vir/simd_cvt.h>
+
+using floatv = stdx::native_simd<float>;
+using intv = stdx::rebind_simd_t<int, floatv>;
+
+void f(intv x) {
+  using vir::cvt;
+  // the floatv constructor and intv assignment operator clearly determine the
+  // destination type:
+  x = cvt(10 * sin(floatv(cvt(x))));
+
+  // without vir::cvt, one would have write:
+  x = stdx::static_simd_cast<intv>(10 * sin(stdx::static_simd_cast<floatv>(x)));
+
+  // probably don't do this too often:
+  auto y = cvt(x); // y is a const-ref to x, but so much more convertible
+                   // y is of type cvt<intv>
+}
+```
+
+Note that `vir::cvt` also works for `simd_mask` and non-`simd` types. Thus, 
+`cvt` becomes an important building block for writing "`simd`-generic" code 
+(i.e. well-formed for `T` and `simd<T>`).
+
 
 ### Bitwise operators for floating-point `simd`:
 
