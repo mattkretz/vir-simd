@@ -18,7 +18,7 @@ namespace vir
     fake_modify_one(T& x)
     {
       if constexpr (std::is_floating_point_v<T>)
-	asm volatile("" : "+x"(x));
+	asm volatile("" : "+v,x"(x));
       else if constexpr (stdx::is_simd_v<T> || stdx::is_simd_mask_v<T>)
 	{
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD && __cpp_lib_experimental_parallel_simd >= 201803
@@ -36,11 +36,11 @@ namespace vir
 	  if constexpr (sizeof(x) < 16)
 	    asm volatile("" : "+g"(x));
 	  else
-	    asm volatile("" : "+x,g,m"(x));
+	    asm volatile("" : "+v,x,g,m"(x));
 #endif
 	}
       else if constexpr (sizeof(x) >= 16)
-	asm volatile("" : "+x"(x));
+	asm volatile("" : "+v,x"(x));
       else
 	asm volatile("" : "+g"(x));
     }
@@ -55,7 +55,7 @@ namespace vir
     fake_read_one(const T& x)
     {
       if constexpr (std::is_floating_point_v<T>)
-	asm volatile("" ::"x"(x));
+	asm volatile("" ::"v,x"(x));
       else if constexpr (stdx::is_simd_v<T> || stdx::is_simd_mask_v<T>)
 	{
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD && __cpp_lib_experimental_parallel_simd >= 201803
@@ -73,11 +73,11 @@ namespace vir
 	  if constexpr (sizeof(x) < 16)
 	    asm volatile("" ::"g"(x));
 	  else
-	    asm volatile("" ::"x,g,m"(x));
+	    asm volatile("" ::"v,x,g,m"(x));
 #endif
 	}
       else if constexpr (sizeof(x) >= 16)
-	asm volatile("" ::"x"(x));
+	asm volatile("" ::"v,x"(x));
       else
 	asm volatile("" ::"g"(x));
     }
