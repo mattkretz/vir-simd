@@ -29,7 +29,7 @@ namespace vir
 	    asm volatile("" : "+x"(d._M_data));
 	  else if constexpr (requires {{d._S_tuple_size};})
 	    stdx::__for_each(d, [](auto, auto& element) {
-	      fake_modify1(element);
+	      fake_modify_one(element);
 	    });
 	  else
 	    asm volatile("" : "+x"(d));
@@ -68,7 +68,7 @@ namespace vir
 	    asm volatile("" ::"x"(d));
 	  else if constexpr (requires {{d._S_tuple_size};})
 	    stdx::__for_each(d, [](auto, const auto& element) {
-	      fake_read1(element);
+	      fake_read_one(element);
 	    });
 	  else
 	    asm volatile("" ::"x"(d));
