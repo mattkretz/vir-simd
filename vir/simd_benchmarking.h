@@ -23,16 +23,14 @@ namespace vir
 	{
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD && __cpp_lib_experimental_parallel_simd >= 201803
 	  auto& d = stdx::__data(x);
-	  if constexpr (sizeof(d) <= 8)
-	    asm volatile("" : "+g"(d));
-	  else if constexpr (requires {{d._M_data};})
-	    asm volatile("" : "+x"(d._M_data));
-	  else if constexpr (requires {{d._S_tuple_size};})
+	  if constexpr (requires {{d._S_tuple_size};})
 	    stdx::__for_each(d, [](auto, auto& element) {
 	      fake_modify_one(element);
 	    });
+	  else if constexpr (requires {{d._M_data};})
+	    fake_modify_one(d._M_data);
 	  else
-	    asm volatile("" : "+x"(d));
+	    fake_modify_one(d);
 #else
 	  // assuming vir::stdx::simd implementation
 	  if constexpr (sizeof(x) < 16)
@@ -62,16 +60,14 @@ namespace vir
 	{
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD && __cpp_lib_experimental_parallel_simd >= 201803
 	  const auto& d = stdx::__data(x);
-	  if constexpr (sizeof(d) <= 8)
-	    asm volatile("" ::"g"(d));
-	  else if constexpr (requires {{d._M_data};})
-	    asm volatile("" ::"x"(d));
-	  else if constexpr (requires {{d._S_tuple_size};})
+	  if constexpr (requires {{d._S_tuple_size};})
 	    stdx::__for_each(d, [](auto, const auto& element) {
 	      fake_read_one(element);
 	    });
+	  else if constexpr (requires {{d._M_data};})
+	    fake_read_one(d._M_data);
 	  else
-	    asm volatile("" ::"x"(d));
+	    fake_read_one(d);
 #else
 	  // assuming vir::stdx::simd implementation
 	  if constexpr (sizeof(x) < 16)
