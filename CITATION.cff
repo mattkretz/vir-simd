@@ -1,0 +1,31 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: vir-simd
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Matthias
+    family-names: Kretz
+    email: m.kretz@gsi.de
+    affiliation: GSI Helmholtz Centre for Heavy Ion Research
+    orcid: 'https://orcid.org/0000-0002-0867-243X'
+doi: 10.5281/zenodo.7892320
+version: 0.2.0
+date-released: 2023-05-03
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.7892320
+    description: Version 0.2.0
+  - type: doi
+    value: 10.5281/zenodo.7789154
+    description: Version 0.1.0
+repository-code: 'https://github.com/mattkretz/vir-simd'
+keywords:
+  - C++
+  - SIMD
+  - library
+license: LGPL-3.0-or-later
