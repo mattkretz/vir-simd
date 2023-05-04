@@ -1,11 +1,12 @@
-# This CITATION.cff file was generated with cffinit.
+# This CITATION.cff file was initially generated with cffinit.
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
 title: vir-simd
 message: >-
-  If you use this software, please cite it using the
-  metadata from this file.
+  If you use this software, please cite it using the metadata from
+  this file. Consider additional citation of the works under
+  references.
 type: software
 authors:
   - given-names: Matthias
@@ -29,3 +30,31 @@ keywords:
   - SIMD
   - library
 license: LGPL-3.0-or-later
+references:
+  - scope: >-
+      Cite this paper if you want a reference to the general concepts
+      introduced by std::experimental::simd.
+    title: "Vc: A C++ library for explicit vectorization"
+    type: article
+    doi: 10.1002/spe.1149
+    issn: 1097-024X
+    journal: "Software: Practice and Experience"
+    publisher: "John Wiley & Sons, Ltd"
+    year: 2011
+    authors:
+      - given-names: Matthias
+        family-names: Kretz
+        orcid: 'https://orcid.org/0000-0002-0867-243X'
+      - given-names: Volker
+        family-names: Lindenstruth
+  - scope: >-
+      Cite this thesis if you want more context on the development and design
+      behind std::experimental::simd.
+    title: "Extending C++ for Explicit Data-Parallel Programming via SIMD Vector Types"
+    type: thesis
+    doi: 10.13140/RG.2.1.2355.4323
+    year: 2015
+    authors:
+      - given-names: Matthias
+        family-names: Kretz
+        orcid: 'https://orcid.org/0000-0002-0867-243X'
