@@ -14,6 +14,14 @@
 #include <experimental/simd>
 #endif
 
+#ifndef VIR_ALWAYS_INLINE
+#ifdef __GNUC__
+#define VIR_ALWAYS_INLINE [[gnu::always_inline]]
+#else
+#define VIR_ALWAYS_INLINE __forceinline
+#endif
+#endif
+
 #if defined __cpp_lib_experimental_parallel_simd && __cpp_lib_experimental_parallel_simd >= 201803
 
 namespace vir::stdx
@@ -99,7 +107,7 @@ namespace vir::stdx
     };
 
     template <typename... Args>
-      [[noreturn]] [[gnu::always_inline]] inline void
+      [[noreturn]] VIR_ALWAYS_INLINE inline void
       invoke_ub([[maybe_unused]] const char* msg,
                 [[maybe_unused]] const Args&... args)
       {
