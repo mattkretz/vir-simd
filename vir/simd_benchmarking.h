@@ -14,7 +14,7 @@
 namespace vir
 {
   template <typename T>
-    [[gnu::always_inline]] inline void
+    VIR_ALWAYS_INLINE inline void
     fake_modify_one(T& x)
     {
       if constexpr (std::is_floating_point_v<T>)
@@ -46,12 +46,12 @@ namespace vir
     }
 
   template <typename... Ts>
-    [[gnu::always_inline]] inline void
+    VIR_ALWAYS_INLINE inline void
     fake_modify(Ts&... more)
     { (fake_modify_one(more), ...); }
 
   template <typename T>
-    [[gnu::always_inline]] inline void
+    VIR_ALWAYS_INLINE inline void
     fake_read_one(const T& x)
     {
       if constexpr (std::is_floating_point_v<T>)
@@ -83,7 +83,7 @@ namespace vir
     }
 
   template <typename... Ts>
-    [[gnu::always_inline]] inline void
+    VIR_ALWAYS_INLINE inline void
     fake_read(const Ts&... more)
     { (fake_read_one(more), ...); }
 
