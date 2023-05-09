@@ -10,6 +10,8 @@
 #define VIR_HAVE_SIMD_CONCEPTS 1
 #include <concepts>
 
+#include "simd.h"
+
 namespace vir
 {
   using std::size_t;
@@ -32,6 +34,9 @@ namespace vir
     concept any_simd_mask
       = stdx::is_simd_mask_v<V> and any_simd<typename V::simd_type>
 	  and simd_abi_tag<typename V::abi_type>;
+
+  template <typename V>
+    concept any_simd_or_mask = any_simd<V> or any_simd_mask<V>;
 
   template <typename V, typename T>
     concept typed_simd = any_simd<V> and std::same_as<T, typename V::value_type>;

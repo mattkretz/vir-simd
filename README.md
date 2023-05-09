@@ -116,6 +116,62 @@ Note that `vir::cvt` also works for `simd_mask` and non-`simd` types. Thus,
 (i.e. well-formed for `T` and `simd<T>`).
 
 
+### Permutations ([paper](https://wg21.link/P2664)):
+
+*Requires Concepts (C++20).*
+
+```c++
+#include <vir/simd_permute.h>
+
+// v = {0, 1, 2, 3} -> {1, 0, 3, 2}
+vir::simd_permute(v, vir::simd_permutations::swap_neighbors);
+
+// v = {1, 2, 3, 4} -> {2, 2, 2, 2}
+vir::simd_permute(v, [](unsigned) { return 1; });
+
+// v = {1, 2, 3, 4} -> {3, 3, 3, 3}
+vir::simd_permute(v, [](unsigned) { return -2; });
+```
+
+The following permutations are pre-defined:
+
+* `vir::simd_permutations::duplicate_even`: copy values at even indices to 
+  neighboring odd position
+
+* `vir::simd_permutations::duplicate_odd`: copy values at odd indices to 
+  neighboring even position
+
+* `vir::simd_permutations::swap_neighbors<N>`: swap `N` consecutive values with 
+the following `N` consecutive values
+
+* `vir::simd_permutations::broadcast<Idx>`: copy the value at index `Idx` to 
+all other values
+
+* `vir::simd_permutations::broadcast_first`: alias for `broadcast<0>`
+
+* `vir::simd_permutations::broadcast_last`: alias for `broadcast<-1>`
+
+* `vir::simd_permutations::reverse`: reverse the order of all values
+
+* `vir::simd_permutations::rotate<Offset>`: positive `Offset` rotates values to 
+  the left, negative `Offset` rotates values to the right (moves values from 
+  index `(i + Offset) % size` to `i`)
+
+* `vir::simd_permutations::shift<Offset>`: positive `Offset` shifts values to 
+  the left, negative `Offset` shifts values to the right; shifting in zeros.
+
+A `vir::simd_permute(x, idx_perm)` overload, where `x` is of *vectorizable* 
+type, is also included, facilitating generic code.
+
+A special permutation `vir::simd_shift_in<N>(x, ...)` shifts by N elements 
+shifting in elements from additional `simd` objects passed via the pack. 
+Example:
+```c++
+// v = {1, 2, 3, 4}, w = {5, 6, 7, 8} -> {2, 3, 4, 5}
+vir::simd_shift_in<1>(v, w);
+```
+
+
 ### Bitwise operators for floating-point `simd`:
 
 ```c++

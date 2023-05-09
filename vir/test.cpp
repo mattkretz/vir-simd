@@ -8,6 +8,7 @@
 #include "vir/simd_benchmarking.h"
 #include "vir/simd_iota.h"
 #include "vir/simd_cvt.h"
+#include "vir/simd_permute.h"
 
 namespace stdx = vir::stdx;
 
@@ -19,6 +20,15 @@ template <typename T, std::size_t N>
 
 template <typename T, typename U>
   using RV = stdx::rebind_simd_t<T, V<U>>;
+
+#if VIR_HAVE_SIMD_CONCEPTS
+template <typename T, typename... Ts>
+  constexpr stdx::resize_simd_t<1 + sizeof...(Ts), stdx::simd<T>>
+  make_simd(T v0, Ts... values) {
+    using V = stdx::resize_simd_t<1 + sizeof...(Ts), stdx::simd<T>>;
+    return V((std::array<T, V::size()> {v0, values...}).data(), stdx::element_aligned);
+  }
+#endif
 
 #if VIR_HAVE_SIMD_IOTA
 //arithmetic
@@ -52,6 +62,86 @@ namespace
   static_assert(float(cvt(1)) == 1.f);
 }
 #endif // VIR_HAVE_SIMD_CVT
+
+#if VIR_HAVE_SIMD_PERMUTE and VIR_HAVE_SIMD_IOTA
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::duplicate_even)
+	   == make_simd(0, 0, 2, 2)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::duplicate_odd)
+	   == make_simd(1, 1, 3, 3)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::swap_neighbors<>)
+	   == make_simd(1, 0, 3, 2)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::swap_neighbors<2>)
+	   == make_simd(2, 3, 0, 1)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3, 4, 5), vir::simd_permutations::swap_neighbors<3>)
+	   == make_simd(3, 4, 5, 0, 1, 2)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast_first) == 0));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast_last) == 3));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast<2>) == 2));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::reverse)
+	   == make_simd(3, 2, 1, 0)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<1>)
+	   == make_simd(1, 2, 3, 0)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<-2>)
+	   == make_simd(2, 3, 0, 1)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<-3>)
+	   == make_simd(1, 2, 3, 0)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::shift<1>)
+	   == make_simd(1, 2, 3, 0)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::shift<2>)
+	   == make_simd(2, 3, 0, 0)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-1>)
+	   == make_simd(0, 5, 1, 2)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-2>)
+	   == make_simd(0, 0, 5, 1)));
+
+static_assert(
+  all_of(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-3>)
+	   == make_simd(0, 0, 0, 5)));
+
+static_assert(
+  all_of(vir::simd_permute<8>(make_simd(0, 1, 2, 3), [](unsigned i) { return i % 3; })
+	   == make_simd(0, 1, 2, 0, 1, 2, 0, 1)));
+
+static_assert(vir::simd_permute(2, [](unsigned i) { return i; }) == 2);
+
+static_assert(all_of(vir::simd_permute<8>(2, [](unsigned i) {
+		       return (i & 1) ? 0 : vir::simd_permute_zero;
+		     }) == make_simd(0, 2, 0, 2, 0, 2, 0, 2)));
+
+static_assert(all_of(vir::simd_shift_in<1>(make_simd(0, 1, 2, 3), make_simd(4, 5, 6, 7))
+		       == make_simd(1, 2, 3, 4)));
+#endif // VIR_HAVE_SIMD_PERMUTE
 
 #if VIR_HAVE_STRUCT_REFLECT
 
@@ -155,6 +245,7 @@ static_assert(std::same_as<vir::as_tuple_t<Line>,
 static_assert(std::same_as<vir::simdize<Line>,
 			   vir::simd_tuple<Line, V<float>::size()>>);
 
+#if VIR_HAVE_SIMD_IOTA
 constexpr vir::simdize<Point> point{vir::iota_v<V<float>>, 2.f, 3.f};
 static_assert(point[0].x == 0.f);
 static_assert(point[0].y == 2.f);
@@ -166,6 +257,7 @@ static_assert([]() {
       return false;
   return true;
 }());
+#endif  // VIR_HAVE_SIMD_IOTA
 
 static_assert(vir::simdize<Point>(Point{2.f, 1.f, 0.f})[0] == Point{2.f, 1.f, 0.f});
 
