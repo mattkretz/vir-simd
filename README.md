@@ -5,8 +5,8 @@
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6916/badge)](https://bestpractices.coreinfrastructure.org/projects/6916)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8F-yellow)](https://fair-software.eu)
 
-This project aims to provide a simple fallback for users of 
-std::experimental::simd (Parallelism TS 2). Not every user can rely on GCC 11+ 
+This project aims to provide a fallback std::experimental::simd (Parallelism TS 2)
+implementation with additional features. Not every user can rely on GCC 11+ 
 and its standard library to be present on all target systems. Therefore, the 
 header `vir/simd.h` provides a fallback implementation of the TS specification 
 that only implements the `scalar` and `fixed_size<N>` ABI tags. Thus, your code 
@@ -64,6 +64,8 @@ The TS curiously forgot to add `simd_cast` and `static_simd_cast` overloads for
 
 ### Simple iota `simd` constants:
 
+*Requires Concepts (C++20).*
+
 ```c++
 #include <vir/simd_iota.h>
 
@@ -77,6 +79,8 @@ depending on the number of elements in `T`. For arithmetic types
 `vir::iota_v<T>` is always just `0`.
 
 ### Making `simd` conversions more convenient:
+
+*Requires Concepts (C++20).*
 
 The TS is way too strict about conversions, requiring verbose 
 `std::experimental::static_simd_cast<T>(x)` instead of a concise `T(x)` or 
@@ -179,6 +183,8 @@ type is not trivially copyable.
 
 ### Concepts
 
+*Requires Concepts (C++20).*
+
 The header
 ```c++
 #include <vir/simd_concepts.h>
@@ -212,6 +218,8 @@ defines the following concepts:
 
 
 ### simdize type transformation
+
+*Requires Concepts (C++20).*
 
 :warning: consider this interface under :construction:
 
@@ -271,6 +279,8 @@ defines the following types and constants:
 
 
 ### Benchmark support functions
+
+*Requires Concepts (C++20) and GNU compatible inline-asm.*
 
 The header
 ```c++
