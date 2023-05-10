@@ -513,24 +513,26 @@ namespace vir::stdx
 
       // load constructor
       template <typename Flags>
+        constexpr
         simd_mask(const value_type* mem, Flags)
         : data(mem[0])
         {}
 
       template <typename Flags>
+        constexpr
         simd_mask(const value_type* mem, simd_mask k, Flags)
         : data(k ? mem[0] : false)
         {}
 
       // loads [simd_mask.load]
       template <typename Flags>
-        void
+        constexpr void
         copy_from(const value_type* mem, Flags)
         { data = mem[0]; }
 
       // stores [simd_mask.store]
       template <typename Flags>
-        void
+        constexpr void
         copy_to(value_type* mem, Flags) const
         { mem[0] = data; }
 
@@ -1429,13 +1431,14 @@ namespace vir::stdx
 
       // load constructor
       template <typename U, typename Flags>
+        constexpr
         simd(const U* mem, Flags)
         : simd([mem](auto i) -> value_type { return mem[i]; })
         {}
 
       // loads [simd.load]
       template <typename U, typename Flags>
-        void
+        constexpr void
         copy_from(const detail::Vectorizable<U>* mem, Flags)
         {
           for (int i = 0; i < N; ++i)
@@ -1444,7 +1447,7 @@ namespace vir::stdx
 
       // stores [simd.store]
       template <typename U, typename Flags>
-        void
+        constexpr void
         copy_to(detail::Vectorizable<U>* mem, Flags) const
         {
           for (int i = 0; i < N; ++i)
