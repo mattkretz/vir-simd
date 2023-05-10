@@ -21,14 +21,37 @@ template <typename T, std::size_t N>
 template <typename T, typename U>
   using RV = stdx::rebind_simd_t<T, V<U>>;
 
-#if VIR_HAVE_SIMD_CONCEPTS
 template <typename T, typename... Ts>
   constexpr stdx::resize_simd_t<1 + sizeof...(Ts), stdx::simd<T>>
-  make_simd(T v0, Ts... values) {
+  make_simd(T v0, Ts... values)
+  {
     using V = stdx::resize_simd_t<1 + sizeof...(Ts), stdx::simd<T>>;
-    return V((std::array<T, V::size()> {v0, values...}).data(), stdx::element_aligned);
+    return V([&](auto i) {
+	     return (std::array<T, V::size()> {v0, static_cast<T>(values)...})[i];
+	   });
   }
-#endif
+
+// work around all_of(simd_mask) not really being constexpr in libstdc++
+template <typename T, typename U>
+  constexpr bool
+  all_equal(const T a, const U b)
+  {
+    if constexpr (std::is_convertible_v<T, U> and not std::is_convertible_v<U, T>)
+      return all_equal<U, U>(a, b);
+    else if constexpr (not std::is_convertible_v<T, U> and std::is_convertible_v<U, T>)
+      return all_equal<T, T>(a, b);
+    else if constexpr (std::is_same_v<T, U> and stdx::is_simd_v<T>)
+      {
+	for (std::size_t i = 0; i < T::size(); ++i)
+	  {
+	    if (a[i] != b[i])
+	      return false;
+	  }
+	return true;
+      }
+    else
+      return a == b;
+  }
 
 #if VIR_HAVE_SIMD_IOTA
 //arithmetic
@@ -42,7 +65,7 @@ static_assert(vir::iota_v<int[4]>[3] == 3);
 static_assert(vir::iota_v<std::array<int, 5>> == std::array<int, 5>{0, 1, 2, 3, 4});
 // simd
 static_assert(vir::iota_v<V<int>>[0] == 0);
-static_assert(all_of(vir::iota_v<V<short>> == V<short>([](short i) { return i; })));
+static_assert(all_equal(vir::iota_v<V<short>>, V<short>([](short i) { return i; })));
 #endif // VIR_HAVE_SIMD_IOTA
 
 #if VIR_HAVE_SIMD_CVT
@@ -50,14 +73,15 @@ namespace
 {
   using vir::cvt;
   // simd:
-  static_assert(all_of(cvt(RV<int, float>(2)) * V<float>(1) == V<float>(2)));
-  static_assert(all_of(cvt(10 * RV<float, int>(cvt(V<int>(2)))) == V<int>(20)));
-  static_assert(all_of([](auto x) -> RV<float, int> {
+  static_assert(all_equal(cvt(RV<int, float>(2)) * V<float>(1), V<float>(2)));
+  static_assert(all_equal(cvt(10 * RV<float, int>(cvt(V<int>(2)))), V<int>(20)));
+  static_assert(all_equal([](auto x) -> RV<float, int> {
 		  auto y = cvt(x);
 		  return y;
-		}(V<int>(1)) == 1.f));
+		}(V<int>(1)), 1.f));
   // simd_mask:
-  static_assert(all_of(cvt(RV<int, float>(2) == 2) == (V<float>(1) == 1.f)));
+  static_assert(std::same_as<decltype(cvt(RV<int, float>(2) == 2) == (V<float>(1) == 1.f)),
+			     typename V<float>::mask_type>);
   // arithmetic:
   static_assert(float(cvt(1)) == 1.f);
 }
@@ -65,82 +89,82 @@ namespace
 
 #if VIR_HAVE_SIMD_PERMUTE and VIR_HAVE_SIMD_IOTA
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::duplicate_even)
-	   == make_simd(0, 0, 2, 2)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::duplicate_even),
+	    make_simd(0, 0, 2, 2)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::duplicate_odd)
-	   == make_simd(1, 1, 3, 3)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::duplicate_odd),
+	    make_simd(1, 1, 3, 3)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::swap_neighbors<>)
-	   == make_simd(1, 0, 3, 2)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::swap_neighbors<>),
+	    make_simd(1, 0, 3, 2)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::swap_neighbors<2>)
-	   == make_simd(2, 3, 0, 1)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::swap_neighbors<2>),
+	    make_simd(2, 3, 0, 1)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3, 4, 5), vir::simd_permutations::swap_neighbors<3>)
-	   == make_simd(3, 4, 5, 0, 1, 2)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3, 4, 5), vir::simd_permutations::swap_neighbors<3>),
+	    make_simd(3, 4, 5, 0, 1, 2)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast_first) == 0));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast_first), 0));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast_last) == 3));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast_last), 3));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast<2>) == 2));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast<2>), 2));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::reverse)
-	   == make_simd(3, 2, 1, 0)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::reverse),
+	    make_simd(3, 2, 1, 0)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<1>)
-	   == make_simd(1, 2, 3, 0)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<1>),
+	    make_simd(1, 2, 3, 0)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<-2>)
-	   == make_simd(2, 3, 0, 1)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<-2>),
+	    make_simd(2, 3, 0, 1)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<-3>)
-	   == make_simd(1, 2, 3, 0)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::rotate<-3>),
+	    make_simd(1, 2, 3, 0)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::shift<1>)
-	   == make_simd(1, 2, 3, 0)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::shift<1>),
+	    make_simd(1, 2, 3, 0)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::shift<2>)
-	   == make_simd(2, 3, 0, 0)));
+  all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::shift<2>),
+	    make_simd(2, 3, 0, 0)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-1>)
-	   == make_simd(0, 5, 1, 2)));
+  all_equal(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-1>),
+	    make_simd(0, 5, 1, 2)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-2>)
-	   == make_simd(0, 0, 5, 1)));
+  all_equal(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-2>),
+	    make_simd(0, 0, 5, 1)));
 
 static_assert(
-  all_of(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-3>)
-	   == make_simd(0, 0, 0, 5)));
+  all_equal(vir::simd_permute(make_simd(5, 1, 2, 3), vir::simd_permutations::shift<-3>),
+	    make_simd(0, 0, 0, 5)));
 
 static_assert(
-  all_of(vir::simd_permute<8>(make_simd(0, 1, 2, 3), [](unsigned i) { return i % 3; })
-	   == make_simd(0, 1, 2, 0, 1, 2, 0, 1)));
+  all_equal(vir::simd_permute<8>(make_simd<short>(0, 1, 2, 3), [](unsigned i) { return i % 3; }),
+	    make_simd<short>(0, 1, 2, 0, 1, 2, 0, 1)));
 
 static_assert(vir::simd_permute(2, [](unsigned i) { return i; }) == 2);
 
-static_assert(all_of(vir::simd_permute<8>(2, [](unsigned i) {
-		       return (i & 1) ? 0 : vir::simd_permute_zero;
-		     }) == make_simd(0, 2, 0, 2, 0, 2, 0, 2)));
+static_assert(all_equal(vir::simd_permute<8>(short(2), [](unsigned i) {
+			  return (i & 1) ? 0 : vir::simd_permute_zero;
+			}), make_simd<short>(0, 2, 0, 2, 0, 2, 0, 2)));
 
-static_assert(all_of(vir::simd_shift_in<1>(make_simd(0, 1, 2, 3), make_simd(4, 5, 6, 7))
-		       == make_simd(1, 2, 3, 4)));
+static_assert(all_equal(vir::simd_shift_in<1>(make_simd(0, 1, 2, 3), make_simd(4, 5, 6, 7)),
+			make_simd(1, 2, 3, 4)));
 #endif // VIR_HAVE_SIMD_PERMUTE
 
 #if VIR_HAVE_STRUCT_REFLECT
