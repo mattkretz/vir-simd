@@ -112,6 +112,10 @@ namespace vir::detail
 
   using namespace vir::stdx;
 
+    /**
+     * Shortcut to determine the stdx::simd specialization with the most efficient ABI tag for the
+     * requested element type T and width N.
+     */
   template <typename T, int N>
     using deduced_simd = stdx::simd<T, stdx::simd_abi::deduce_t<T, N>>;
 

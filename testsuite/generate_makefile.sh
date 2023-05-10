@@ -96,6 +96,10 @@ cat >> "$pch" <<EOF
 #include "${srcdir}/bits/test_values.h"
 #include "${srcdir}/bits/ulp.h"
 #include "${srcdir}/bits/conversions.h"
+#include <vir/simd_iota.h>
+#include <vir/simd_execution.h>
+#include <numeric>
+#include <vector>
 #endif  // SIMD_PCH_
 EOF
 

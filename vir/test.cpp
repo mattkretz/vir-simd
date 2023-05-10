@@ -9,6 +9,7 @@
 #include "vir/simd_iota.h"
 #include "vir/simd_cvt.h"
 #include "vir/simd_permute.h"
+#include "vir/simd_execution.h"
 
 namespace stdx = vir::stdx;
 
@@ -300,5 +301,41 @@ f()
   vir::fake_read(x);
 }
 #endif  // VIR_HAVE_SIMD_BENCHMARKING
+
+#if VIR_HAVE_SIMD_EXECUTION && _GLIBCXX_RELEASE >= 13
+// needs recent libstdc++ for better constexpr support
+namespace algorithms_tests
+{
+  static_assert(vir::execution::simd._size == 0);
+  static_assert(vir::execution::simd.prefer_size<4>()._size == 4);
+  static_assert(vir::execution::simd._unroll_by == 0);
+  static_assert(vir::execution::simd.unroll_by<3>()._unroll_by == 3);
+  static_assert([] {
+    std::array input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    vir::for_each(vir::execution::simd, input, [](auto& v) {
+      using T = std::remove_reference_t<decltype(v)>;
+      if (v[0] == 1)
+	 {
+	   if (std::same_as<T, V<int>>)
+	     v += 2;
+	 }
+      else
+	v += 2;
+    });
+    if (input != std::array{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
+      return false;
+    vir::for_each(vir::execution::simd, input, [](auto v) {
+      v += 2;
+    });
+    if (input != std::array{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
+      return false;
+
+    const int c = vir::count_if(vir::execution::simd, input, [](auto v) {
+      return (v & 1) == 1;
+    });
+    return c == 10;
+  }());
+}
+#endif  // VIR_HAVE_SIMD_EXECUTION
 
 // vim: noet cc=101 tw=100 sw=2 ts=8

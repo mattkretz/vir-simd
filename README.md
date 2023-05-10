@@ -171,6 +171,10 @@ Example:
 vir::simd_shift_in<1>(v, w);
 ```
 
+### SIMD execution policy ([P0350](https://wg21.link/P0350)):
+
+*Requires Concepts (C++20).*
+
 
 ### Bitwise operators for floating-point `simd`:
 

@@ -617,7 +617,8 @@ namespace vir::stdx
     {
     private:
       template <typename V, int M, size_t Parts>
-        friend std::enable_if_t<M == Parts * V::size() && is_simd_mask_v<V>, std::array<V, Parts>>
+        friend constexpr
+        std::enable_if_t<M == Parts * V::size() && is_simd_mask_v<V>, std::array<V, Parts>>
         split(const simd_mask<typename V::simd_type::value_type, simd_abi::fixed_size<M>>&);
 
       bool data[N];
@@ -1123,19 +1124,20 @@ namespace vir::stdx
 
       // load constructor
       template <typename U, typename Flags>
+        constexpr
         simd(const U* mem, Flags)
         : data(mem[0])
         {}
 
       // loads [simd.load]
       template <typename U, typename Flags>
-        void
+        constexpr void
         copy_from(const detail::Vectorizable<U>* mem, Flags)
         { data = mem[0]; }
 
       // stores [simd.store]
       template <typename U, typename Flags>
-        void
+        constexpr void
         copy_to(detail::Vectorizable<U>* mem, Flags) const
         { mem[0] = data; }
 
@@ -1373,11 +1375,13 @@ namespace vir::stdx
       friend class fixed_simd_int_base<T, N>;
 
       template <typename V, int M, size_t Parts>
-        friend std::enable_if_t<M == Parts * V::size() && is_simd_v<V>, std::array<V, Parts>>
+        friend constexpr
+        std::enable_if_t<M == Parts * V::size() && is_simd_v<V>, std::array<V, Parts>>
         split(const simd<typename V::value_type, simd_abi::fixed_size<M>>&);
 
       template <size_t... Sizes, typename U>
-        friend std::tuple<simd<U, simd_abi::deduce_t<U, int(Sizes)>>...>
+        friend constexpr
+        std::tuple<simd<U, simd_abi::deduce_t<U, int(Sizes)>>...>
         split(const simd<U, simd_abi::fixed_size<int((Sizes + ...))>>&);
 
       T data[N];
@@ -1674,6 +1678,7 @@ namespace vir::stdx
 
   // split(simd)
   template <typename V, int N, size_t Parts = N / V::size()>
+    constexpr
     std::enable_if_t<N == Parts * V::size() && is_simd_v<V>, std::array<V, Parts>>
     split(const simd<typename V::value_type, simd_abi::fixed_size<N>>& x)
     {
@@ -1686,6 +1691,7 @@ namespace vir::stdx
 
   // split(simd_mask)
   template <typename V, int N, size_t Parts = N / V::size()>
+    constexpr
     std::enable_if_t<N == Parts * V::size() && is_simd_mask_v<V>, std::array<V, Parts>>
     split(const simd_mask<typename V::simd_type::value_type, simd_abi::fixed_size<N>>& x)
     {
@@ -1698,6 +1704,7 @@ namespace vir::stdx
 
   // split<Sizes...>
   template <size_t... Sizes, typename T>
+    constexpr
     std::tuple<simd<T, simd_abi::deduce_t<T, int(Sizes)>>...>
     split(const simd<T, simd_abi::fixed_size<int((Sizes + ...))>>& x)
     {
@@ -1717,6 +1724,7 @@ namespace vir::stdx
 
   // split<V>(V)
   template <typename V>
+    constexpr
     std::enable_if_t<std::disjunction_v<is_simd<V>, is_simd_mask<V>>, std::array<V, 1>>
     split(const V& x)
     { return {x}; }
@@ -2134,7 +2142,7 @@ namespace vir::stdx
     }
 
   template <typename M, typename V, typename BinaryOperation = std::plus<>>
-    typename V::value_type
+    constexpr typename V::value_type
     reduce(const const_where_expression<M, V>& x,
         typename V::value_type identity_element,
         BinaryOperation binary_op)
@@ -2152,27 +2160,27 @@ namespace vir::stdx
     }
 
   template <typename M, typename V>
-    typename V::value_type
+    constexpr typename V::value_type
     reduce(const const_where_expression<M, V>& x, std::plus<> binary_op = {})
     { return reduce(x, 0, binary_op); }
 
   template <typename M, typename V>
-    typename V::value_type
+    constexpr typename V::value_type
     reduce(const const_where_expression<M, V>& x, std::multiplies<> binary_op)
     { return reduce(x, 1, binary_op); }
 
   template <typename M, typename V>
-    typename V::value_type
+    constexpr typename V::value_type
     reduce(const const_where_expression<M, V>& x, std::bit_and<> binary_op)
     { return reduce(x, ~typename V::value_type(), binary_op); }
 
   template <typename M, typename V>
-    typename V::value_type
+    constexpr typename V::value_type
     reduce(const const_where_expression<M, V>& x, std::bit_or<> binary_op)
     { return reduce(x, 0, binary_op); }
 
   template <typename M, typename V>
-    typename V::value_type
+    constexpr typename V::value_type
     reduce(const const_where_expression<M, V>& x, std::bit_xor<> binary_op)
     { return reduce(x, 0, binary_op); }
 

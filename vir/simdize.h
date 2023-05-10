@@ -14,6 +14,7 @@
 #include <tuple>
 #include <iterator>
 #include "simd.h"
+#include "detail.h"
 #include "simd_concepts.h"
 
 namespace vir
@@ -48,13 +49,6 @@ namespace vir
 
   namespace detail
   {
-    /**
-     * Shortcut to determine the stdx::simd specialization with the most efficient ABI tag for the
-     * requested element type T and width N.
-     */
-    template <typename T, std::size_t N>
-      using deduced_simd = stdx::simd<T, stdx::simd_abi::deduce_t<T, N>>;
-
     template <typename T, std::size_t N>
       struct simdize_impl;
 
