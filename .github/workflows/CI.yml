@@ -165,7 +165,6 @@ jobs:
           make check DRIVEROPTS=-vvf
 
   msvc:
-    if: false
     strategy:
       fail-fast: false
       matrix:
