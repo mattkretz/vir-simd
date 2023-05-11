@@ -38,6 +38,7 @@ namespace vir::stdx
 
 #else
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #ifdef _GLIBCXX_DEBUG_UB
@@ -113,15 +114,23 @@ namespace vir::stdx
     };
 
     template <typename... Args>
-      [[noreturn]] VIR_ALWAYS_INLINE inline void
+      [[noreturn]] VIR_ALWAYS_INLINE void
       invoke_ub([[maybe_unused]] const char* msg,
                 [[maybe_unused]] const Args&... args)
       {
 #ifdef _GLIBCXX_DEBUG_UB
         std::fprintf(stderr, msg, args...);
+#ifdef __GNUC__
         __builtin_trap();
 #else
+        std::abort();
+#endif
+#else
+#if __cpp_lib_unreachable >= 202202L
+        std::unreachable();
+#elif defined __GNUC__
         __builtin_unreachable();
+#endif
 #endif
       }
 
