@@ -4,7 +4,6 @@ on:
   push:
     branches: [ "master" ]
   pull_request:
-    branches: [ "master" ]
 
 jobs:
   gcc:
@@ -38,8 +37,11 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install Clang ${{ matrix.version }}
-        run: sudo apt-get install -y clang-${{ matrix.version }} 
-          libc++-${{ matrix.version }}-dev libc++abi-${{ matrix.version }}-dev
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${{ matrix.version }} main'
+          sudo apt update
+          sudo apt install -y clang-${{ matrix.version }} libc++-${{ matrix.version }}-dev libc++abi-${{ matrix.version }}-dev
 
       - name: Run test suite
         env:
