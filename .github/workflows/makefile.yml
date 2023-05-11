@@ -1,4 +1,4 @@
-name: Makefile CI
+name: CI
 
 on:
   push:
@@ -7,37 +7,60 @@ on:
     branches: [ "master" ]
 
 jobs:
-  gcc11:
+  gcc:
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [9, 11]
+
     runs-on: ubuntu-22.04
-    env:
-      CXX: g++-11
-    steps:
-    - uses: actions/checkout@v3
-    - name: Run check
-      run: make check DRIVEROPTS=-vvf
 
-  gcc9:
-    runs-on: ubuntu-20.04
-    env:
-      CXX: g++-9
     steps:
-    - uses: actions/checkout@v3
-    - name: Run check
-      run: make check DRIVEROPTS=-vvf
+      - uses: actions/checkout@v3
 
-  clang15:
+      - name: Install GCC ${{ matrix.version }}
+        run: sudo apt-get install -y gcc-${{ matrix.version }} g++-${{ matrix.version }}
+
+      - name: Run test suite
+        env:
+          CXX: g++-${{ matrix.version }}
+        run: make check DRIVEROPTS=-vvf
+
+  clang:
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [15]
+
     runs-on: ubuntu-22.04
-    env:
-      CXX: clang++-15
-      CXXFLAGS: -stdlib=libc++
-    steps:
-    - uses: actions/checkout@v3
-    - name: Install clang-15
-      run: |
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-15 main'
-        sudo apt update
-        sudo apt install -y clang-15 libc++-15-dev libc++abi-15-dev
-    - name: Run check
-      run: make check DRIVEROPTS=-vvf
 
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Clang ${{ matrix.version }}
+        run: sudo apt-get install -y clang-${{ matrix.version }} 
+          libc++-${{ matrix.version }}-dev libc++abi-${{ matrix.version }}-dev
+
+      - name: Run test suite
+        env:
+          CXX: clang++-${{ matrix.version }}
+          CXXFLAGS: -stdlib=libc++
+        run: make check DRIVEROPTS=-vvf
+
+  msvc:
+    if: false
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure test
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE:STRING=Release
+
+      - name: Compile test
+        run: cmake --build build --config Release
