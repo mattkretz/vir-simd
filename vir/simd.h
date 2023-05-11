@@ -6,8 +6,14 @@
 #ifndef VIR_SIMD_H_
 #define VIR_SIMD_H_
 
+#ifdef _MSVC_LANG
+#if _MSVC_LANG < 201703L
+#error "simd requires C++17 or later"
+#endif
+#else
 #if __cplusplus < 201703L
 #error "simd requires C++17 or later"
+#endif
 #endif
 
 #include "simd_version.h"
