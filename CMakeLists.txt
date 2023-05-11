@@ -37,9 +37,10 @@ install(
   FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   PATTERN "*.cpp" EXCLUDE)
 
-# Define test target
-add_library(vir-simd-test vir/test.cpp)
-target_link_libraries(vir-simd-test PRIVATE vir-simd)
+# Define test targets
+add_library(vir-simd-test-stdlib vir/test.cpp)
+target_link_libraries(vir-simd-test-stdlib PRIVATE vir-simd)
 
-target_compile_definitions(vir-simd-test PRIVATE VIR_DISABLE_STDX_SIMD
-                                                 VIR_SIMD_TS_DROPIN)
+add_library(vir-simd-test-fallback vir/test.cpp)
+target_link_libraries(vir-simd-test-fallback PRIVATE vir-simd)
+target_compile_definitions(vir-simd-test-fallback PRIVATE VIR_DISABLE_STDX_SIMD)
