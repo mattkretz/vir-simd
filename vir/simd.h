@@ -1400,6 +1400,7 @@ namespace vir::stdx
       template <typename F, size_t... Is>
         constexpr
         simd(std::index_sequence<Is...>, F&& init)
+#pragma warning(suppress:4267)
         : data {static_cast<value_type>(init(detail::SizeConstant<Is>()))...}
         {}
 

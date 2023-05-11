@@ -143,12 +143,12 @@ namespace vir
       using T = typename V::value_type;
       using R = stdx::resize_simd_t<N == 0 ? V::size() : N, V>;
       return R([&](auto i) -> T {
-	       constexpr int j = [&] {
+	       constexpr int j = [&](auto ii, F const idx_perm2) {
 		 if constexpr (detail::index_permutation_function_nosize<F>)
-		   return idx_perm(i);
+		   return idx_perm2(ii);
 		 else
-		   return idx_perm(i, std::integral_constant<std::size_t, V::size()>());
-	       }();
+		   return idx_perm2(ii, std::integral_constant<std::size_t, V::size()>());
+	       }(i, idx_perm);
 	       if constexpr (j == simd_permute_zero)
 		 return 0;
 	       else if constexpr (j == simd_permute_uninit)
