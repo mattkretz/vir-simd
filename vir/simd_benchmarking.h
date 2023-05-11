@@ -6,7 +6,7 @@
 #ifndef VIR_SIMD_BENCHMARKING_H_
 #define VIR_SIMD_BENCHMARKING_H_
 
-#if __cpp_concepts >= 201907
+#if __cpp_concepts >= 201907 and defined __GNUC__
 #include "simd.h"
 
 #define VIR_HAVE_SIMD_BENCHMARKING 1
