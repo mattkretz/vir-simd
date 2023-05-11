@@ -49,3 +49,8 @@ target_link_libraries(vir-simd-test-fallback PRIVATE vir-simd)
 target_compile_definitions(vir-simd-test-fallback PRIVATE VIR_DISABLE_STDX_SIMD)
 
 add_custom_target(check DEPENDS vir-simd-test-stdlib vir-simd-test-fallback)
+
+if(MSVC)
+  target_compile_options(vir-simd-test-stdlib PRIVATE /std:c++latest)
+  target_compile_options(vir-simd-test-fallback PRIVATE /std:c++latest)
+endif()
