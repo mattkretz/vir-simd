@@ -25,11 +25,6 @@ endif()
 target_compile_options(
   vir-simd INTERFACE $<$<COMPILE_LANGUAGE:CXX>:${PROJECT_WARNINGS_CXX}>)
 
-if(MSVC)
-  # Needed flag to detect C++ version
-  target_compile_options(vir-simd INTERFACE /Zc:__cplusplus)
-endif()
-
 # Define the install target
 install(TARGETS vir-simd EXPORT vir-simd-config)
 install(
