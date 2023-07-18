@@ -6,8 +6,14 @@
 #ifndef VIR_SIMD_H_
 #define VIR_SIMD_H_
 
+#ifdef _MSVC_LANG
+#if _MSVC_LANG < 201703L
+#error "simd requires C++17 or later"
+#endif
+#else
 #if __cplusplus < 201703L
 #error "simd requires C++17 or later"
+#endif
 #endif
 
 #if __has_include (<experimental/simd>) && !defined VIR_DISABLE_STDX_SIMD && !defined __clang__
@@ -32,6 +38,7 @@ namespace vir::stdx
 
 #else
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #ifdef _GLIBCXX_DEBUG_UB
@@ -107,15 +114,23 @@ namespace vir::stdx
     };
 
     template <typename... Args>
-      [[noreturn]] VIR_ALWAYS_INLINE inline void
+      [[noreturn]] VIR_ALWAYS_INLINE void
       invoke_ub([[maybe_unused]] const char* msg,
                 [[maybe_unused]] const Args&... args)
       {
 #ifdef _GLIBCXX_DEBUG_UB
         std::fprintf(stderr, msg, args...);
+#ifdef __GNUC__
         __builtin_trap();
 #else
+        std::abort();
+#endif
+#else
+#if __cpp_lib_unreachable >= 202202L
+        std::unreachable();
+#elif defined __GNUC__
         __builtin_unreachable();
+#endif
 #endif
       }
 
@@ -1385,6 +1400,7 @@ namespace vir::stdx
       template <typename F, size_t... Is>
         constexpr
         simd(std::index_sequence<Is...>, F&& init)
+#pragma warning(suppress:4267)
         : data {static_cast<value_type>(init(detail::SizeConstant<Is>()))...}
         {}
 

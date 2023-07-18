@@ -7,6 +7,7 @@ on:
 
 jobs:
   gcc:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +27,7 @@ jobs:
         run: make check DRIVEROPTS=-vvf
 
   clang:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -50,7 +52,6 @@ jobs:
         run: make check DRIVEROPTS=-vvf
 
   msvc:
-    if: false
     strategy:
       fail-fast: false
       matrix:

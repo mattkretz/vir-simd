@@ -34,6 +34,7 @@ namespace vir
 	operator U() const
 	{
 	  if constexpr (std::convertible_to<T, U>)
+#pragma warning(suppress:4244)
 	    return ref;
 	  else
 	    return stdx::static_simd_cast<U>(ref);
