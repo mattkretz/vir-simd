@@ -104,9 +104,11 @@ static_assert(
   all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::swap_neighbors<2>),
 	    make_simd(2, 3, 0, 1)));
 
+#if !defined __cpp_lib_experimental_parallel_simd || _GLIBCXX_RELEASE > 11
 static_assert(
   all_equal(vir::simd_permute(make_simd(0, 1, 2, 3, 4, 5), vir::simd_permutations::swap_neighbors<3>),
 	    make_simd(3, 4, 5, 0, 1, 2)));
+#endif
 
 static_assert(
   all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::broadcast_first), 0));
