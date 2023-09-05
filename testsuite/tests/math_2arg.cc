@@ -63,6 +63,9 @@ template <typename V>
     vir::test::setFuzzyness<float>(0);
     vir::test::setFuzzyness<double>(0);
     vir::test::setFuzzyness<long double>(0);
+#if VIR_HAVE_VIR_SIMD
+    FloatExceptCompare::ignore = true; // GCC PR94413
+#endif
     test_values_2arg<V>(
       {
 #ifdef __STDC_IEC_559__

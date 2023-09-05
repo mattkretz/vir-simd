@@ -24,6 +24,8 @@
 
 #if defined __cpp_lib_experimental_parallel_simd && __cpp_lib_experimental_parallel_simd >= 201803
 
+#define VIR_HAVE_STD_SIMD 1
+
 namespace vir::stdx
 {
   using namespace std::experimental::parallelism_v2;
@@ -42,6 +44,8 @@ namespace vir::stdx
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
+#define VIR_HAVE_VIR_SIMD 1
 
 #ifdef VIR_SIMD_TS_DROPIN
 namespace std::experimental

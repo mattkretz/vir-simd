@@ -30,7 +30,14 @@ template <typename F>
     return r;
   }
 
+#if VIR_HAVE_STD_SIMD
 #define NOFPEXCEPT(...) verify_no_fp_exceptions([&]() { return __VA_ARGS__; })
+#elif VIR_HAVE_VIR_SIMD
+// With the array-based simd implementation, GCC might auto-vectorize the classification functions,
+// hitting PR94413 (auto-vectorization of isfinite raises FP exception). Therefore, simply ignore FP
+// exceptions then.
+#define NOFPEXCEPT(...) [&]() { return __VA_ARGS__; }()
+#endif
 
 template <typename V>
   void
