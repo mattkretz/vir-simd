@@ -35,17 +35,17 @@ namespace vir
       data_or_ptr(const T* ptr)
       { return ptr; }
 
-    // Invokes fun(V&) or fun(const V&) with V copied from r at offset i.
-    // If write_back is true, copy it back to r.
+    // Invokes fun(V&) or fun(const V&) with V copied from ptr.
+    // If write_back is true, copy it back to ptr.
     template <typename V, bool write_back, typename Flags, std::size_t... Is>
       constexpr void
-      simd_load_and_invoke(auto&& fun, auto&& r, std::size_t i, Flags f, std::index_sequence<Is...>)
+      simd_load_and_invoke(auto&& fun, auto ptr, Flags f, std::index_sequence<Is...>)
       {
         [&](auto... chunks) {
           std::invoke(fun, chunks...);
           if constexpr (write_back)
-            (chunks.copy_to(data_or_ptr(r) + i + (V::size() * Is), f), ...);
-        }(std::conditional_t<write_back, V, const V>(data_or_ptr(r) + i + (V::size() * Is), f)...);
+            (chunks.copy_to(ptr + (V::size() * Is), f), ...);
+        }(std::conditional_t<write_back, V, const V>(ptr + (V::size() * Is), f)...);
       }
 
     template <class V, bool write_back, std::size_t max_bytes>
@@ -54,7 +54,7 @@ namespace vir
       {
         if (V::size() & to_process)
           {
-            simd_load_and_invoke<V, write_back>(fun, ptr, 0, stdx::vector_aligned,
+            simd_load_and_invoke<V, write_back>(fun, ptr, stdx::vector_aligned,
                                                 std::make_index_sequence<1>());
             ptr += V::size();
           }
@@ -65,18 +65,24 @@ namespace vir
           }
       }
 
+    static constexpr auto no_unroll = std::make_index_sequence<1>();
+
     template <class V0, bool write_back>
       constexpr void
-      simd_for_each_epilogue(auto&& fun, auto&& rng, std::size_t i, auto f)
+      simd_for_each_epilogue(auto&& fun, unsigned leftover, auto last, auto f)
       {
-        using V = stdx::resize_simd_t<V0::size() / 2, V0>;
-        if (i + V::size() <= std::ranges::size(rng))
+        // pre-conditions:
+        // * leftover < V0::size()
+        // * last - leftover can be dereferenced
+        using V = stdx::resize_simd_t<std::bit_ceil(V0::size()) / 2, V0>;
+        if (leftover >= V::size())
           {
-            simd_load_and_invoke<V, write_back>(fun, rng, i, f, std::make_index_sequence<1>());
-            i += V::size();
+            simd_load_and_invoke<V, write_back>(fun, std::to_address(last - leftover), f,
+                                                no_unroll);
+            leftover -= V::size();
           }
         if constexpr (V::size() > 1)
-          simd_for_each_epilogue<V, write_back>(fun, rng, i, f);
+          simd_for_each_epilogue<V, write_back>(fun, leftover, last, f);
       }
 
     struct simd_policy_prefer_aligned_t {};
@@ -121,6 +127,19 @@ namespace vir
       struct is_simd_policy
       : std::false_type
       {};
+
+    template <typename T>
+      concept simd_execution_policy = is_simd_policy<std::remove_cvref_t<T>>::value;
+
+    template <typename Rng>
+      concept simd_execution_range = std::ranges::contiguous_range<Rng> and requires {
+        typename vir::simdize<std::ranges::range_value_t<Rng>>;
+      };
+
+    template <typename It>
+      concept simd_execution_iterator = std::contiguous_iterator<It> and requires {
+        typename vir::simdize<std::iter_value_t<It>>;
+      };
 
   } // namespace detail
 
@@ -171,65 +190,71 @@ namespace vir
       {};
   }
 
-  template <typename ExecutionPolicy, std::ranges::contiguous_range R, typename F>
-    requires (detail::is_simd_policy<ExecutionPolicy>::value
-                and requires
-             {
-               typename vir::simdize<std::ranges::range_value_t<R>>;
-             })
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
+            typename F>
     constexpr void
-    for_each(ExecutionPolicy, R&& rng, F&& fun)
+    for_each(ExecutionPolicy, It first, It last, F&& fun)
     {
-      using T = std::ranges::range_value_t<R>;
+      using T = std::iter_value_t<It>;
       using V = vir::simdize<T, ExecutionPolicy::_size>;
-      constexpr bool write_back = std::ranges::output_range<R, T>
+      constexpr int size = V::size();
+      constexpr bool write_back = std::indirectly_writable<It, T>
                                     and std::invocable<F, V&> and not std::invocable<F, V&&>;
-      std::size_t i = 0;
       constexpr std::conditional_t<ExecutionPolicy::_prefers_aligned, stdx::vector_aligned_tag,
                                    stdx::element_aligned_tag> flags{};
+      const auto distance = std::distance(first, last);
+      if (distance <= 0)
+        return;
       if constexpr (ExecutionPolicy::_prefers_aligned)
         {
-          const auto misaligned_by = reinterpret_cast<std::uintptr_t>(std::ranges::data(rng))
+          const auto misaligned_by = reinterpret_cast<std::uintptr_t>(std::to_address(first))
                                        % stdx::memory_alignment_v<V>;
           if (misaligned_by != 0)
             {
               const auto to_process = stdx::memory_alignment_v<V> - misaligned_by;
               detail::simd_for_each_prologue<stdx::resize_simd_t<1, V>, write_back,
                                              stdx::memory_alignment_v<V>>(
-                fun, std::ranges::data(rng), to_process);
-              i = to_process;
+                fun, std::to_address(first), to_process);
+              first += to_process;
             }
         }
 
       if constexpr (ExecutionPolicy::_unroll_by > 1)
         {
-          for (; i + V::size() * ExecutionPolicy::_unroll_by <= std::ranges::size(rng);
-               i += V::size() * ExecutionPolicy::_unroll_by)
+          constexpr auto step = size * ExecutionPolicy::_unroll_by;
+          for (; first + step <= last; first += step)
             {
               detail::simd_load_and_invoke<V, write_back>(
-                fun, rng, i, flags, std::make_index_sequence<ExecutionPolicy::_unroll_by>());
+                fun, std::to_address(first), flags,
+                std::make_index_sequence<ExecutionPolicy::_unroll_by>());
             }
         }
 
-      for (; i + V::size() <= std::ranges::size(rng); i += V::size())
-        detail::simd_load_and_invoke<V, write_back>(fun, rng, i, flags,
+      for (; first + size <= last; first += size)
+        detail::simd_load_and_invoke<V, write_back>(fun, std::to_address(first), flags,
                                                     std::make_index_sequence<1>());
 
-      if constexpr (V::size() > 1)
-        detail::simd_for_each_epilogue<V, write_back>(fun, rng, i, flags);
+      if constexpr (size > 1)
+        detail::simd_for_each_epilogue<V, write_back>(fun, distance % size, last, flags);
     }
 
-  template <typename ExecutionPolicy, std::ranges::contiguous_range R, typename F>
-    requires detail::is_simd_policy<ExecutionPolicy>::value
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R,
+            typename F>
+    constexpr void
+    for_each(ExecutionPolicy&& pol, R&& rng, F&& fun)
+    { vir::for_each(pol, std::ranges::begin(rng), std::ranges::end(rng), std::forward<F>(fun)); }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
+            typename F>
     constexpr int
-    count_if(ExecutionPolicy pol, R const& v, F&& fun)
+    count_if(ExecutionPolicy pol, It first, It last, F&& fun)
     {
-      using T = std::ranges::range_value_t<R>;
+      using T = std::iter_value_t<It>;
       using TV = vir::simdize<T, ExecutionPolicy::_size>;
       using IV = detail::deduced_simd<int, TV::size()>;
       int count = 0;
       IV countv = 0;
-      vir::for_each(pol, v, [&](auto... x) {
+      vir::for_each(pol, first, last, [&](auto... x) {
 #if __cpp_lib_experimental_parallel_simd >= 201803
         if (std::is_constant_evaluated())
           count += (popcount(fun(x)) + ...);
@@ -249,7 +274,28 @@ namespace vir
       });
       return count + reduce(countv);
     }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R,
+            typename F>
+    constexpr int
+    count_if(ExecutionPolicy&& pol, R&& v, F&& fun)
+    { return vir::count_if(pol, std::ranges::begin(v), std::ranges::end(v), std::forward<F>(fun)); }
 }  // namespace vir
+
+namespace std
+{
+  template <vir::detail::simd_execution_policy ExecutionPolicy,
+            vir::detail::simd_execution_iterator It, typename F>
+    constexpr void
+    for_each(ExecutionPolicy&& pol, It first, It last, F&& fun)
+    { vir::for_each(pol, first, last, std::forward<F>(fun)); }
+
+  template <vir::detail::simd_execution_policy ExecutionPolicy,
+            vir::detail::simd_execution_iterator It, typename F>
+    constexpr int
+    count_if(ExecutionPolicy&& pol, It first, It last, F&& fun)
+    { return vir::count_if(pol, first, last, std::forward<F>(fun)); }
+}
 #endif // VIR_HAVE_SIMD_CONCEPTS
 #endif // VIR_SIMD_EXECUTION_H_
 

@@ -175,6 +175,36 @@ vir::simd_shift_in<1>(v, w);
 
 *Requires Concepts (C++20).*
 
+Use the execution policy `vir::execution::simd` with the algorithms in `vir` 
+namespace, using either the `std` or `vir` namespace. Example:
+
+```c++
+#include <vir/simd_execution.h>
+
+void increment_all(std::vector<float> data) {
+  std::for_each(vir::execution::simd, data.begin(), data.end(),
+    [](auto& v) {
+      v += 1.f;
+    });
+}
+
+// or
+
+void increment_all(std::vector<float> data) {
+  vir::for_each(vir::execution::simd, data,
+    [](auto& v) {
+      v += 1.f;
+    });
+}
+```
+
+At this point, the implementation of the execution policy requires contiguous 
+ranges / iterators.
+
+The following algorithms are currently implemented:
+
+* `std::for_each`
+* `std::count_if`
 
 ### Bitwise operators for floating-point `simd`:
 
