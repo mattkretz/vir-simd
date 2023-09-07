@@ -62,6 +62,98 @@ namespace vir
     static constexpr auto no_unroll = std::make_index_sequence<1>();
 
     template <class V, bool write_back, std::size_t max_elements>
+      void
+      simd_for_each_jumptable_prologue(auto&& fun, auto ptr, std::size_t to_process)
+      {
+        switch (to_process)
+        {
+#define VIR_CASE(N, M)                                                                             \
+          case N:                                                                                  \
+            static_assert(std::has_single_bit(unsigned(N - M)));                                   \
+            static_assert(N - M < M or M == 0);                                                    \
+            static_assert(((N - M) & M) == 0);                                                     \
+            goto case##N;                                                                          \
+case##N:                                                                                           \
+            if constexpr (N >= max_elements)                                                       \
+              unreachable();                                                                       \
+            simd_load_and_invoke<stdx::resize_simd_t<N - M, V>, write_back>(                       \
+              fun, ptr, stdx::vector_aligned, no_unroll);                                          \
+            ptr += N - M;                                                                          \
+            goto case##M
+
+          VIR_CASE(1, 0);
+          VIR_CASE(2, 0);
+          VIR_CASE(3, 2);
+          VIR_CASE(4, 0);
+          VIR_CASE(5, 4);
+          VIR_CASE(6, 4);
+          VIR_CASE(7, 6);
+          VIR_CASE(8, 0);
+          VIR_CASE(9, 8);
+          VIR_CASE(10, 8);
+          VIR_CASE(11, 10);
+          VIR_CASE(12, 8);
+          VIR_CASE(13, 12);
+          VIR_CASE(14, 12);
+          VIR_CASE(15, 14);
+          VIR_CASE(16, 0);
+          VIR_CASE(17, 16);
+          VIR_CASE(18, 16);
+          VIR_CASE(19, 18);
+          VIR_CASE(20, 16);
+          VIR_CASE(21, 20);
+          VIR_CASE(22, 20);
+          VIR_CASE(23, 22);
+          VIR_CASE(24, 16);
+          VIR_CASE(25, 24);
+          VIR_CASE(26, 24);
+          VIR_CASE(27, 26);
+          VIR_CASE(28, 24);
+          VIR_CASE(29, 28);
+          VIR_CASE(30, 28);
+          VIR_CASE(31, 30);
+          VIR_CASE(32,  0);
+          VIR_CASE(33, 32);
+          VIR_CASE(34, 32);
+          VIR_CASE(35, 34);
+          VIR_CASE(36, 32);
+          VIR_CASE(37, 36);
+          VIR_CASE(38, 34);
+          VIR_CASE(39, 38);
+          VIR_CASE(40, 32);
+          VIR_CASE(41, 40);
+          VIR_CASE(42, 40);
+          VIR_CASE(43, 42);
+          VIR_CASE(44, 40);
+          VIR_CASE(45, 44);
+          VIR_CASE(46, 44);
+          VIR_CASE(47, 46);
+          VIR_CASE(48, 32);
+          VIR_CASE(49, 48);
+          VIR_CASE(50, 48);
+          VIR_CASE(51, 50);
+          VIR_CASE(52, 48);
+          VIR_CASE(53, 52);
+          VIR_CASE(54, 52);
+          VIR_CASE(55, 54);
+          VIR_CASE(56, 48);
+          VIR_CASE(57, 56);
+          VIR_CASE(58, 56);
+          VIR_CASE(59, 58);
+          VIR_CASE(60, 56);
+          VIR_CASE(61, 60);
+          VIR_CASE(62, 60);
+          VIR_CASE(63, 62);
+#undef VIR_CASE
+
+          default:
+            unreachable();
+        }
+case0:
+        return;
+      }
+
+    template <class V, bool write_back, std::size_t max_elements>
       constexpr void
       simd_for_each_prologue(auto&& fun, auto ptr, std::size_t to_process)
       {
@@ -80,6 +172,13 @@ namespace vir
             simd_load_and_invoke<V, write_back>(fun, ptr, stdx::vector_aligned, no_unroll);
             return;
           }
+#if !__OPTIMIZE_SIZE__
+        if constexpr (V::size() == 1 and max_elements < 64)
+          if (not std::is_constant_evaluated())
+            return simd_for_each_jumptable_prologue<V, write_back, max_elements>(
+                     fun, ptr, to_process);
+#endif
+
         if (V::size() & to_process)
           {
             simd_load_and_invoke<V, write_back>(fun, ptr, stdx::vector_aligned, no_unroll);
@@ -92,6 +191,97 @@ namespace vir
           }
       }
 
+    template <class V0, bool write_back>
+      void
+      simd_for_each_jumptable_epilogue(auto&& fun, unsigned leftover, auto last, auto f)
+      {
+        auto ptr = std::to_address(last - leftover);
+        switch (leftover)
+        {
+          case 0:
+case0:
+            return;
+
+#define VIR_CASE(N, M)                                                                         \
+          case N:                                                                              \
+            goto case##N;                                                                      \
+case##N:                                                                                       \
+            if constexpr (N >= V0::size())                                                     \
+              unreachable();                                                                   \
+            simd_load_and_invoke<stdx::resize_simd_t<N - M, V0>, write_back>(                  \
+              fun, ptr, f, no_unroll);                                                         \
+            ptr += N - M;                                                                      \
+            goto case##M
+
+          VIR_CASE(1, 0);
+          VIR_CASE(2, 0);
+          VIR_CASE(3, 1);
+          VIR_CASE(4, 0);
+          VIR_CASE(5, 1);
+          VIR_CASE(6, 2);
+          VIR_CASE(7, 3);
+          VIR_CASE(8, 0);
+          VIR_CASE(9, 1);
+          VIR_CASE(10, 2);
+          VIR_CASE(11, 3);
+          VIR_CASE(12, 4);
+          VIR_CASE(13, 5);
+          VIR_CASE(14, 6);
+          VIR_CASE(15, 7);
+          VIR_CASE(16, 0);
+          VIR_CASE(17, 1);
+          VIR_CASE(18, 2);
+          VIR_CASE(19, 3);
+          VIR_CASE(20, 4);
+          VIR_CASE(21, 5);
+          VIR_CASE(22, 6);
+          VIR_CASE(23, 7);
+          VIR_CASE(24, 8);
+          VIR_CASE(25, 9);
+          VIR_CASE(26, 10);
+          VIR_CASE(27, 11);
+          VIR_CASE(28, 12);
+          VIR_CASE(29, 13);
+          VIR_CASE(30, 14);
+          VIR_CASE(31, 15);
+          VIR_CASE(32,  0);
+          VIR_CASE(33,  1);
+          VIR_CASE(34,  2);
+          VIR_CASE(35,  3);
+          VIR_CASE(36,  4);
+          VIR_CASE(37,  5);
+          VIR_CASE(38,  6);
+          VIR_CASE(39,  7);
+          VIR_CASE(40,  8);
+          VIR_CASE(41,  9);
+          VIR_CASE(42, 10);
+          VIR_CASE(43, 11);
+          VIR_CASE(44, 12);
+          VIR_CASE(45, 13);
+          VIR_CASE(46, 14);
+          VIR_CASE(47, 15);
+          VIR_CASE(48, 16);
+          VIR_CASE(49, 17);
+          VIR_CASE(50, 18);
+          VIR_CASE(51, 19);
+          VIR_CASE(52, 20);
+          VIR_CASE(53, 21);
+          VIR_CASE(54, 22);
+          VIR_CASE(55, 23);
+          VIR_CASE(56, 24);
+          VIR_CASE(57, 25);
+          VIR_CASE(58, 26);
+          VIR_CASE(59, 27);
+          VIR_CASE(60, 28);
+          VIR_CASE(61, 29);
+          VIR_CASE(62, 30);
+          VIR_CASE(63, 31);
+#undef VIR_CASE
+
+          default:
+            unreachable();
+          }
+      }
 
     template <class V0, bool write_back>
       constexpr void
@@ -100,6 +290,14 @@ namespace vir
         // pre-conditions:
         // * leftover < V0::size()
         // * [last - leftover, last) is a valid range
+#if !__OPTIMIZE_SIZE__
+        if constexpr (V0::size() <= 64
+                        and V0::size() <= vir::stdx::native_simd<typename V0::value_type>::size())
+          {
+            if (not std::is_constant_evaluated())
+              return simd_for_each_jumptable_epilogue<V0, write_back>(fun, leftover, last, f);
+          }
+#endif // !__OPTIMIZE_SIZE__
         using V = stdx::resize_simd_t<std::bit_ceil(V0::size()) / 2, V0>;
         if (leftover >= V::size())
           {
