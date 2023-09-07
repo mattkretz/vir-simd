@@ -15,11 +15,22 @@
 
 #include <ranges>
 #include <cstdint>
+#include <utility>
 
 namespace vir
 {
   namespace detail
   {
+    [[noreturn]] void
+    unreachable()
+    {
+#if __cpp_lib_unreachable >= 202202L
+      std::unreachable();
+#elif defined __GNUC__
+      __builtin_unreachable();
+#endif
+    }
+
     template <typename T>
       constexpr auto
       data_or_ptr(T&& r) -> decltype(std::ranges::data(r))
@@ -48,24 +59,39 @@ namespace vir
         }(std::conditional_t<write_back, V, const V>(ptr + (V::size() * Is), f)...);
       }
 
-    template <class V, bool write_back, std::size_t max_bytes>
+    static constexpr auto no_unroll = std::make_index_sequence<1>();
+
+    template <class V, bool write_back, std::size_t max_elements>
       constexpr void
       simd_for_each_prologue(auto&& fun, auto ptr, std::size_t to_process)
       {
+        static_assert(max_elements > 1);
+        static_assert(std::has_single_bit(max_elements));
+        // pre-conditions:
+        // * ptr is a valid pointer to a range [ptr, ptr + to_process)
+        // * to_process > 0
+        // * to_process < max_elements
+
+        if (to_process == 0 or to_process >= max_elements)
+          unreachable();
+
+        if constexpr (max_elements == 2)
+          {
+            simd_load_and_invoke<V, write_back>(fun, ptr, stdx::vector_aligned, no_unroll);
+            return;
+          }
         if (V::size() & to_process)
           {
-            simd_load_and_invoke<V, write_back>(fun, ptr, stdx::vector_aligned,
-                                                std::make_index_sequence<1>());
+            simd_load_and_invoke<V, write_back>(fun, ptr, stdx::vector_aligned, no_unroll);
             ptr += V::size();
           }
-        if constexpr (V::size() * 2 * sizeof(typename V::value_type) < max_bytes)
+        if constexpr (V::size() * 2 < max_elements)
           {
-            simd_for_each_prologue<stdx::resize_simd_t<V::size() * 2, V>, write_back, max_bytes>(
+            simd_for_each_prologue<stdx::resize_simd_t<V::size() * 2, V>, write_back, max_elements>(
               fun, ptr, to_process);
           }
       }
 
-    static constexpr auto no_unroll = std::make_index_sequence<1>();
 
     template <class V0, bool write_back>
       constexpr void
@@ -73,7 +99,7 @@ namespace vir
       {
         // pre-conditions:
         // * leftover < V0::size()
-        // * last - leftover can be dereferenced
+        // * [last - leftover, last) is a valid range
         using V = stdx::resize_simd_t<std::bit_ceil(V0::size()) / 2, V0>;
         if (leftover >= V::size())
           {
@@ -200,42 +226,61 @@ namespace vir
       constexpr int size = V::size();
       constexpr bool write_back = std::indirectly_writable<It, T>
                                     and std::invocable<F, V&> and not std::invocable<F, V&&>;
-      constexpr std::conditional_t<ExecutionPolicy::_prefers_aligned, stdx::vector_aligned_tag,
-                                   stdx::element_aligned_tag> flags{};
-      const auto distance = std::distance(first, last);
+      auto distance = std::distance(first, last);
       if (distance <= 0)
         return;
-      if constexpr (ExecutionPolicy::_prefers_aligned)
+      if (std::is_constant_evaluated())
         {
-          const auto misaligned_by = reinterpret_cast<std::uintptr_t>(std::to_address(first))
-                                       % stdx::memory_alignment_v<V>;
-          if (misaligned_by != 0)
-            {
-              const auto to_process = stdx::memory_alignment_v<V> - misaligned_by;
-              detail::simd_for_each_prologue<stdx::resize_simd_t<1, V>, write_back,
-                                             stdx::memory_alignment_v<V>>(
-                fun, std::to_address(first), to_process);
-              first += to_process;
-            }
-        }
+          // needs element_aligned because of GCC PR111302
+          for (; first + size <= last; first += size)
+            detail::simd_load_and_invoke<V, write_back>(fun, std::to_address(first),
+                                                        stdx::element_aligned, detail::no_unroll);
 
-      if constexpr (ExecutionPolicy::_unroll_by > 1)
+          if constexpr (size > 1)
+            detail::simd_for_each_epilogue<V, write_back>(fun, distance % size, last,
+                                                          stdx::element_aligned);
+        }
+      else
         {
-          constexpr auto step = size * ExecutionPolicy::_unroll_by;
-          for (; first + step <= last; first += step)
+          constexpr auto bytes_per_iteration = size * sizeof(T);
+          constexpr bool use_aligned_loadstore
+            = ExecutionPolicy::_prefers_aligned and size > 1
+                and bytes_per_iteration % stdx::memory_alignment_v<V> == 0;
+          constexpr std::conditional_t<use_aligned_loadstore, stdx::vector_aligned_tag,
+                                       stdx::element_aligned_tag> flags{};
+          if constexpr (use_aligned_loadstore)
             {
-              detail::simd_load_and_invoke<V, write_back>(
-                fun, std::to_address(first), flags,
-                std::make_index_sequence<ExecutionPolicy::_unroll_by>());
+              const auto misaligned_by = reinterpret_cast<std::uintptr_t>(std::to_address(first))
+                                           % stdx::memory_alignment_v<V>;
+              if (misaligned_by != 0)
+                {
+                  const auto to_process = (stdx::memory_alignment_v<V> - misaligned_by) / sizeof(T);
+                  detail::simd_for_each_prologue<stdx::resize_simd_t<1, V>, write_back,
+                                                 stdx::memory_alignment_v<V> / sizeof(T)>(
+                    fun, std::to_address(first), to_process);
+                  first += to_process;
+                  distance -= to_process;
+                }
             }
+
+          if constexpr (ExecutionPolicy::_unroll_by > 1)
+            {
+              constexpr auto step = size * ExecutionPolicy::_unroll_by;
+              for (; first + step <= last; first += step)
+                {
+                  detail::simd_load_and_invoke<V, write_back>(
+                    fun, std::to_address(first), flags,
+                    std::make_index_sequence<ExecutionPolicy::_unroll_by>());
+                }
+            }
+
+          for (; first + size <= last; first += size)
+            detail::simd_load_and_invoke<V, write_back>(fun, std::to_address(first), flags,
+                                                        detail::no_unroll);
+
+          if constexpr (size > 1)
+            detail::simd_for_each_epilogue<V, write_back>(fun, distance % size, last, flags);
         }
-
-      for (; first + size <= last; first += size)
-        detail::simd_load_and_invoke<V, write_back>(fun, std::to_address(first), flags,
-                                                    std::make_index_sequence<1>());
-
-      if constexpr (size > 1)
-        detail::simd_for_each_epilogue<V, write_back>(fun, distance % size, last, flags);
     }
 
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R,

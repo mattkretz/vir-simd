@@ -308,8 +308,13 @@ namespace algorithms_tests
 {
   static_assert(vir::execution::simd._size == 0);
   static_assert(vir::execution::simd.prefer_size<4>()._size == 4);
+  static_assert(vir::execution::simd.prefer_aligned().prefer_size<4>()._size == 4);
   static_assert(vir::execution::simd._unroll_by == 0);
   static_assert(vir::execution::simd.unroll_by<3>()._unroll_by == 3);
+  static_assert(vir::execution::simd.prefer_aligned().unroll_by<5>()._unroll_by == 5);
+  static_assert(vir::execution::simd._prefers_aligned == false);
+  static_assert(vir::execution::simd.prefer_aligned()._prefers_aligned == true);
+  static_assert(vir::execution::simd.prefer_size<4>().prefer_aligned()._prefers_aligned == true);
   static_assert([] {
     std::array input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
     vir::for_each(vir::execution::simd, input, [](auto& v) {
@@ -324,7 +329,7 @@ namespace algorithms_tests
     });
     if (input != std::array{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
       return false;
-    vir::for_each(vir::execution::simd, input, [](auto v) {
+    vir::for_each(vir::execution::simd.prefer_aligned(), input, [](auto v) {
       v += 2;
     });
     if (input != std::array{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})

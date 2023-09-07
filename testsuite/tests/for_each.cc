@@ -3,7 +3,6 @@
 
 #include <numeric>
 #include <vector>
-#include <execution>
 
 #include <vir/simd_iota.h>
 #include <vir/simd_execution.h>
@@ -26,19 +25,21 @@ template <typename V>
                     COMPARE(v, vir::iota_v<decltype(v)> + i);
                     i += v.size();
                   });
+    COMPARE(i, T(data.size()));
+
+    i = 1;
+    vir::for_each(exec_simd.prefer_aligned(), data.begin() + 1, data.end(),
+                  [&i](auto v) {
+                    COMPARE(v, vir::iota_v<decltype(v)> + i);
+                    i += v.size();
+                  });
+    COMPARE(i, T(data.size()));
 
     i = 0;
     std::for_each(exec_simd, data.begin(), data.end(),
                   [&i](auto v) {
                     COMPARE(v, vir::iota_v<decltype(v)> + i);
                     i += v.size();
-                  });
-
-    i = 0;
-    std::for_each(std::execution::unseq, data.begin(), data.end(),
-                  [&i](auto v) {
-                    COMPARE(v, i);
-                    i += 1;
                   });
 
     int count = vir::count_if(exec_simd, data, [](auto v) {

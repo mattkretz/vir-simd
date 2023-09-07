@@ -15,7 +15,8 @@ testflags=-march=native
 
 check: check-extensions testsuite-O2 testsuite-Os
 
-testsuite/build-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh
+testsuite/build-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
+	@rm -f $@
 	@echo "Generating simd testsuite ($*) subdirs and Makefiles ..."
 	@$(srcdir)/testsuite/generate_makefile.sh --destination="testsuite/build-$*" --sim="$(sim)" --testflags="$(testflags)" $(CXX) -$* -std=c++2a $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -DVIR_SIMD_TS_DROPIN
 
@@ -44,11 +45,11 @@ check-extensions-stdlib:
 check-extensions-fallback:
 	$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -S vir/test.cpp -o test.S
 
-run-%:
+run-%: $(testdir)/Makefile
 	@$(MAKE) -C "$(testdir)" run-$*
 
-run-Os-%:
-	@$(MAKE) -C "testsuite/build-Os" run-$*
+run-Os-%: $(testdirOs)/Makefile
+	@$(MAKE) -C "$(testdirOs)" run-$*
 
 run-ext-%: $(testdirext)/Makefile
 	@$(MAKE) -C "$(testdirext)" run-$*
