@@ -313,6 +313,10 @@ case##N:                                                                        
 
     inline constexpr simd_policy_prefer_aligned_t simd_policy_prefer_aligned{};
 
+    struct simd_policy_auto_prologue_t {};
+
+    inline constexpr simd_policy_auto_prologue_t simd_policy_auto_prologue{};
+
     template <int N>
       struct simd_policy_unroll_by_t
       {};
@@ -376,6 +380,10 @@ case##N:                                                                        
           = (false or ... or std::same_as<decltype(Options),
                                           const detail::simd_policy_prefer_aligned_t>);
 
+        static constexpr bool _auto_prologue
+          = (false or ... or std::same_as<decltype(Options),
+                                          const detail::simd_policy_auto_prologue_t>);
+
         static constexpr int _unroll_by
           = (0 + ... + detail::simd_policy_unroll_value<decltype(Options)>::value);
 
@@ -383,7 +391,11 @@ case##N:                                                                        
           = (0 + ... + detail::simd_policy_size_value<decltype(Options)>::value);
 
         static constexpr simd_policy<Options..., detail::simd_policy_prefer_aligned>
-        prefer_aligned() requires(not _prefers_aligned)
+        prefer_aligned() requires(not _prefers_aligned and not _auto_prologue)
+        { return {}; }
+
+        static constexpr simd_policy<Options..., detail::simd_policy_auto_prologue>
+        auto_prologue() requires(not _prefers_aligned and not _auto_prologue)
         { return {}; }
 
         template <int N>
@@ -441,23 +453,34 @@ case##N:                                                                        
       else
         {
           constexpr auto bytes_per_iteration = size * sizeof(T);
+          constexpr bool prologue_is_possible
+            = size > 1 and bytes_per_iteration % stdx::memory_alignment_v<V> == 0
+                and stdx::memory_alignment_v<V> > sizeof(T);
           constexpr bool use_aligned_loadstore
-            = ExecutionPolicy::_prefers_aligned and size > 1
-                and bytes_per_iteration % stdx::memory_alignment_v<V> == 0;
+            = ExecutionPolicy::_prefers_aligned and prologue_is_possible;
+          constexpr bool maybe_execute_prologue_anyway
+            = ExecutionPolicy::_auto_prologue and prologue_is_possible;
           constexpr std::conditional_t<use_aligned_loadstore, stdx::vector_aligned_tag,
                                        stdx::element_aligned_tag> flags{};
-          if constexpr (use_aligned_loadstore)
+          if constexpr (use_aligned_loadstore or maybe_execute_prologue_anyway)
             {
               const auto misaligned_by = reinterpret_cast<std::uintptr_t>(std::to_address(first))
                                            % stdx::memory_alignment_v<V>;
               if (misaligned_by != 0)
                 {
                   const auto to_process = (stdx::memory_alignment_v<V> - misaligned_by) / sizeof(T);
-                  detail::simd_for_each_prologue<stdx::resize_simd_t<1, V>, write_back,
-                                                 stdx::memory_alignment_v<V> / sizeof(T)>(
-                    fun, std::to_address(first), to_process);
-                  first += to_process;
-                  distance -= to_process;
+                  auto&& do_prologue = [&] {
+                    detail::simd_for_each_prologue<stdx::resize_simd_t<1, V>, write_back,
+                                                   stdx::memory_alignment_v<V> / sizeof(T)>(
+                      fun, std::to_address(first), to_process);
+                    first += to_process;
+                    distance -= to_process;
+                  };
+                  if constexpr (use_aligned_loadstore)
+                    do_prologue();
+                  else if (distance * sizeof(T) > 4000
+                             or (to_process & distance) == to_process) // prologue replaces epilogue
+                    do_prologue();
                 }
             }
 

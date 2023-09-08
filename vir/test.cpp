@@ -315,6 +315,9 @@ namespace algorithms_tests
   static_assert(vir::execution::simd._prefers_aligned == false);
   static_assert(vir::execution::simd.prefer_aligned()._prefers_aligned == true);
   static_assert(vir::execution::simd.prefer_size<4>().prefer_aligned()._prefers_aligned == true);
+  static_assert(vir::execution::simd._auto_prologue == false);
+  static_assert(vir::execution::simd.auto_prologue()._auto_prologue == true);
+  static_assert(vir::execution::simd.prefer_size<4>().auto_prologue()._auto_prologue == true);
   static_assert([] {
     std::array input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
     vir::for_each(vir::execution::simd, input, [](auto& v) {
