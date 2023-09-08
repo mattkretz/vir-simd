@@ -159,6 +159,7 @@ case0:
       {
         static_assert(max_elements > 1);
         static_assert(std::has_single_bit(max_elements));
+        static_assert(std::has_single_bit(V::size()));
         // pre-conditions:
         // * ptr is a valid pointer to a range [ptr, ptr + to_process)
         // * to_process > 0
@@ -167,7 +168,7 @@ case0:
         if (to_process == 0 or to_process >= max_elements)
           unreachable();
 
-        if constexpr (max_elements == 2)
+        if constexpr (max_elements == 2) // implies to_process == 1
           {
             simd_load_and_invoke<V, write_back>(fun, ptr, stdx::vector_aligned, no_unroll);
             return;
@@ -186,8 +187,8 @@ case0:
           }
         if constexpr (V::size() * 2 < max_elements)
           {
-            simd_for_each_prologue<stdx::resize_simd_t<V::size() * 2, V>, write_back, max_elements>(
-              fun, ptr, to_process);
+            simd_for_each_prologue<stdx::resize_simd_t<V::size() * 2, V>,
+                                   write_back, max_elements>(fun, ptr, to_process);
           }
       }
 
@@ -195,13 +196,12 @@ case0:
       void
       simd_for_each_jumptable_epilogue(auto&& fun, unsigned leftover, auto last, auto f)
       {
+        // pre-conditions:
+        // * leftover > 0
+        // * [last - leftover, last) is a valid range
         auto ptr = std::to_address(last - leftover);
         switch (leftover)
         {
-          case 0:
-case0:
-            return;
-
 #define VIR_CASE(N, M)                                                                         \
           case N:                                                                              \
             goto case##N;                                                                      \
@@ -281,6 +281,8 @@ case##N:                                                                        
           default:
             unreachable();
           }
+case0:
+        return;
       }
 
     template <class V0, bool write_back>
@@ -288,9 +290,24 @@ case##N:                                                                        
       simd_for_each_epilogue(auto&& fun, unsigned leftover, auto last, auto f)
       {
         // pre-conditions:
+        // * leftover > 0
         // * leftover < V0::size()
         // * [last - leftover, last) is a valid range
+        static_assert(V0::size() > 1);
+        using V1 = stdx::resize_simd_t<1, V0>;
+        if constexpr (V0::size() == 2) // implies leftover == 1
+          {
+            simd_load_and_invoke<V1, write_back>(fun, std::to_address(last - 1), f, no_unroll);
+            return;
+          }
+        if constexpr (V0::size() <= 4) // implies leftover ∈ [1, 3]
+          {
+            if (not std::is_constant_evaluated())
+              return simd_for_each_jumptable_epilogue<V0, write_back>(fun, leftover, last, f);
+          }
 #if !__OPTIMIZE_SIZE__
+        // The jumptable implementation for larger V0::size() can result in a lot of machine code.
+        // If the user wants to optimize for size then this isn't the right solution.
         if constexpr (V0::size() <= 64
                         and V0::size() <= vir::stdx::native_simd<typename V0::value_type>::size())
           {
@@ -299,14 +316,16 @@ case##N:                                                                        
           }
 #endif // !__OPTIMIZE_SIZE__
         using V = stdx::resize_simd_t<std::bit_ceil(V0::size()) / 2, V0>;
-        if (leftover >= V::size())
+        if (leftover & V::size())
           {
+            static_assert(std::has_single_bit(V::size())); // by construction
             simd_load_and_invoke<V, write_back>(fun, std::to_address(last - leftover), f,
                                                 no_unroll);
             leftover -= V::size();
           }
         if constexpr (V::size() > 1)
-          simd_for_each_epilogue<V, write_back>(fun, leftover, last, f);
+          if (leftover)
+            simd_for_each_epilogue<V, write_back>(fun, leftover, last, f);
       }
 
     struct simd_policy_prefer_aligned_t {};
@@ -436,9 +455,9 @@ case##N:                                                                        
       constexpr int size = V::size();
       constexpr bool write_back = std::indirectly_writable<It, T>
                                     and std::invocable<F, V&> and not std::invocable<F, V&&>;
-      auto distance = std::distance(first, last);
-      if (distance <= 0)
+      if (first == last)
         return;
+      std::size_t distance = std::distance(first, last);
       if (std::is_constant_evaluated())
         {
           // needs element_aligned because of GCC PR111302
@@ -483,11 +502,13 @@ case##N:                                                                        
                     do_prologue();
                 }
             }
+          const auto leftover = distance % size;
 
           if constexpr (ExecutionPolicy::_unroll_by > 1)
             {
               constexpr auto step = size * ExecutionPolicy::_unroll_by;
-              for (; first + step <= last; first += step)
+              const auto unrolled_last = last - step;
+              for (; first <= unrolled_last; first += step)
                 {
                   detail::simd_load_and_invoke<V, write_back>(
                     fun, std::to_address(first), flags,
@@ -495,12 +516,14 @@ case##N:                                                                        
                 }
             }
 
-          for (; first + size <= last; first += size)
+          const auto simd_last = last - size;
+          for (; first <= simd_last; first += size)
             detail::simd_load_and_invoke<V, write_back>(fun, std::to_address(first), flags,
                                                         detail::no_unroll);
 
           if constexpr (size > 1)
-            detail::simd_for_each_epilogue<V, write_back>(fun, distance % size, last, flags);
+            if (leftover)
+              detail::simd_for_each_epilogue<V, write_back>(fun, leftover, last, flags);
         }
     }
 
