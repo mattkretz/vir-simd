@@ -175,8 +175,19 @@ vir::simd_shift_in<1>(v, w);
 
 *Requires Concepts (C++20).*
 
-Use the execution policy `vir::execution::simd` with the algorithms in `vir` 
-namespace, using either the `std` or `vir` namespace. Example:
+Adds an execution policy `vir::execution::simd`. The execution policy can be 
+used with the algorithms implemented in the `vir` namespace. These algorithms 
+are additionally overloaded in the `std` namespace.
+
+At this point, the implementation of the execution policy requires contiguous 
+ranges / iterators.
+
+#### Usable algorithms
+
+* `std::for_each` / `vir::for_each`
+* `std::count_if` / `vir::count_if`
+
+#### Example
 
 ```c++
 #include <vir/simd_execution.h>
@@ -198,13 +209,38 @@ void increment_all(std::vector<float> data) {
 }
 ```
 
-At this point, the implementation of the execution policy requires contiguous 
-ranges / iterators.
+#### Execution policy modifiers
 
-The following algorithms are currently implemented:
+The `vir::execution::simd` execution policy supports a few settings modifying 
+its behavior:
 
-* `std::for_each`
-* `std::count_if`
+* `vir::execution::simd.prefer_size<N>()`:
+  Start with chunking the range into parts of `N` elements, calling the 
+  user-supplied function(s) with objects of type `resize_simd_t<N, simd<T>>`. 
+
+* `vir::execution::simd.unroll_by<M>()`:
+  Iterate over the range in chunks of `simd::size() * M` instead of just 
+  `simd::size()`. The algorithm will execute `M` loads (or stores) together 
+  before/after calling the user-supplied function(s). The user-supplied 
+  function may be called with `M` `simd` objects instead of one `simd` object. 
+  Note that prologue and epilogue will typically still call the user-supplied 
+  function with a single `simd` object.
+  Algorithms like `std::count_if` require a return value from the user-supplied 
+  function and therefore still call the function with a single `simd` (to avoid 
+  the need for returning an `array` or `tuple` of `simd_mask`). Such algorithms 
+  will still make use of unrolling inside their implementation.
+
+* `vir::execution::simd.prefer_aligned()`:
+  Unconditionally iterate using smaller chunks, until the main iteration can 
+  load (and store) chunks from/to aligned addresses. This can be more efficient 
+  if the range is large, avoiding cache-line splits. (e.g. with AVX-512, 
+  unaligned iteration leads to cache-line splits on every iteration; with AVX 
+  on every second iteration)
+
+* `vir::execution::simd.auto_prologue()`
+  (still testing its viability, may be removed):
+  Determine from run-time information (i.e. add a branch) whether a prologue 
+  for alignment of the main chunked iteration might be more efficient.
 
 ### Bitwise operators for floating-point `simd`:
 
