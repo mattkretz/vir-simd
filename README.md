@@ -186,6 +186,7 @@ ranges / iterators.
 
 * `std::for_each` / `vir::for_each`
 * `std::count_if` / `vir::count_if`
+* `std::transform` / `vir::transform`
 
 #### Example
 

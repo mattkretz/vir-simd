@@ -387,6 +387,24 @@ namespace algorithms_tests
     });
     return c == 10;
   }());
+
+  static_assert([] {
+    std::array a1 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    std::array a2 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    std::array a3 = a2;
+    std::transform(vir::execution::simd, a1.begin(), a1.end(), a3.begin(), [](auto v) {
+      return v + 2;
+    });
+    if (a3 != std::array{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
+      return false;
+    std::transform(vir::execution::simd, a1.begin(), a1.end(), a2.begin(), a3.begin(),
+		   [](auto v1, auto v2) {
+		     return v1 - v2;
+		   });
+    if (a3 != std::array<int, 19> {})
+      return false;
+    return true;
+  }());
 }
 #endif  // VIR_HAVE_SIMD_EXECUTION
 

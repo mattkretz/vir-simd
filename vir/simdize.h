@@ -116,6 +116,9 @@ namespace vir
 
       static constexpr std::integral_constant<std::size_t, N> size{};
 
+      template <typename U = T>
+	inline static constexpr std::size_t memory_alignment = alignof(U);
+
       template <typename... Ts>
 	requires (sizeof...(Ts) == std::tuple_size_v<tuple_type>
 		    and detail::test_all_of<std::is_constructible, std::tuple_element, tuple_type,
