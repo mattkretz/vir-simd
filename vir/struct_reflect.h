@@ -437,6 +437,12 @@ namespace vir
 	       .template get<N>(std::forward<T>(obj));
     }
 
+  template <std::size_t N, reflectable_struct T>
+    struct struct_element
+    {
+      using type = std::remove_reference_t<decltype(struct_get<N>(std::declval<T &>()))>;
+    };
+
   /**
    * `struct_element_t` is an alias for the type of the \p N -th non-static data member of
    * \p T.

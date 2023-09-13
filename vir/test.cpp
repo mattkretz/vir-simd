@@ -209,6 +209,11 @@ static_assert(
 			       V<short>::size()>>);
 
 static_assert(
+  std::convertible_to<vir::simdize<std::tuple<std::tuple<int, double>, short, std::tuple<float>>>,
+		      vir::simd_tuple<std::tuple<std::tuple<int, double>, short, std::tuple<float>>,
+				      V<short>::size()>>);
+
+static_assert(
   std::same_as<std::tuple_element_t<
 		 0, vir::simdize<std::tuple<std::tuple<int, double>, short, std::tuple<float>>>>,
 	       vir::simd_tuple<std::tuple<int, double>, V<short>::size()>>);
@@ -230,13 +235,16 @@ static_assert(
 		 2, vir::simdize<std::tuple<std::tuple<int, double>, short, std::tuple<float>>>>,
 	       vir::simd_tuple<std::tuple<float>, V<short>::size()>>);
 
-struct Point
+template <typename T>
+struct PointTpl
 {
-  float x, y, z;
+  T x, y, z;
 
   friend constexpr bool
-  operator==(Point const&, Point const&) = default;
+  operator==(PointTpl const&, PointTpl const&) = default;
 };
+
+using Point = PointTpl<float>;
 
 static_assert(vir::struct_size_v<Point> == 3);
 
@@ -245,6 +253,21 @@ static_assert(std::same_as<vir::as_tuple_t<Point>,
 
 static_assert(std::same_as<vir::simdize<Point>,
 			   vir::simd_tuple<Point, V<float>::size()>>);
+
+static_assert(std::convertible_to<vir::simdize<Point>, vir::simd_tuple<Point, V<float>::size()>>);
+
+static_assert(std::convertible_to<vir::simd_tuple<Point, V<float>::size()>, vir::simdize<Point>>);
+
+static_assert(std::convertible_to<PointTpl<V<float>>, vir::simdize<Point>>);
+
+static_assert(std::convertible_to<vir::simdize<Point>, PointTpl<V<float>>>);
+
+static_assert(not std::convertible_to<vir::simdize<Point>, PointTpl<V<double>>>);
+
+/* Only with std::simd / C++26:
+static_assert(std::constructible_from<vir::simdize<Point>, PointTpl<RV<double, float>>>);
+static_assert(std::constructible_from<PointTpl<RV<double, float>>, vir::simdize<Point>>);
+ */
 
 static_assert(std::same_as<std::tuple_element_t<0, vir::simdize<Point>>, V<float>>);
 static_assert(std::same_as<std::tuple_element_t<1, vir::simdize<Point>>, V<float>>);

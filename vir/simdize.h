@@ -91,6 +91,14 @@ namespace vir
 		       return {};
 		     }(std::make_index_sequence<vir::struct_size_v<Tup>>()));
       };
+
+    template <template <typename...> class Comp,
+	      template <std::size_t, typename> class Element1, typename T1,
+	      template <std::size_t, typename> class Element2, typename T2, std::size_t... Is>
+      constexpr std::bool_constant<(Comp<typename Element1<Is, T1>::type,
+					 typename Element2<Is, T2>::type>::value and ...)>
+      test_all_of(std::index_sequence<Is...>)
+      { return {}; }
   } // namespace detail
 
   template <reflectable_struct T, std::size_t N>
@@ -100,24 +108,59 @@ namespace vir
 
       tuple_type elements;
 
+      static constexpr auto tuple_size_idx_seq = std::make_index_sequence<vir::struct_size_v<T>>();
+
     public:
+      using value_type = T;
       using mask_type = typename std::tuple_element_t<0, tuple_type>::mask_type;
 
       static constexpr std::integral_constant<std::size_t, N> size{};
 
       template <typename... Ts>
-	requires (sizeof...(Ts) == std::tuple_size_v<tuple_type>)
+	requires (sizeof...(Ts) == std::tuple_size_v<tuple_type>
+		    and detail::test_all_of<std::is_constructible, std::tuple_element, tuple_type,
+					    std::tuple_element, std::tuple<Ts...>
+					   >(tuple_size_idx_seq).value)
 	constexpr
 	simd_tuple(Ts&&... args)
 	: elements{static_cast<Ts&&>(args)...}
 	{}
 
       constexpr
-      simd_tuple(const T& init)
-      : elements([&]<std::size_t... Is>(std::index_sequence<Is...>) {
-	  return tuple_type {std::tuple_element_t<Is, tuple_type>(vir::struct_get<Is>(init))...};
-	}(std::make_index_sequence<vir::struct_size_v<T>>()))
+      simd_tuple(const tuple_type& init)
+      : elements(init)
       {}
+
+      /**
+       * Constructs from a compatible aggregate.
+       */
+      template <reflectable_struct U>
+	requires (struct_size_v<U> == struct_size_v<T>
+		    and detail::test_all_of<std::is_constructible, std::tuple_element, tuple_type,
+					    struct_element, U>(tuple_size_idx_seq).value)
+	constexpr
+	explicit(not detail::test_all_of<std::is_convertible, struct_element, U,
+					 std::tuple_element, tuple_type>(tuple_size_idx_seq).value)
+	simd_tuple(const U& init)
+	: elements([&]<std::size_t... Is>(std::index_sequence<Is...>) {
+	    return tuple_type {std::tuple_element_t<Is, tuple_type>(vir::struct_get<Is>(init))...};
+	  }(tuple_size_idx_seq))
+	{}
+
+      template <reflectable_struct U>
+	requires (struct_size_v<U> == struct_size_v<T>
+		    and detail::test_all_of<std::is_constructible, struct_element, U,
+					    std::tuple_element, tuple_type>(tuple_size_idx_seq)
+		    .value)
+	constexpr
+	explicit(not detail::test_all_of<std::is_same, struct_element, U,
+					 std::tuple_element, tuple_type>(tuple_size_idx_seq).value)
+	operator U() const
+	{
+	  return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+	    return U {static_cast<struct_element_t<Is, U>>(std::get<Is>(elements))...};
+	  }(tuple_size_idx_seq);
+	}
 
       constexpr tuple_type&
       as_tuple()
@@ -132,13 +175,18 @@ namespace vir
       {
 	return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
 	  return T{std::get<Is>(elements)[i]...};
-	}(std::make_index_sequence<std::tuple_size_v<tuple_type>>());
+	}(tuple_size_idx_seq);
       }
 
-      template <std::contiguous_iterator It>
+      /**
+       * Copies all values from the range starting at `it` into `*this`.
+       *
+       * Precondition: [it, it + N) is a valid range.
+       */
+      template <std::contiguous_iterator It, typename Flags = stdx::element_aligned_tag>
 	requires std::same_as<std::iter_value_t<It>, T>
 	constexpr void
-	copy_from(std::contiguous_iterator auto it)
+	copy_from(std::contiguous_iterator auto it, Flags = {})
 	{
 	  [&]<std::size_t... Is>(std::index_sequence<Is...>) {
 	    ((std::get<Is>(elements) = T([&](auto i) {
@@ -147,10 +195,15 @@ namespace vir
 	  }(std::make_index_sequence<size()>());
 	}
 
-      template <std::contiguous_iterator It>
+      /**
+       * Copies all values from `*this` to the range starting at `it`.
+       *
+       * Precondition: [it, it + N) is a valid range.
+       */
+      template <std::contiguous_iterator It, typename Flags = stdx::element_aligned_tag>
 	requires std::output_iterator<It, T>
 	constexpr void
-	copy_to(It it) const
+	copy_to(It it, Flags = {}) const
 	{
 	  for (std::size_t i = 0; i < size(); ++i)
 	    it[i] = operator[](i);
