@@ -311,6 +311,27 @@ static_assert([]() {
 
 static_assert(vir::simdize<Point>(Point{2.f, 1.f, 0.f})[0] == Point{2.f, 1.f, 0.f});
 
+static_assert([] {
+  std::array<Point, 5> data = {};
+  vir::simdize<Point, 4> v(data.begin());
+  PointTpl<DV<float, 4>> w = v;
+  if (not all_of(w.x == 0.f and w.y == 0.f and w.z == 0.f))
+    return false;
+  v.copy_from(data.begin() + 1);
+  w = v;
+  if (not all_of(w.x == 0.f and w.y == 0.f and w.z == 0.f))
+    return false;
+  w.x = 1.f;
+  w.y = DV<float, 4>([](float i) { return i; });
+  v = w;
+  v.copy_to(data.begin());
+  if (data != std::array<Point, 5> {Point{1, 0, 0}, {1, 1, 0}, {1, 2, 0}, {1, 3, 0}, {0, 0, 0}})
+    return false;
+  v.copy_from(data.begin() + 1);
+  v.copy_to(data.begin());
+  return data == std::array<Point, 5> {Point{1, 1, 0}, {1, 2, 0}, {1, 3, 0}, {0, 0, 0}, {0, 0, 0}};
+}());
+
 #endif  // VIR_HAVE_SIMDIZE
 #endif  // VIR_HAVE_STRUCT_REFLECT
 

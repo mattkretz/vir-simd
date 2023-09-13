@@ -185,14 +185,25 @@ namespace vir
        */
       template <std::contiguous_iterator It, typename Flags = stdx::element_aligned_tag>
 	requires std::same_as<std::iter_value_t<It>, T>
+	constexpr
+	simd_tuple(It it, Flags = {})
+	: elements([&]<std::size_t... Is>(std::index_sequence<Is...>) {
+	    return tuple_type {std::tuple_element_t<Is, tuple_type>([&](auto i) {
+				 return struct_get<Is>(it[i]);
+			       })...};
+	  }(tuple_size_idx_seq))
+	{}
+
+      template <std::contiguous_iterator It, typename Flags = stdx::element_aligned_tag>
+	requires std::same_as<std::iter_value_t<It>, T>
 	constexpr void
-	copy_from(std::contiguous_iterator auto it, Flags = {})
+	copy_from(It it, Flags = {})
 	{
 	  [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-	    ((std::get<Is>(elements) = T([&](auto i) {
-				      return struct_get<Is>(it[i]);
-				    })), ...);
-	  }(std::make_index_sequence<size()>());
+	    ((std::get<Is>(elements) = std::tuple_element_t<Is, tuple_type>([&](auto i) {
+					 return struct_get<Is>(it[i]);
+				       })), ...);
+	  }(tuple_size_idx_seq);
 	}
 
       /**
