@@ -140,7 +140,6 @@ matches() {
 
 cxx_type() {
   case "$1" in
-    ldouble) echo "long double";;
     ullong)  echo "unsigned long long";;
     ulong)   echo "unsigned long";;
     llong)   echo "long long";;
@@ -198,7 +197,6 @@ all_types() {
     skip="${skip%% *}"
   fi
   filter_types "$only" "$skip" \
-    "ldouble" \
     "double" \
     "float" \
     "llong" \
