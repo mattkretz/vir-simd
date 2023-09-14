@@ -187,6 +187,7 @@ ranges / iterators.
 * `std::for_each` / `vir::for_each`
 * `std::count_if` / `vir::count_if`
 * `std::transform` / `vir::transform`
+* `std::transform_reduce` / `vir::transform_reduce`
 
 #### Example
 
@@ -409,6 +410,8 @@ defines the following types and constants:
 
   - `copy_to(std::contiguous_iterator)`: :construction: unoptimized store to a 
   contiguous array of struct.
+
+* `vir::simd_tuple<vectorizable_struct T, size_t N>`: TODO
 
 * `vir::get<I>(simd_tuple)`: Access to the `I`-th data member (a `simd`).
 

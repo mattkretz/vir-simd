@@ -520,6 +520,137 @@ case0:
             simd_transform_epilogue<V, W, R>(binary_op, leftover, last, ptr2, d_first, f);
       }
 
+    template <int size, int max_size, typename A1, typename It1, typename It2>
+      constexpr A1
+      simd_transform_reduce_prologue(A1 acc1, It1 first1, It2 first2, std::size_t to_process,
+                                     auto reduce_op, auto transform_op)
+      {
+        // preconditions:
+        // - to_process > 0
+        // - to_process < max_size
+        // - [first1, first1 + to_process) is a valid range
+        // - [first2, first2 + to_process) is a valid range
+        static_assert(std::has_single_bit(unsigned(size)));
+        static_assert(std::has_single_bit(unsigned(max_size)));
+        if (to_process & size)
+          {
+            using T1 = std::iter_value_t<It1>;
+            using T2 = std::iter_value_t<It2>;
+            const std::size_t offset = to_process & (size - 1);
+            const vir::simdize<T1, size> v1(std::to_address(first1 + offset), stdx::vector_aligned);
+            const vir::simdize<T2, size> v2(std::to_address(first2 + offset), stdx::element_aligned);
+            const A1 x = reduce(std::invoke(transform_op, v1, v2), reduce_op);
+            acc1 = std::invoke(reduce_op, acc1, x);
+          }
+        if constexpr (size < max_size)
+          return simd_transform_reduce_prologue<size * 2, max_size>(
+                   acc1, first1, first2, to_process, reduce_op, transform_op);
+        else
+          return acc1;
+      }
+
+    template <typename A1, typename A, typename It1, typename It2>
+      VIR_ALWAYS_INLINE
+      constexpr typename A1::value_type
+      simd_transform_reduce_epilogue(A1 acc1, A acc, It1 first1, It2 first2, std::size_t leftover,
+                                     auto reduce_op, auto transform_op, auto flags1)
+      {
+        // preconditions:
+        // leftover > 0
+        // leftover & (A::size() * 2 - 1) != 0 (i.e. at least one more load+transform is necessary)
+        static_assert(A1::size() == 1);
+        static_assert(std::has_single_bit(A::size()));
+        if (leftover & A::size())
+          {
+            using T1 = std::iter_value_t<It1>;
+            using T2 = std::iter_value_t<It2>;
+            using V1 = vir::simdize<T1, A::size()>;
+            using V2 = vir::simdize<T2, A::size()>;
+            const V1 v1(std::to_address(first1), flags1);
+            const V2 v2(std::to_address(first2), stdx::element_aligned);
+            acc = std::invoke(reduce_op, acc, std::invoke(transform_op, v1, v2));
+            if constexpr (A::size() == 1)
+              // definetely no more work
+              return std::invoke(reduce_op, acc1, acc)[0];
+            else if ((leftover & (A::size() - 1)) == 0)
+              // no more work
+              return std::invoke(reduce_op, acc1, A1(reduce(acc, reduce_op)))[0];
+            else
+              {
+                constexpr std::size_t size2 = A::size() / 2;
+                using A2 = vir::simdize<typename A::value_type, size2>;
+                auto [lo, hi] = stdx::split<size2, size2>(acc);
+                A2 acc2 = std::invoke(reduce_op, lo, hi);
+                return simd_transform_reduce_epilogue(acc1, acc2, first1 + A2::size(),
+                                                      first2 + A2::size(), leftover, reduce_op,
+                                                      transform_op, flags1);
+              }
+          }
+        else if ((leftover & (A::size() - 1)) == 0)
+          unreachable(); // because we're only called if there is more work to be done
+        else if constexpr (A::size() > 1)
+          {
+            constexpr std::size_t size2 = A::size() / 2;
+            using A2 = vir::simdize<typename A::value_type, size2>;
+            auto [lo, hi] = stdx::split<size2, size2>(acc);
+            A2 acc2 = std::invoke(reduce_op, lo, hi);
+            return simd_transform_reduce_epilogue(acc1, acc2, first1, first2, leftover, reduce_op,
+                                                  transform_op, flags1);
+          }
+        else
+          unreachable();
+      }
+
+    template <std::size_t size, typename A1, typename It1, typename It2>
+      VIR_ALWAYS_INLINE
+      constexpr typename A1::value_type
+      simd_transform_reduce_epilogue(A1 acc1, It1 first1, It2 first2, std::size_t leftover,
+                                     auto reduce_op, auto transform_op, auto flags1)
+      {
+        // preconditions:
+        // leftover > 0
+        // leftover & (size * 2 - 1) != 0 (i.e. at least one more load+transform is necessary)
+        static_assert(A1::size() == 1);
+        static_assert(std::has_single_bit(size));
+        using A = vir::simdize<typename A1::value_type, size>;
+        if (leftover & size)
+          {
+            using T1 = std::iter_value_t<It1>;
+            using T2 = std::iter_value_t<It2>;
+            using V1 = vir::simdize<T1, size>;
+            using V2 = vir::simdize<T2, size>;
+            const V1 v1(std::to_address(first1), flags1);
+            const V2 v2(std::to_address(first2), stdx::element_aligned);
+            A acc = std::invoke(transform_op, v1, v2);
+            if constexpr (size == 1)
+              // definetely no more work
+              return std::invoke(reduce_op, acc1, acc)[0];
+            else if ((leftover & (size - 1)) == 0)
+              // no more work
+              return std::invoke(reduce_op, acc1, A1(reduce(acc, reduce_op)))[0];
+            else
+              {
+                constexpr std::size_t size2 = size / 2;
+                using A2 = vir::simdize<typename A::value_type, size2>;
+                auto [lo, hi] = stdx::split<size2, size2>(acc);
+                A2 acc2 = std::invoke(reduce_op, lo, hi);
+                return simd_transform_reduce_epilogue(acc1, acc2, first1 + A2::size(),
+                                                      first2 + A2::size(), leftover, reduce_op,
+                                                      transform_op, flags1);
+              }
+          }
+        else if ((leftover & (A::size() - 1)) == 0)
+          unreachable(); // because we're only called if there is more work to be done
+        else if constexpr (size > 1)
+          {
+            constexpr std::size_t size2 = A::size() / 2;
+            return simd_transform_reduce_epilogue<size2>(acc1, first1, first2, leftover, reduce_op,
+                                                         transform_op, flags1);
+          }
+        else
+          unreachable();
+      }
+
     struct simd_policy_prefer_aligned_t {};
 
     inline constexpr simd_policy_prefer_aligned_t simd_policy_prefer_aligned{};
@@ -955,6 +1086,198 @@ case0:
                      std::ranges::begin(rng2), std::ranges::begin(d_rng), binary_op);
     }
 
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
+            detail::simd_execution_iterator It2, typename T>
+    constexpr T
+    transform_reduce(ExecutionPolicy&& policy, It1 first1, It1 last1, It2 first2, T init)
+    {
+      return transform_reduce(policy, first1, last1, first2, init, std::plus<>(),
+                              std::multiplies<>());
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
+            detail::simd_execution_iterator It2, typename T, typename BinaryReductionOp,
+            typename BinaryTransformOp>
+    constexpr T
+    transform_reduce(ExecutionPolicy, It1 first1, It1 last1, It2 first2, T init,
+                 BinaryReductionOp reduce_op, BinaryTransformOp transform_op)
+    {
+      using T1 = std::iter_value_t<It1>;
+      using T2 = std::iter_value_t<It2>;
+      constexpr int size = [] {
+        if constexpr (ExecutionPolicy::_size > 0)
+          return ExecutionPolicy::_size;
+        else
+          {
+            constexpr int size1 = vir::simdize<T1>::size();
+            constexpr int size2 = vir::simdize<T2>::size();
+            return std::max(size1, size2);
+          }
+      }();
+      using A1 = vir::simdize<T, 1>;
+      using A = vir::simdize<T, size>;
+      using V1 = vir::simdize<T1, size>;
+      using V2 = vir::simdize<T2, size>;
+
+      if (first1 == last1)
+        return init;
+
+      A1 acc1 = init;
+
+      std::size_t distance = std::distance(first1, last1);
+      if (std::is_constant_evaluated())
+        {
+          // needs element_aligned because of GCC PR111302
+          for (; first1 < last1; first1 += 1, first2 += 1)
+            {
+              const vir::simdize<T1, 1> v1(std::to_address(first1), stdx::element_aligned);
+              const vir::simdize<T2, 1> v2(std::to_address(first2), stdx::element_aligned);
+              const A1 r = std::invoke(transform_op, v1, v2);
+              acc1 = std::invoke(reduce_op, acc1, r);
+            }
+          return acc1[0];
+        }
+      else
+        {
+          constexpr detail::prologue<V1, ExecutionPolicy> prologue;
+          constexpr auto flags = prologue.flags;
+          prologue(distance, first1, [&] (auto to_process) VIR_LAMBDA_ALWAYS_INLINE {
+            acc1 = detail::simd_transform_reduce_prologue<1, detail::memory_alignment_v<V1>
+                                                            / sizeof(T1)>(
+                     acc1, first1, first2, to_process, reduce_op, transform_op);
+          }, first1, first2);
+
+          const auto leftover = distance % size;
+
+          constexpr auto lo_size = std::bit_ceil(size / 2u);
+          constexpr auto hi_size = size - lo_size;
+          using A2 = vir::simdize<T, lo_size>;
+
+          const auto simd_last = last1 - size;
+          if (first1 <= simd_last)
+            {
+              A acc = [&] VIR_LAMBDA_ALWAYS_INLINE {
+                if constexpr (ExecutionPolicy::_unroll_by > 1)
+                  {
+                    constexpr std::make_index_sequence<ExecutionPolicy::_unroll_by> unroll_idx_seq;
+                    constexpr auto step = size * ExecutionPolicy::_unroll_by;
+                    const auto unrolled_last = last1 - step;
+                    if (first1 + step <= unrolled_last)
+                      {
+                        auto acc = [&]<std::size_t... Is>(std::index_sequence<Is...>)
+                                     -> std::array<A, ExecutionPolicy::_unroll_by>
+                                   VIR_LAMBDA_ALWAYS_INLINE
+                        {
+                          return {std::invoke(transform_op,
+                                              V1(std::to_address(first1 + Is * size), flags),
+                                              V2(std::to_address(first2 + Is * size),
+                                                 stdx::element_aligned))...};
+                        }(unroll_idx_seq);
+                        first1 += step;
+                        first2 += step;
+                        do {
+                          [&]<std::size_t... Is>(std::index_sequence<Is...>)
+                            VIR_LAMBDA_ALWAYS_INLINE
+                          {
+                            acc = {std::invoke(reduce_op, acc[Is],
+                                               std::invoke(transform_op,
+                                                           V1(std::to_address(first1 + Is * size),
+                                                              flags),
+                                                           V2(std::to_address(first2 + Is * size),
+                                                              stdx::element_aligned)))...};
+                          }(unroll_idx_seq);
+                          first1 += step;
+                          first2 += step;
+                        } while (first1 <= unrolled_last);
+                        // tree reduction of acc into acc[0]
+                        detail::unroll<std::bit_width(unsigned(ExecutionPolicy::_unroll_by - 1))>(
+                          [&](auto outer) {
+                            constexpr int j = 1 << outer.value; // j: 1 2 4 8 16 32 ...
+                            detail::unroll<ExecutionPolicy::_unroll_by / 2>(
+                              [&](auto ii) {
+                                constexpr int i = ii * 2 * j;
+                                if constexpr (i + j < ExecutionPolicy::_unroll_by)
+                                  acc[i] = std::invoke(reduce_op, acc[i], acc[i+j]);
+                              });
+                          });
+                        return acc[0];
+                      }
+                  }
+                const V1 v1(std::to_address(first1), flags);
+                const V2 v2(std::to_address(first2), stdx::element_aligned);
+                first1 += size;
+                first2 += size;
+                return std::invoke(transform_op, v1, v2);
+              }();
+              for (; first1 <= simd_last; first1 += size, first2 += size)
+                {
+                  const V1 v1(std::to_address(first1), flags);
+                  const V2 v2(std::to_address(first2), stdx::element_aligned);
+                  acc = std::invoke(reduce_op, acc, std::invoke(transform_op, v1, v2));
+                }
+              if constexpr (size == 1)
+                return std::invoke(reduce_op, acc1, acc)[0];
+              else if (leftover == 0)
+                return std::invoke(reduce_op, acc1, A1(reduce(acc, reduce_op)))[0];
+              else
+                {
+                  auto [lo, hi] = stdx::split<lo_size, hi_size>(acc);
+                  A2 acc2 = lo;
+                  if constexpr (lo_size == hi_size)
+                    acc2 = std::invoke(reduce_op, lo, hi);
+                  else
+                    acc1 = std::invoke(reduce_op, acc1, A1(reduce(hi, reduce_op)));
+                  return detail::simd_transform_reduce_epilogue(acc1, acc2, first1, first2,
+                                                                leftover, reduce_op, transform_op,
+                                                                flags);
+                }
+            }
+          else
+            {
+              // leftover > 0 by construction
+              return detail::simd_transform_reduce_epilogue<lo_size>(
+                       acc1, first1, first2, leftover, reduce_op, transform_op, flags);
+            }
+        }
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
+            typename T, typename BinaryReductionOp, typename UnaryTransformOp>
+    constexpr T
+    transform_reduce(ExecutionPolicy policy, It first, It last, T init,
+                     BinaryReductionOp reduce_op, UnaryTransformOp transform_op)
+    { return init; } // TODO
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rng1,
+            detail::simd_execution_range Rng2, typename T>
+    constexpr T
+    transform_reduce(ExecutionPolicy&& policy, Rng1&& r1, Rng2&& r2, T init)
+    {
+      return transform_reduce(policy, std::ranges::begin(r1), std::ranges::end(r1),
+                              std::ranges::begin(r2), init);
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rng1,
+            detail::simd_execution_range Rng2, typename T, typename BinaryReductionOp,
+            typename BinaryTransformOp>
+    constexpr T
+    transform_reduce(ExecutionPolicy&& policy, Rng1&& r1, Rng2&& r2, T init,
+                 BinaryReductionOp reduce, BinaryTransformOp transform)
+    {
+      return transform_reduce(policy, std::ranges::begin(r1), std::ranges::end(r1),
+                              std::ranges::begin(r2), init, reduce, transform);
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rng,
+            typename T, typename BinaryReductionOp, typename UnaryTransformOp>
+    constexpr T
+    transform_reduce(ExecutionPolicy&& policy, Rng r, T init, BinaryReductionOp reduce,
+                     UnaryTransformOp transform)
+    {
+      return transform_reduce(policy, std::ranges::begin(r), std::ranges::end(r), init, reduce,
+                              transform);
+    }
+
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename F>
     constexpr int
@@ -965,7 +1288,7 @@ case0:
       using IV = detail::deduced_simd<int, TV::size()>;
       int count = 0;
       IV countv = 0;
-      vir::for_each(pol, first, last, [&](auto... x) {
+      vir::for_each(pol, first, last, [&](auto... x) VIR_LAMBDA_ALWAYS_INLINE {
 #if __cpp_lib_experimental_parallel_simd >= 201803
         if (std::is_constant_evaluated())
           count += (popcount(fun(x)) + ...);
@@ -1016,6 +1339,29 @@ namespace std
     transform(ExecutionPolicy pol, It1 first1, It1 last1, It2 first2, OutIt d_first,
               BinaryOperation binary_op)
     { return vir::transform(pol, first1, last1, first2, d_first, binary_op); }
+
+  template <vir::detail::simd_execution_policy ExecutionPolicy,
+           vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
+           typename T>
+    constexpr T
+    transform_reduce(ExecutionPolicy&& policy, It1 first1, It1 last1, It2 first2, T init)
+    { return vir::transform_reduce(policy, first1, last1, first2, init); }
+
+  template <vir::detail::simd_execution_policy ExecutionPolicy,
+            vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
+            typename T, typename BinaryReductionOp, typename BinaryTransformOp>
+    constexpr T
+    transform_reduce(ExecutionPolicy&& policy, It1 first1, It1 last1, It2 first2, T init,
+                 BinaryReductionOp reduce, BinaryTransformOp transform)
+    { return vir::transform_reduce(policy, first1, last1, first2, init, reduce, transform); }
+
+  template <vir::detail::simd_execution_policy ExecutionPolicy,
+            vir::detail::simd_execution_iterator It, typename T, typename BinaryReductionOp,
+            typename UnaryTransformOp>
+    constexpr T
+    transform_reduce(ExecutionPolicy&& policy, It first, It last, T init, BinaryReductionOp reduce,
+                     UnaryTransformOp transform)
+    { return vir::transform_reduce(policy, first, last, init, reduce, transform); }
 
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename F>

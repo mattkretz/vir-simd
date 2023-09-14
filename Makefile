@@ -26,6 +26,7 @@ $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@mkdir -p $(testdirext)
 	@echo for_each.cc > $(testdirext)/testsuite_files_simd
 	@echo transform.cc >> $(testdirext)/testsuite_files_simd
+	@echo transform_reduce.cc >> $(testdirext)/testsuite_files_simd
 	@cd $(testdirext) && ../generate_makefile.sh --destination="." --sim="$(sim)" --testflags="-O2 $(testflags)" $(CXX) -std=gnu++2a $(CXXFLAGS) -DVIR_SIMD_TS_DROPIN
 
 testsuite-%: testsuite/build-%/Makefile

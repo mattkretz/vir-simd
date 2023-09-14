@@ -430,6 +430,13 @@ namespace algorithms_tests
       return false;
     return true;
   }());
+
+  static_assert([] {
+    std::array a1 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    std::array a2 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    int r = std::transform_reduce(vir::execution::simd, a1.begin(), a1.end(), a2.begin(), 0);
+    return r == 2470;
+  }());
 }
 #endif  // VIR_HAVE_SIMD_EXECUTION
 

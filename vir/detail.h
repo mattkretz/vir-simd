@@ -16,6 +16,12 @@
 #define VIR_GLIBCXX_STDX_SIMD 0
 #endif
 
+#ifdef __GNUC__
+#define VIR_LAMBDA_ALWAYS_INLINE __attribute__((__always_inline__))
+#else
+#define VIR_LAMBDA_ALWAYS_INLINE
+#endif
+
 namespace vir::meta
 {
   template <typename T>
@@ -136,6 +142,18 @@ namespace vir::detail
       std::memcpy(&r, &x, sizeof(x));
       return r;
 #endif
+    }
+
+  template <int Iterations, auto I = 0, typename F>
+    [[gnu::always_inline, gnu::flatten]]
+    constexpr void
+    unroll(F&& fun)
+    {
+      if constexpr (Iterations != 0)
+        {
+          fun(std::integral_constant<decltype(I), I>());
+          unroll<Iterations - 1, I + 1>(static_cast<F&&>(fun));
+        }
     }
 }
 
