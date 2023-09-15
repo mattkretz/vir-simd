@@ -21,7 +21,7 @@ namespace vir
 {
   namespace detail
   {
-    [[noreturn]] void
+    [[noreturn]] inline void
     unreachable()
     {
 #if __cpp_lib_unreachable >= 202202L
