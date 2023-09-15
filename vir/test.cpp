@@ -240,8 +240,17 @@ struct PointTpl
 {
   T x, y, z;
 
-  friend constexpr bool
-  operator==(PointTpl const&, PointTpl const&) = default;
+  friend constexpr decltype(auto)
+  operator==(PointTpl const& a, PointTpl const& b)
+  { return a.x == b.x and a.y == b.y and a.z == b.z; }
+
+  friend constexpr decltype(auto)
+  operator!=(PointTpl const& a, PointTpl const& b)
+  { return a.x != b.x or a.y != b.y or a.z != b.z; }
+
+  friend constexpr PointTpl
+  operator+(PointTpl const& a, PointTpl const& b)
+  { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
 };
 
 using Point = PointTpl<float>;
@@ -281,6 +290,22 @@ static_assert(vir::simdize_size_v<vir::simdize<Point>> == stdx::native_simd<floa
 
 static_assert(std::same_as<typename vir::simdize<Point>::mask_type,
 			   typename V<float>::mask_type>);
+
+static_assert(vir::vectorizable_struct<Point>);
+
+static_assert([] {
+  vir::simdize<Point> p1 = Point{1.f, 1.f, 1.f};
+  vir::simdize<Point> p2 {V<float>([](short i) { return i; }),
+			  V<float>([](short i) { return i; }),
+			  V<float>([](short i) { return i; })};
+  vir::simdize<Point> p3 {V<float>([](short i) { return i + 1; }),
+			  V<float>([](short i) { return i + 1; }),
+			  V<float>([](short i) { return i + 1; })};
+  auto p = p1 + p2;
+  if (any_of(p != p3))
+    return false;
+  return true;
+}());
 
 struct Line
 {
