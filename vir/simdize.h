@@ -16,6 +16,7 @@
 #include "simd.h"
 #include "detail.h"
 #include "simd_concepts.h"
+#include "simd_permute.h"
 
 namespace vir
 {
@@ -49,6 +50,38 @@ namespace vir
 
   namespace detail
   {
+    template <typename V, bool... Values>
+      inline constexpr typename V::mask_type mask_constant
+	= typename V::mask_type(std::array<bool, sizeof...(Values)>{Values...}.data(),
+				stdx::element_aligned);
+
+    template <typename T, int N, unsigned Bytes = sizeof(T) * std::bit_ceil(unsigned(N))>
+      using gnu_vector [[gnu::vector_size(Bytes)]] = T;
+
+#ifdef __GNUC__
+    template <int... Indexes>
+      VIR_ALWAYS_INLINE
+      inline auto
+      blend_ps(auto a, auto b)
+      {
+	static_assert(sizeof(a) == sizeof(b));
+	static_assert(sizeof...(Indexes) * sizeof(float) <= sizeof(a));
+	static_assert(((Indexes <= sizeof(a) / sizeof(float)) && ...));
+#ifdef __SSE4_1__
+	if constexpr (sizeof(a) == 16)
+	  return __builtin_ia32_blendps(a, b, ((1 << Indexes) | ...));
+#endif
+#ifdef __AVX__
+	if constexpr (sizeof(a) == 32)
+	  return __builtin_ia32_blendps256(a, b, ((1 << Indexes) | ...));
+#endif
+#ifdef __AVX512F__
+	if constexpr (sizeof(a) == 64)
+	  return __builtin_ia32_blendmps_512_mask(a, b, ((1 << Indexes) | ...));
+#endif
+      }
+#endif
+
     template <typename T, std::size_t N>
       struct simdize_impl;
 
@@ -340,6 +373,136 @@ namespace vir
 	}(struct_size_idx_seq);
       }
 
+      VIR_ALWAYS_INLINE
+      static constexpr base_type
+      _load_elements_via_permute(const T* addr)
+      {
+	static_assert(sizeof(T) * N == sizeof(base_type));
+#ifdef __GNUC__
+	const std::byte* byte_ptr = reinterpret_cast<const std::byte*>(addr);
+	if constexpr (std::same_as<vir::as_tuple_t<T>, std::tuple<float, float, float>>)
+	  {
+#ifdef __AVX__
+	    using float8 = detail::deduced_simd<float, 8>;
+	    using v8sf [[gnu::vector_size(32)]] = float;
+	    if constexpr (std::same_as<tuple_type, std::tuple<float8, float8, float8>>
+			    and std::constructible_from<float8, v8sf>)
+	      {
+		// Implementation notes:
+		// 1. Three gather instructions with indexes 0, 3, 6, 9, 12, 15, 18, 21 is super
+		//    slow
+		// 2. Eight 3/4-element loads -> concat to 8 elements -> unpack also much slower
+
+		//                               abc   abc abc
+		// a = [a0 b0 c0 a1 b1 c1 a2 b2] 332 = 211+121
+		// b = [c2 a3 b3 c3 a4 b4 c4 a5] 323 = 112+211
+		// c = [b5 c5 a6 b6 c6 a7 b7 c7] 233 = 121+112
+
+		if constexpr (true) // allow_unordered
+		  {
+		    v8sf x0, x1, x2, a0, b0, c0;
+		    std::memcpy(&x0, byte_ptr +  0, 32);
+		    std::memcpy(&x1, byte_ptr + 32, 32);
+		    std::memcpy(&x2, byte_ptr + 64, 32);
+
+		    a0 = detail::blend_ps<1, 4, 7>(x0, x1);
+		    a0 = detail::blend_ps<2, 5>(a0, x2);
+		    // a0 a3 a6 a1 a4 a7 a2 a5
+
+		    b0 = detail::blend_ps<2, 5>(x0, x1);
+		    b0 = detail::blend_ps<0, 3, 6>(b0, x2);
+		    // b5 b0 b3 b6 b1 b4 b7 b2
+
+		    c0 = detail::blend_ps<0, 3, 6>(x0, x1);
+		    c0 = detail::blend_ps<1, 4, 7>(c0, x2);
+		    // c2 c5 c0 c3 c6 c1 c4 c7
+
+		    float8 a(a0);
+		    float8 b = simd_permute(float8(b0), simd_permutations::rotate<1>);
+		    float8 c = simd_permute(float8(c0), simd_permutations::rotate<2>);
+		    return base_type {a, b, c};
+		  }
+		else
+		  {
+		    float8 a, b, c;
+		    std::memcpy(&a, byte_ptr +  0, 32);
+		    std::memcpy(&b, byte_ptr + 32, 32);
+		    std::memcpy(&c, byte_ptr + 64, 32);
+
+		    // a0 b0 c0 a1 b5 c5 a6 b6
+		    float8 ac0(_mm256_permute2f128_ps(static_cast<__m256>(a),
+						      static_cast<__m256>(c), 0 + (2 << 4)));
+
+		    // b1 c1 a2 b2 c6 a7 b7 c7
+		    float8 ac1(_mm256_permute2f128_ps(static_cast<__m256>(a),
+						      static_cast<__m256>(c), 1 + (3 << 4)));
+
+		    using M = typename float8::mask_type;
+		    constexpr M k036 = detail::mask_constant<float8, 1, 0, 0, 1, 0, 0, 1, 0>;
+		    constexpr M k147 = detail::mask_constant<float8, 0, 1, 0, 0, 1, 0, 0, 1>;
+		    constexpr M k25  = detail::mask_constant<float8, 0, 0, 1, 0, 0, 1, 0, 0>;
+		    // a0 a3 a2 a1 a4 a7 a6 a5
+		    float8 tmp0 = ac0;
+		    where(k147, tmp0) = b;
+		    where(k25, tmp0) = ac1;
+
+		    // b1 b0 b3 b2 b5 b4 b7 b6
+		    float8 tmp1 = ac0;
+		    where(k25, tmp1) = b;
+		    where(k036, tmp1) = ac1;
+
+		    // c2 c1 c0 c3 c6 c5 c4 c7
+		    float8 tmp2 = ac0;
+		    where(k036, tmp2) = b;
+		    where(k147, tmp2) = ac1;
+
+		    return {
+		      simd_permute(tmp0, [](auto i) { return std::array{0, 3, 2, 1, 4, 7, 6, 5}[i]; }),
+		      simd_permute(tmp1, [](auto i) { return std::array{1, 0, 3, 2, 5, 4, 7, 6}[i]; }),
+		      simd_permute(tmp2, [](auto i) { return std::array{2, 1, 0, 3, 6, 5, 4, 7}[i]; })
+		    };
+		  }
+	      }
+#endif
+#ifdef __SSE__
+	    using float4 = detail::deduced_simd<float, 4>;
+	    if constexpr (std::same_as<tuple_type, std::tuple<float4, float4, float4>>
+			    and std::constructible_from<float4, detail::gnu_vector<float, 4>>)
+	      {
+		// abca = [a0 b0 c0 a1]
+		// bcab = [b1 c1 a2 b2]
+		// cabc = [c2 a3 b3 c3]
+
+		detail::gnu_vector<float, 4> abca, bcab, cabc, a, b, c;
+		std::memcpy(&abca, byte_ptr +  0, 16);
+		std::memcpy(&bcab, byte_ptr + 16, 16);
+		std::memcpy(&cabc, byte_ptr + 32, 16);
+
+		a = __builtin_ia32_shufps(cabc, bcab, (0 << 0) + (1 << 2) + (2 << 4) + (3 << 6));
+		a = __builtin_ia32_shufps(abca,    a, (0 << 0) + (3 << 2) + (2 << 4) + (1 << 6));
+
+		b = __builtin_ia32_shufps(
+		      __builtin_shuffle(abca, bcab, detail::gnu_vector<int, 4>{4,1,2,3}), // b1 b0 . .
+		      __builtin_ia32_movhlps(bcab, cabc), // b3 . . b2
+		      (1 << 0) + (0 << 2) + (3 << 4) + (0 << 6));
+
+		c = __builtin_ia32_shufps(bcab, abca, (0 << 0) + (1 << 2) + (2 << 4) + (3 << 6));
+		c = __builtin_ia32_shufps(c,    cabc, (2 << 0) + (1 << 2) + (0 << 4) + (3 << 6));
+
+		return base_type {float4(a), float4(b), float4(c)};
+	      }
+#endif
+	  }
+#endif // __GNUC__
+
+	// not optimized fallback
+	return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+	  return base_type {std::tuple_element_t<Is, tuple_type>([&](auto i) {
+			      return struct_get<Is>(addr[i]);
+			    })...};
+	}(struct_size_idx_seq);
+      }
+
       /**
        * Copies all values from the range starting at `it` into `*this`.
        *
@@ -349,11 +512,7 @@ namespace vir
 	requires std::same_as<std::iter_value_t<It>, T>
 	constexpr
 	simd_tuple(It it, Flags = {})
-	: base_type([&]<std::size_t... Is>(std::index_sequence<Is...>) {
-	    return base_type {vir::struct_element_t<Is, base_type>([&](auto i) {
-				return struct_get<Is>(it[i]);
-			      })...};
-	  }(struct_size_idx_seq))
+	: base_type(_load_elements_via_permute(std::to_address(it)))
 	{}
 
       template <std::contiguous_iterator It, typename Flags = stdx::element_aligned_tag>
