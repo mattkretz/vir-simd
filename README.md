@@ -360,7 +360,7 @@ defines the following types and constants:
   `vir::simd_tuple` type determined from the type `T`.
 
   - If `vir::vectorizable<T>` is satisfied, then `stdx::simd<T, Abi>` is 
-    produced. `Abi` is determined from `N` and will be `simd_abi::native<T>` is 
+    produced. `Abi` is determined from `N` and will be `simd_abi::native<T>` if 
     `N` was omitted.
 
   - Otherwise, if `T` is a `std::tuple` or aggregate that can be reflected, 
