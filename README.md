@@ -154,8 +154,8 @@ all other values
 * `vir::simd_permutations::reverse`: reverse the order of all values
 
 * `vir::simd_permutations::rotate<Offset>`: positive `Offset` rotates values to 
-  the left, negative `Offset` rotates values to the right (moves values from 
-  index `(i + Offset) % size` to `i`)
+  the left, negative `Offset` rotates values to the right (i.e. 
+  `rotate<Offset>` moves values from index `(i + Offset) % size` to `i`)
 
 * `vir::simd_permutations::shift<Offset>`: positive `Offset` shifts values to 
   the left, negative `Offset` shifts values to the right; shifting in zeros.

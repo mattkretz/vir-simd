@@ -106,9 +106,12 @@ namespace vir
 
     inline constexpr Reverse reverse {};
 
-    template <int Offset>
+    template <int O>
       struct Rotate
       {
+	static constexpr int Offset = O;
+	static constexpr bool is_even_rotation = Offset % 2 == 0;
+
 	consteval int
 	operator()(int i, auto size) const
 	{ return (i + Offset) % size(); }
@@ -142,6 +145,26 @@ namespace vir
     {
       using T = typename V::value_type;
       using R = stdx::resize_simd_t<N == 0 ? V::size() : N, V>;
+#if defined __GNUC__ and defined __AVX2__
+      if (not std::is_constant_evaluated())
+	{
+	  using v8sf [[gnu::vector_size(32)]] = float;
+	  using v4df [[gnu::vector_size(32)]] = double;
+	  if constexpr (std::same_as<T, float> and std::constructible_from<v8sf, V>
+			  and std::constructible_from<R, v8sf>
+			  and requires {F::is_even_rotation; F::Offset;}
+			  and F::is_even_rotation)
+	    {
+	      const v8sf intrin(v);
+	      constexpr int control = ((F::Offset / 2) << 0)
+					| (((F::Offset / 2 + 1) % 4) << 2)
+					| (((F::Offset / 2 + 2) % 4) << 4)
+					| (((F::Offset / 2 + 3) % 4) << 6);
+	      return R(reinterpret_cast<v8sf>(
+			 __builtin_ia32_permdf256(reinterpret_cast<v4df>(intrin), control)));
+	    }
+	}
+#endif
       return R([&](auto i) -> T {
 	       constexpr int j = [&] {
 		 if constexpr (detail::index_permutation_function_nosize<F>)
