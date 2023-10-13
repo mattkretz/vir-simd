@@ -171,26 +171,43 @@ static_assert(all_equal(vir::simd_shift_in<1>(make_simd(0, 1, 2, 3), make_simd(4
 #endif // VIR_HAVE_SIMD_PERMUTE
 
 #if VIR_HAVE_STRUCT_REFLECT
+namespace test_struct_reflect
+{
+  static_assert(not vir::reflectable_struct<int>);
+  static_assert(vir::reflectable_struct<std::tuple<>>);
+  static_assert(vir::reflectable_struct<std::tuple<int>>);
+  static_assert(vir::reflectable_struct<std::tuple<int&>>);
+  static_assert(vir::reflectable_struct<std::tuple<const int&>>);
+  static_assert(vir::reflectable_struct<std::tuple<const int>>);
+  static_assert(vir::reflectable_struct<std::array<int, 0>>);
+  static_assert(vir::reflectable_struct<std::array<int, 2>>);
+  static_assert(vir::reflectable_struct<std::pair<int, short>>);
 
-static_assert(not vir::reflectable_struct<int>);
-static_assert(vir::reflectable_struct<std::tuple<>>);
-static_assert(vir::reflectable_struct<std::tuple<int>>);
-static_assert(vir::reflectable_struct<std::tuple<int&>>);
-static_assert(vir::reflectable_struct<std::tuple<const int&>>);
-static_assert(vir::reflectable_struct<std::tuple<const int>>);
-static_assert(vir::reflectable_struct<std::array<int, 0>>);
-static_assert(vir::reflectable_struct<std::array<int, 2>>);
-static_assert(vir::reflectable_struct<std::pair<int, short>>);
+  template <typename T>
+    struct A
+    {
+      T a, b, c;
+    };
 
-template <typename T>
-  struct A
-  {
-    T a, b, c;
-  };
+  template <typename T, int N = 3>
+    struct B
+    {
+      T x[N];
+    };
 
-static_assert(vir::struct_size_v<A<float>> == 3);
-static_assert(vir::struct_size_v<A<std::tuple<float, stdx::simd<int>>>> == 3);
-static_assert(vir::struct_size_v<A<stdx::native_simd<float>>> == 3);
+  static_assert(vir::reflectable_struct<A<float>>);
+  static_assert(vir::struct_size_v<A<float>> == 3);
+  static_assert(vir::struct_size_v<A<std::tuple<float, stdx::simd<int>>>> == 3);
+  static_assert(vir::struct_size_v<A<stdx::native_simd<float>>> == 3);
+
+  static_assert(vir::reflectable_struct<B<float>>);
+  static_assert(vir::struct_size_v<B<float>> == 1);
+  static_assert(std::same_as<vir::struct_element_t<0, B<float>>, float[3]>);
+
+  static_assert(vir::reflectable_struct<float[3]>);
+  static_assert(vir::struct_size_v<float[3]> == 3);
+  static_assert(std::same_as<vir::struct_element_t<0, float[3]>, float>);
+}
 
 #if VIR_HAVE_SIMDIZE
 

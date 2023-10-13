@@ -42,20 +42,20 @@ namespace vir
 
     template <typename T, size_t... Indexes>
       concept brace_constructible_impl
-	= requires { T{((void)Indexes, anything_but_base_of<T>())...}; }
+	= requires { T{{((void)Indexes, anything_but_base_of<T>())}...}; }
 	    or requires
 	  {
-	    T{any_empty_base_of<T>(), ((void)Indexes, anything_but_base_of<T>())...};
+	    T{any_empty_base_of<T>(), {((void)Indexes, anything_but_base_of<T>())}...};
 	  }
 	    or requires
 	  {
 	    T{any_empty_base_of<T>(), any_empty_base_of<T>(),
-	      ((void)Indexes, anything_but_base_of<T>())...};
+	      {((void)Indexes, anything_but_base_of<T>())}...};
 	  }
 	    or requires
 	  {
 	    T{any_empty_base_of<T>(), any_empty_base_of<T>(), any_empty_base_of<T>(),
-	      ((void)Indexes, anything_but_base_of<T>())...};
+	      {((void)Indexes, anything_but_base_of<T>())}...};
 	  };
 
     template <typename T, size_t N>
