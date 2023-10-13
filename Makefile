@@ -13,7 +13,7 @@ testdirext=testsuite/build-ext
 sim=
 testflags=-march=native
 
-check: check-extensions testsuite-O2 testsuite-Os
+check: check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
 
 testsuite/build-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@rm -f $@
@@ -42,10 +42,20 @@ install:
 check-extensions: check-extensions-stdlib check-extensions-fallback
 
 check-extensions-stdlib:
-	$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o test.S
+	@echo "gnu++2a: test extensions ($(CXXFLAGS))"
+	@$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o test.S
 
 check-extensions-fallback:
-	$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -S vir/test.cpp -o test.S
+	@echo "gnu++2a: test extensions ($(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD)"
+	@$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -S vir/test.cpp -o test.S
+
+check-constexpr_wrapper:
+	@echo "gnu++2a: test constexpr_wrapper ($(CXXFLAGS))"
+	@$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -S vir/test_constexpr_wrapper.cpp -o test.S
+	@if $(CXX) -std=gnu++2b -c /dev/null 2>/dev/null; then \
+		echo "gnu++2b: test constexpr_wrapper ($(CXXFLAGS))"; \
+		$(CXX) -O2 -std=gnu++2b -Wall -Wextra $(CXXFLAGS) -S vir/test_constexpr_wrapper.cpp -o test.S; \
+	fi
 
 run-%: $(testdir)/Makefile
 	@$(MAKE) -C "$(testdir)" run-$*
@@ -67,6 +77,7 @@ help: $(testdir)/Makefile $(testdirOs)/Makefile $(testdirext)/Makefile
 	@echo "... check-extensions"
 	@echo "... check-extensions-stdlib"
 	@echo "... check-extensions-fallback"
+	@echo "... check-constexpr_wrapper"
 	@echo "... clean"
 	@echo "... install (using prefix=$(prefix))"
 	@$(MAKE) -C "$(testdir)" help

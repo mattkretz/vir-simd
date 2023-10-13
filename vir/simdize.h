@@ -17,6 +17,7 @@
 #include "detail.h"
 #include "simd_concepts.h"
 #include "simd_permute.h"
+#include "constexpr_wrapper.h"
 
 namespace vir
 {
@@ -28,7 +29,7 @@ namespace vir
   // Implementation note: partial specialization via concepts is broken on clang < 16
   template <typename T>
     struct simdize_size
-    : std::integral_constant<std::size_t, []() {
+    : vir::constexpr_wrapper<[]() -> int {
 	if constexpr (stdx::is_simd_v<T>)
 	  return T::size();
 	else if constexpr (reflectable_struct<T> and []<std::size_t... Is>(
@@ -43,9 +44,9 @@ namespace vir
     {};
 
   template <typename T>
-    inline constexpr std::size_t simdize_size_v = simdize_size<T>::value;
+    inline constexpr int simdize_size_v = simdize_size<T>::value;
 
-  template <typename T, std::size_t N>
+  template <typename T, int N>
     class simd_tuple;
 
   namespace detail
@@ -82,14 +83,14 @@ namespace vir
       }
 #endif
 
-    template <typename T, std::size_t N>
+    template <typename T, int N>
       struct simdize_impl;
 
-    template <vectorizable T, std::size_t N>
+    template <vectorizable T, int N>
       struct simdize_impl<T, N>
       { using type = deduced_simd<T, N == 0 ? stdx::native_simd<T>::size() : N>; };
 
-    template <reflectable_struct Tup, std::size_t N>
+    template <reflectable_struct Tup, int N>
       requires (vir::struct_size_v<Tup> == 0)
       struct simdize_impl<Tup, N>
       {
@@ -103,7 +104,7 @@ namespace vir
     template <vectorizable T>
       struct default_simdize_size<T>
       {
-	static inline constexpr std::size_t value = stdx::native_simd<T>::size();
+	static inline constexpr int value = stdx::native_simd<T>::size();
 
 	static_assert(value > 0);
       };
@@ -111,18 +112,18 @@ namespace vir
     template <reflectable_struct Tup>
       struct default_simdize_size<Tup>
       {
-	static inline constexpr std::size_t value
+	static inline constexpr int value
 	  = []<std::size_t... Is>(std::index_sequence<Is...>) {
-	    return std::max({simdize_impl<vir::struct_element_t<Is, Tup>, 0>::type::size()... });
+	    return std::max({int(simdize_impl<vir::struct_element_t<Is, Tup>, 0>::type::size())...});
 	  }(std::make_index_sequence<vir::struct_size_v<Tup>>());
 
 	static_assert(value > 0);
       };
 
     template <typename Tup>
-      inline constexpr std::size_t default_simdize_size_v = default_simdize_size<Tup>::value;
+      inline constexpr int default_simdize_size_v = default_simdize_size<Tup>::value;
 
-    template <reflectable_struct Tup, std::size_t N>
+    template <reflectable_struct Tup, int N>
       requires (vir::struct_size_v<Tup> > 0 and N > 0)
       struct make_simd_tuple
       {
@@ -137,7 +138,7 @@ namespace vir
       Tpl<typename simdize_impl<Ts, N>::type...>
       simdize_template_arguments_impl(const Tpl<Ts...>&);
 
-    template <typename T, std::size_t N = 0>
+    template <typename T, int N = 0>
       requires requires(const T& tt) {
 	simdize_template_arguments_impl<default_simdize_size_v<T>>(tt);
       }
@@ -147,7 +148,7 @@ namespace vir
 				N == 0 ? default_simdize_size_v<T> : N>(std::declval<const T&>()));
       };
 
-    template <typename T, std::size_t N = 0>
+    template <typename T, int N = 0>
       using simdize_template_arguments_t = typename simdize_template_arguments<T, N>::type;
 
     template <template <typename...> class Comp,
@@ -174,7 +175,7 @@ namespace vir
 
   namespace detail
   {
-    template <reflectable_struct Tup, std::size_t N>
+    template <reflectable_struct Tup, int N>
       requires (vir::struct_size_v<Tup> > 0 and not vectorizable_struct<Tup>)
       struct simdize_impl<Tup, N>
       {
@@ -183,12 +184,12 @@ namespace vir
 	using type = simd_tuple<Tup, N == 0 ? default_simdize_size_v<Tup> : N>;
       };
 
-    template <vectorizable_struct T, std::size_t N>
+    template <vectorizable_struct T, int N>
       struct simdize_impl<T, N>
       { using type = simd_tuple<T, N == 0 ? default_simdize_size_v<T> : N>; };
   } // namespace detail
 
-  template <reflectable_struct T, std::size_t N>
+  template <reflectable_struct T, int N>
     class simd_tuple<T, N>
     {
       using tuple_type = typename detail::make_simd_tuple<T, N>::type;
@@ -201,7 +202,7 @@ namespace vir
       using value_type = T;
       using mask_type = typename std::tuple_element_t<0, tuple_type>::mask_type;
 
-      static constexpr std::integral_constant<std::size_t, N> size{};
+      static constexpr auto size = vir::cw<N>;
 
       template <typename U = T>
 	inline static constexpr std::size_t memory_alignment = alignof(U);
@@ -311,17 +312,17 @@ namespace vir
 	}
     };
 
-  template <std::size_t I, reflectable_struct T, std::size_t N>
+  template <std::size_t I, reflectable_struct T, int N>
     constexpr decltype(auto)
     get(const simd_tuple<T, N>& tup)
     { return std::get<I>(tup.as_tuple()); }
 
-  template <std::size_t I, reflectable_struct T, std::size_t N>
+  template <std::size_t I, reflectable_struct T, int N>
     constexpr decltype(auto)
     get(simd_tuple<T, N>& tup)
     { return std::get<I>(tup.as_tuple()); }
 
-  template <vectorizable_struct T, std::size_t N>
+  template <vectorizable_struct T, int N>
     class simd_tuple<T, N> : public detail::simdize_template_arguments_t<T, N>
     {
       using tuple_type = typename detail::make_simd_tuple<T, N>::type;
@@ -334,7 +335,7 @@ namespace vir
       using value_type = T;
       using mask_type = typename struct_element_t<0, base_type>::mask_type;
 
-      static constexpr std::integral_constant<std::size_t, N> size{};
+      static constexpr auto size = vir::cw<N>;
 
       template <typename U = T>
 	inline static constexpr std::size_t memory_alignment = alignof(U);
@@ -571,7 +572,7 @@ namespace vir
 #undef VIR_OPERATOR_FWD
     };
 
-  template <std::size_t I, vectorizable_struct T, std::size_t N>
+  template <std::size_t I, vectorizable_struct T, int N>
     constexpr decltype(auto)
     get(const simd_tuple<T, N>& tup)
     {
@@ -579,7 +580,7 @@ namespace vir
 	       static_cast<const detail::simdize_template_arguments_t<T, N>&>(tup));
     }
 
-  template <std::size_t I, vectorizable_struct T, std::size_t N>
+  template <std::size_t I, vectorizable_struct T, int N>
     constexpr decltype(auto)
     get(simd_tuple<T, N>& tup)
     {
@@ -593,18 +594,18 @@ namespace vir
    * determines the resulting SIMD width. Otherwise, of all vectorizable types U the maximum
    * stdx::native_simd<U>::size() determines the resulting SIMD width.
    */
-  template <typename T, std::size_t N = 0>
+  template <typename T, int N = 0>
     requires reflectable_struct<T> or vectorizable<T>
     using simdize = typename detail::simdize_impl<T, N>::type;
 
 } // namespace vir
 
-template <vir::reflectable_struct T, std::size_t N>
+template <vir::reflectable_struct T, int N>
   struct std::tuple_size<vir::simd_tuple<T, N>>
     : std::integral_constant<std::size_t, vir::struct_size_v<T>>
   {};
 
-template <std::size_t I, vir::reflectable_struct T, std::size_t N>
+template <std::size_t I, vir::reflectable_struct T, int N>
   struct std::tuple_element<I, vir::simd_tuple<T, N>>
     : std::tuple_element<I, typename vir::detail::make_simd_tuple<T, N>::type>
   {};
