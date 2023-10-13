@@ -366,20 +366,13 @@ namespace vir
 
     // concept definitions
     template <typename T>
-      concept has_tuple_size = requires(T x, std::tuple_size<T> ts)
-      {
-	{static_cast<int>(ts)} -> std::same_as<int>;
-	struct_get<std::tuple_size_v<T>>().to_tuple(x);
-      };
+      concept has_tuple_size
+	= requires(T x, std::tuple_size<T> ts) { {static_cast<int>(ts)} -> std::same_as<int>; };
 
     template <typename T>
       concept aggregate_without_tuple_size
 	= std::is_aggregate_v<T> and not has_tuple_size<T>
-	    and requires (const T& x)
-      {
-	detail::struct_size<T>();
-	detail::struct_get<detail::struct_size<T>()>().to_tuple_ref(x);
-      };
+	    and requires (const T& x) { detail::struct_size<T>(); };
 
     // traits
     template <typename From, typename To>
