@@ -11,6 +11,7 @@
 #include <concepts>
 #include <type_traits>
 #include <utility>
+#include <charconv>
 
 namespace vir
 {
@@ -364,6 +365,115 @@ namespace vir
   // constexpr_wrapper constant (cw)
   template <auto Xp>
     inline constexpr constexpr_wrapper<Xp> cw{};
+
+  namespace detail
+  {
+    struct cw_base_and_offset_result
+    {
+      int base;
+      int offset;
+    };
+
+    enum class cw_status
+    {
+      okay,
+      try_next_type,
+      error
+    };
+
+    template <typename T>
+      struct cw_result
+      {
+        T value;
+        cw_status status;
+      };
+
+    template <typename T, auto size>
+      consteval cw_result<T>
+      do_parse(const char* arr, cw_base_and_offset_result bao)
+      {
+        T x = {};
+        const auto result = std::from_chars(arr + bao.offset, arr + size, x, bao.base);
+        if (result.ec == std::errc::result_out_of_range)
+          return cw_result<T>{x, cw_status::try_next_type};
+        else if (result.ec != std::errc {} or result.ptr != arr + size)
+          return cw_result<T>{x, cw_status::error};
+        else
+          return cw_result<T>{x, cw_status::okay};
+      }
+
+    template <char... Chars>
+      consteval auto
+      cw_parse()
+      {
+        constexpr auto size = sizeof...(Chars);
+        constexpr char arr[size] = {Chars...};
+        constexpr auto bao = [&]() -> cw_base_and_offset_result {
+          if constexpr (arr[0] == '0' and 2 < size)
+            {
+              constexpr bool is_hex = arr[1] == 'x' or arr[1] == 'X';
+              constexpr bool is_binary = arr[1] == 'b';
+
+              if constexpr (is_hex)
+                return {16, 2};
+              else if constexpr (is_binary)
+                return {2, 2};
+              else
+                return {8, 1};
+            }
+          else
+            return {10, 0};
+        }();
+        constexpr cw_result result0 = do_parse<signed char, size>(arr, bao);
+        if constexpr (result0.status == cw_status::try_next_type)
+          {
+            constexpr cw_result result1 = do_parse<signed short, size>(arr, bao);
+            if constexpr (result1.status == cw_status::try_next_type)
+              {
+                constexpr cw_result result2 = do_parse<signed int, size>(arr, bao);
+                if constexpr (result2.status == cw_status::try_next_type)
+                  {
+                    constexpr cw_result result3 = do_parse<signed long, size>(arr, bao);
+                    if constexpr (result3.status == cw_status::try_next_type)
+                      {
+                        constexpr cw_result result4 = do_parse<signed long long, size>(arr, bao);
+                        if constexpr (result4.status == cw_status::try_next_type)
+                          {
+                            constexpr cw_result result5 = do_parse<unsigned long long, size>(arr, bao);
+                            if constexpr (result5.status == cw_status::try_next_type)
+                              {
+                                double x = {};
+                                const auto result = std::from_chars(arr, arr + size, x);
+                                if (result.ec == std::errc {} and result.ptr == arr + size)
+                                  return x;
+                              }
+                            else if constexpr (result5.status != cw_status::error)
+                              return result5.value;
+                          }
+                        else if constexpr (result4.status != cw_status::error)
+                              return result4.value;
+                      }
+                    else if constexpr (result3.status != cw_status::error)
+                      return result3.value;
+                  }
+                else if constexpr (result2.status != cw_status::error)
+                  return result2.value;
+              }
+            else if constexpr (result1.status != cw_status::error)
+              return result1.value;
+          }
+        else if constexpr (result0.status != cw_status::error)
+          return result0.value;
+        throw;
+      }
+  }
+
+  namespace literals
+  {
+    template <char... Chars>
+      constexpr auto operator"" _cw()
+      { return vir::cw<vir::detail::cw_parse<Chars...>()>; }
+  }
 
 } // namespace vir
 
