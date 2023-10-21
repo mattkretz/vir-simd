@@ -1,3 +1,12 @@
+CXX ?= c++
+build_dir := $(shell which $(CXX))
+tmp := "case $$(readlink -f $(build_dir)) in *icecc) which $${ICECC_CXX:-g++};; *) echo $(build_dir);; esac"
+build_dir := $(shell sh -c $(tmp))
+build_dir := $(realpath $(build_dir))
+build_dir := build-$(subst /,-,$(build_dir:/%=%))
+
+triplet := $(shell $(CXX) -dumpmachine)
+
 CXXFLAGS+=-Wno-attributes -Wno-unknown-pragmas
 ifneq ($(findstring GCC,$(shell $(CXX) --version)),)
 	CXXFLAGS+=-static-libstdc++
@@ -7,18 +16,31 @@ prefix=/usr/local
 includedir=$(prefix)/include
 
 srcdir=.
-testdir=testsuite/build-O2
-testdirOs=testsuite/build-Os
-testdirext=testsuite/build-ext
+testdir=testsuite/$(build_dir)-O2
+testdirOs=testsuite/$(build_dir)-Os
+testdirext=testsuite/$(build_dir)-ext
 sim=
-testflags=-march=native
+
+ifneq ($(findstring 86,$(triplet)),)
+	testflags=-march=native
+else ifneq ($(findstring wasm,$(triplet)),)
+	testflags=
+	CXXFLAGS+=-Wno-deprecated
+endif
 
 check: check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
 
-testsuite/build-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
+debug:
+	@echo "build_dir: $(build_dir)"
+	@echo "triplet: $(triplet)"
+	@echo "testflags: $(testflags)"
+	@echo "DRIVEROPTS: $(DRIVEROPTS)"
+	@echo "CXXFLAGS: $(CXXFLAGS)"
+
+testsuite/$(build_dir)-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@rm -f $@
 	@echo "Generating simd testsuite ($*) subdirs and Makefiles ..."
-	@$(srcdir)/testsuite/generate_makefile.sh --destination="testsuite/build-$*" --sim="$(sim)" --testflags="$(testflags)" $(CXX) -$* -std=c++2a $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -DVIR_SIMD_TS_DROPIN
+	@$(srcdir)/testsuite/generate_makefile.sh --destination="testsuite/$(build_dir)-$*" --sim="$(sim)" --testflags="$(testflags)" $(CXX) -$* -std=c++2a $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -DVIR_SIMD_TS_DROPIN
 
 $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@rm -f $@
@@ -29,11 +51,11 @@ $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@echo transform_reduce.cc >> $(testdirext)/testsuite_files_simd
 	@cd $(testdirext) && ../generate_makefile.sh --destination="." --sim="$(sim)" --testflags="-O2 $(testflags)" $(CXX) -std=gnu++2a $(CXXFLAGS) -DVIR_SIMD_TS_DROPIN
 
-testsuite-%: testsuite/build-%/Makefile
-	@rm -f testsuite/build-$*/.simd.summary
-	@$(MAKE) -C "testsuite/build-$*"
-	@tail -n20 testsuite/build-$*/simd_testsuite.sum | grep -A20 -B1 'Summary ===' >> testsuite/build-$*/.simd.summary
-	@cat testsuite/build-$*/.simd.summary && rm testsuite/build-$*/.simd.summary
+testsuite-%: testsuite/$(build_dir)-%/Makefile
+	@rm -f testsuite/$(build_dir)-$*/.simd.summary
+	@$(MAKE) -C "testsuite/$(build_dir)-$*"
+	@tail -n20 testsuite/$(build_dir)-$*/simd_testsuite.sum | grep -A20 -B1 'Summary ===' >> testsuite/$(build_dir)-$*/.simd.summary
+	@cat testsuite/$(build_dir)-$*/.simd.summary && rm testsuite/$(build_dir)-$*/.simd.summary
 
 install:
 	install -d $(includedir)/vir
@@ -67,7 +89,7 @@ run-ext-%: $(testdirext)/Makefile
 	@$(MAKE) -C "$(testdirext)" run-$*
 
 clean:
-	@rm -rf testsuite/build-*
+	@rm -rf testsuite/$(build_dir)-*
 
 help: $(testdir)/Makefile $(testdirOs)/Makefile $(testdirext)/Makefile
 	@echo "... check"

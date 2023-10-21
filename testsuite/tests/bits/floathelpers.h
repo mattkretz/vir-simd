@@ -20,7 +20,7 @@
 #include <cfenv>
 #include "verify.h"
 
-#if math_errhandling & MATH_ERREXCEPT
+#if (math_errhandling & MATH_ERREXCEPT) && defined FE_INEXACT
 class FloatExceptCompare
 {
   int first_state;

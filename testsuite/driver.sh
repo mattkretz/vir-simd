@@ -166,7 +166,17 @@ CXXFLAGS="$@"
 src="${srcdir}/${name}.cc"
 shorttype=$(echo $type|sed -e 's/long /l/' -e 's/unsigned /u/' -e 's/signed /s/')
 testname="${name}-${shorttype}-${abi}"
-exe="${testname}.exe"
+case "$($CXX -dumpmachine)" in
+  wasm*emscripten)
+    exe="${testname}.js"
+    if [ -z "$sim" ]; then
+      sim=node
+    fi
+    ;;
+  *)
+    exe="${testname}.exe"
+    ;;
+esac
 log="${testname}.log"
 sum="${testname}.sum"
 if [ -n "$only" ]; then

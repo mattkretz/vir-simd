@@ -13,12 +13,18 @@
 
 namespace vir
 {
+#if defined(__x86_64__) or defined(__i686__)
+#define VIR_SIMD_REG "v,x,"
+#else
+#define VIR_SIMD_REG
+#endif
+
   template <typename T>
     VIR_ALWAYS_INLINE inline void
     fake_modify_one(T& x)
     {
       if constexpr (std::is_floating_point_v<T>)
-	asm volatile("" : "+v,x"(x));
+	asm volatile("" : "+" VIR_SIMD_REG "g,m"(x));
       else if constexpr (stdx::is_simd_v<T> || stdx::is_simd_mask_v<T>)
 	{
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD && __cpp_lib_experimental_parallel_simd >= 201803
@@ -36,11 +42,11 @@ namespace vir
 	  if constexpr (sizeof(x) < 16)
 	    asm volatile("" : "+g"(x));
 	  else
-	    asm volatile("" : "+v,x,g,m"(x));
+	    asm volatile("" : "+" VIR_SIMD_REG "g,m"(x));
 #endif
 	}
       else if constexpr (sizeof(x) >= 16)
-	asm volatile("" : "+v,x"(x));
+	asm volatile("" : "+" VIR_SIMD_REG "g,m"(x));
       else
 	asm volatile("" : "+g"(x));
     }
@@ -55,7 +61,7 @@ namespace vir
     fake_read_one(const T& x)
     {
       if constexpr (std::is_floating_point_v<T>)
-	asm volatile("" ::"v,x"(x));
+	asm volatile("" ::VIR_SIMD_REG "g,m"(x));
       else if constexpr (stdx::is_simd_v<T> || stdx::is_simd_mask_v<T>)
 	{
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD && __cpp_lib_experimental_parallel_simd >= 201803
@@ -73,14 +79,15 @@ namespace vir
 	  if constexpr (sizeof(x) < 16)
 	    asm volatile("" ::"g"(x));
 	  else
-	    asm volatile("" ::"v,x,g,m"(x));
+	    asm volatile("" ::VIR_SIMD_REG "g,m"(x));
 #endif
 	}
       else if constexpr (sizeof(x) >= 16)
-	asm volatile("" ::"v,x"(x));
+	asm volatile("" ::VIR_SIMD_REG"g,m"(x));
       else
 	asm volatile("" ::"g"(x));
     }
+#undef VIR_SIMD_REG
 
   template <typename... Ts>
     VIR_ALWAYS_INLINE inline void

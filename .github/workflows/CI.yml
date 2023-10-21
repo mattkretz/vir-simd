@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ master, main ]
   pull_request:
 
 jobs:
@@ -51,6 +51,33 @@ jobs:
           CXX: clang++-${{ matrix.version }}
           CXXFLAGS: -stdlib=libc++
         run: make check DRIVEROPTS=-vvf
+
+  emscripten:
+    strategy:
+      fail-fast: true
+      matrix:
+        version: [ latest ]
+
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install emscripten ${{ matrix.version }}
+        run: |
+          cd
+          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install ${{ matrix.version }}
+          ./emsdk activate ${{ matrix.version }}
+
+      - name: Run test suite
+        shell: bash
+        env:
+          CXX: em++
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          make check DRIVEROPTS=-vvf
 
   msvc:
     if: false
