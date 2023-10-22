@@ -14,6 +14,7 @@
 #define VIR_HAVE_SIMD_PERMUTE 1
 
 #include "simd.h"
+#include "constexpr_wrapper.h"
 #include <bit>
 
 namespace vir
@@ -23,14 +24,13 @@ namespace vir
     template <typename F>
       concept index_permutation_function_nosize = requires(F const& f)
       {
-	{ f(std::integral_constant<std::size_t, 0>()) } -> std::integral;
+	{ f(vir::cw<0>) } -> std::integral;
       };
 
     template <typename F, std::size_t Size>
       concept index_permutation_function_size = requires(F const& f)
       {
-	{ f(std::integral_constant<std::size_t, 0>(), std::integral_constant<std::size_t, Size>()) }
-	  -> std::integral;
+	{ f(vir::cw<0>, vir::cw<Size>) } -> std::integral;
       };
 
     template <typename F, std::size_t Size>
@@ -114,7 +114,7 @@ namespace vir
 
 	consteval int
 	operator()(int i, auto size) const
-	{ return (i + Offset) % size(); }
+	{ return (i + Offset) % size.value; }
       };
 
     template <int Offset>
@@ -145,32 +145,72 @@ namespace vir
     {
       using T = typename V::value_type;
       using R = stdx::resize_simd_t<N == 0 ? V::size() : N, V>;
-#if defined __GNUC__ and defined __AVX2__
+
+#if defined __GNUC__
       if (not std::is_constant_evaluated())
-	{
-	  using v8sf [[gnu::vector_size(32)]] = float;
-	  using v4df [[gnu::vector_size(32)]] = double;
-	  if constexpr (std::same_as<T, float> and std::constructible_from<v8sf, V>
-			  and std::constructible_from<R, v8sf>
-			  and requires {F::is_even_rotation; F::Offset;}
-			  and F::is_even_rotation)
-	    {
-	      const v8sf intrin(v);
-	      constexpr int control = ((F::Offset / 2) << 0)
-					| (((F::Offset / 2 + 1) % 4) << 2)
-					| (((F::Offset / 2 + 2) % 4) << 4)
-					| (((F::Offset / 2 + 3) % 4) << 6);
-	      return R(reinterpret_cast<v8sf>(
-			 __builtin_ia32_permdf256(reinterpret_cast<v4df>(intrin), control)));
-	    }
-	}
+	if constexpr (std::has_single_bit(sizeof(V)) and V::size() <= stdx::native_simd<T>::size())
+	  {
+#if defined __AVX2__
+	    using v8sf [[gnu::vector_size(32)]] = float;
+	    using v4df [[gnu::vector_size(32)]] = double;
+	    if constexpr (std::same_as<T, float> and std::is_trivially_copyable_v<V>
+			    and sizeof(v4df) == sizeof(V)
+			    and requires {
+			      F::is_even_rotation;
+			      F::Offset;
+			      { std::bool_constant<F::is_even_rotation>() }
+				-> std::same_as<std::true_type>;
+			    })
+	      {
+		const v4df intrin = std::bit_cast<v4df>(v);
+		constexpr int control = ((F::Offset / 2) << 0)
+					  | (((F::Offset / 2 + 1) % 4) << 2)
+					  | (((F::Offset / 2 + 2) % 4) << 4)
+					  | (((F::Offset / 2 + 3) % 4) << 6);
+		return std::bit_cast<R>(__builtin_ia32_permdf256(intrin, control));
+	      }
 #endif
+#if VIR_HAVE_BUILTIN_SHUFFLEVECTOR
+	    using VecType [[gnu::vector_size(sizeof(V))]] = T;
+	    if constexpr (std::is_trivially_copyable_v<V> and std::is_constructible_v<R, VecType>)
+	      {
+		const VecType vec = std::bit_cast<VecType>(v);
+		const auto idx_perm2 = [&](constexpr_value auto i) -> int {
+		  constexpr int j = [&]() {
+		    if constexpr (detail::index_permutation_function_nosize<F>)
+		      return idx_perm(i);
+		    else
+		      return idx_perm(i, vir::cw<V::size()>);
+		  }();
+		  if constexpr (j == simd_permute_zero)
+		    return V::size();
+		  else if constexpr (j == simd_permute_uninit)
+		    return -1;
+		  else if constexpr (j < 0)
+		    {
+		      static_assert (-j <= int(V::size()));
+		      return int(V::size()) + j;
+		    }
+		  else
+		    {
+		      static_assert (j < int(V::size()));
+		      return j;
+		    }
+		};
+		return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+		  return R(__builtin_shufflevector(vec, VecType{}, (idx_perm2(vir::cw<Is>))...));
+		}(std::make_index_sequence<V::size()>());
+	      }
+#endif
+	  }
+#endif // __GNUC__
+
       return R([&](auto i) -> T {
 	       constexpr int j = [&] {
 		 if constexpr (detail::index_permutation_function_nosize<F>)
 		   return idx_perm(i);
 		 else
-		   return idx_perm(i, std::integral_constant<std::size_t, V::size()>());
+		   return idx_perm(i, vir::cw<V::size()>);
 	       }();
 	       if constexpr (j == simd_permute_zero)
 		 return 0;
@@ -199,12 +239,12 @@ namespace vir
     {
       if constexpr (N <= 1)
 	{
-	  constexpr std::integral_constant<std::size_t, 0> i;
+	  constexpr auto i = vir::cw<0>;
 	  constexpr int j = [&] {
 	    if constexpr (detail::index_permutation_function_nosize<F>)
 	      return idx_perm(i);
 	    else
-	      return idx_perm(i, std::integral_constant<std::size_t, 1>());
+	      return idx_perm(i, vir::cw<std::size_t(1)>);
 	  }();
 	  if constexpr (j == simd_permute_zero)
 	    return 0;

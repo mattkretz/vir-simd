@@ -22,6 +22,16 @@
 #define VIR_LAMBDA_ALWAYS_INLINE
 #endif
 
+#ifdef __has_builtin
+#if __has_builtin(__builtin_shufflevector)
+#define VIR_HAVE_BUILTIN_SHUFFLEVECTOR 1
+#endif
+#endif
+#ifndef VIR_HAVE_BUILTIN_SHUFFLEVECTOR
+#define VIR_HAVE_BUILTIN_SHUFFLEVECTOR 0
+#endif
+
+
 namespace vir::meta
 {
   template <typename T>

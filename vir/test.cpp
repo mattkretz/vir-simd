@@ -270,6 +270,12 @@ struct PointTpl
   { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
 };
 
+template <typename T, std::size_t N>
+struct PointArr
+{
+  T x[N];
+};
+
 using Point = PointTpl<float>;
 
 static_assert(vir::struct_size_v<Point> == 3);
@@ -277,8 +283,14 @@ static_assert(vir::struct_size_v<Point> == 3);
 static_assert(std::same_as<vir::as_tuple_t<Point>,
 			   std::tuple<float, float, float>>);
 
+static_assert(std::same_as<vir::as_tuple_t<PointArr<float, 4>>,
+			   std::tuple<float[4]>>);
+
 static_assert(std::same_as<vir::simdize<Point>,
 			   vir::simd_tuple<Point, V<float>::size()>>);
+
+static_assert(std::same_as<vir::simdize<PointArr<float, 4>>,
+			   vir::simd_tuple<PointArr<float, 4>, V<float>::size()>>);
 
 static_assert(std::convertible_to<vir::simdize<Point>, vir::simd_tuple<Point, V<float>::size()>>);
 
@@ -308,7 +320,69 @@ static_assert(vir::simdize_size_v<vir::simdize<Point>> == stdx::native_simd<floa
 static_assert(std::same_as<typename vir::simdize<Point>::mask_type,
 			   typename V<float>::mask_type>);
 
+void f(typename vir::detail::simdize_template_arguments<Point, 0>::type);
 static_assert(vir::vectorizable_struct<Point>);
+
+namespace test_simdize
+{
+  using T = PointArr<float, 4>;
+  using TS = vir::detail::simdize_template_arguments_t<T>;
+  using TS0 = vir::struct_element_t<0, TS>;
+  using TTup = typename vir::detail::make_simd_tuple<T, V<float>::size()>::type;
+  using TTup0 = std::tuple_element_t<0, TTup>;
+
+  static_assert(vir::reflectable_struct<T>);
+  static_assert(vir::reflectable_struct<TS>);
+  static_assert(vir::reflectable_struct<TTup>);
+
+  static_assert(vir::struct_size_v<T> == 1);
+  static_assert(vir::struct_size_v<TS> == 1);
+  static_assert(vir::struct_size_v<TTup> == 1);
+  static_assert(vir::detail::flat_member_count_v<T> == 4);
+
+  template <typename T, int N>
+    struct B
+    {
+      T x[N];
+
+      constexpr void
+      operator++()
+      { for (T& y : x) ++y; }
+
+      friend constexpr auto
+      operator==(B const& a, B const& b)
+      {
+	for (int i = 0; i < N; ++i)
+	  if (not stdx::all_of(a.x[i] == b.x[i]))
+	    return false;
+	return true;
+      }
+    };
+
+  struct C
+  : B<vir::simdize<float, 2>, 4>
+  {};
+
+  static_assert(vir::vectorizable_struct<B<float, 4>>);
+  static_assert(std::same_as<vir::simdize<B<float, 4>, 1>, vir::simd_tuple<B<float, 4>, 1>>);
+  static_assert(vir::reflectable_struct<vir::simdize<B<float, 4>, 1>>);
+  static_assert(std::same_as<vir::struct_element_t<0, B<float, 4>>, float[4]>);
+  static_assert(std::same_as<vir::struct_element_t<0, C>, vir::simdize<float, 2>[4]>);
+  static_assert(std::same_as<vir::struct_element_t<0, vir::simdize<B<float, 4>, 2>>,
+			     vir::simdize<float, 2>[4]
+			    >);
+
+  static_assert(std::same_as<TTup0, vir::simdize<float[4]>>);
+  static_assert(std::same_as<std::tuple_element_t<0, vir::simdize<float[4]>>, V<float>>);
+  static_assert(std::same_as<std::tuple_element_t<1, vir::simdize<float[4]>>, V<float>>);
+  static_assert(std::same_as<std::tuple_element_t<2, vir::simdize<float[4]>>, V<float>>);
+  static_assert(std::same_as<std::tuple_element_t<3, vir::simdize<float[4]>>, V<float>>);
+
+  static_assert(std::same_as<TS0, vir::simdize<float>[4]>);
+  static_assert(std::tuple_size_v<TTup0> == std::extent_v<TS0>);
+
+  static_assert(vir::vectorizable_struct<T>);
+}
 
 static_assert([] {
   vir::simdize<Point> p1 = Point{1.f, 1.f, 1.f};
@@ -318,9 +392,21 @@ static_assert([] {
   vir::simdize<Point> p3 {V<float>([](short i) { return i + 1; }),
 			  V<float>([](short i) { return i + 1; }),
 			  V<float>([](short i) { return i + 1; })};
-  auto p = p1 + p2;
-  if (any_of(p != p3))
-    return false;
+  {
+    auto p = p1 + p2;
+    if (any_of(p != p3))
+      return false;
+  }
+  {
+    auto p = Point{1.f, 1.f, 1.f} + p2;
+    if (any_of(p != p3))
+      return false;
+  }
+  {
+    PointTpl<V<float>> p = p1 + p2;
+    if (any_of(p != p3))
+      return false;
+  }
   return true;
 }());
 

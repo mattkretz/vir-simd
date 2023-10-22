@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <vir/simd_iota.h>
+#include <vir/simdize.h>
 #include <vir/simd_execution.h>
 
 template <typename T>
@@ -28,10 +29,6 @@ template <typename V>
     dataInt.resize(N * 16 - 1);
     data2.resize(N * 16 - 1);
     std::iota(data0.begin(), data0.end(), T());
-/*    std::for_each(data2.begin(), data2.end(), [](auto& d) {
-      d.x = T();
-      d.y = T();
-    });*/
 
     VERIFY(data0 != data1);
 
@@ -61,8 +58,7 @@ template <typename V>
 
     std::transform(exec_simd.prefer_aligned(), data2.begin(), data2.end(), dataInt.begin(),
                    []<typename U>(const U& v) {
-                     return vir::stdx::static_simd_cast<vir::simdize<int, U::size()>>(
-                              std::get<1>(v.as_tuple()) - std::get<0>(v.as_tuple()));
+                     return vir::stdx::static_simd_cast<vir::simdize<int, U::size()>>(v.y - v.x);
                    });
     for (int x : dataInt)
       COMPARE(x, 3);
