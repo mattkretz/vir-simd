@@ -1310,6 +1310,59 @@ case0:
                                       reduce, transform);
     }
 
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It>
+    constexpr std::iter_value_t<It>
+    reduce(ExecutionPolicy&& policy, It first, It last)
+    {
+      return detail::transform_reduce(policy, first, last, std::iter_value_t<It>{},
+                                      std::plus<>(), [](auto const& x) { return x; });
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
+            typename T>
+    constexpr T
+    reduce(ExecutionPolicy&& policy, It first, It last, T init)
+    {
+      return detail::transform_reduce(policy, first, last, init, std::plus<>(),
+                                      [](auto const& x) { return x; });
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
+            typename T, typename BinaryReductionOp>
+    constexpr T
+    reduce(ExecutionPolicy&& policy, It first, It last, T init, BinaryReductionOp reduce)
+    {
+      return detail::transform_reduce(policy, first, last, init, reduce,
+                                      [](auto const& x) { return x; });
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg>
+    constexpr std::ranges::range_value_t<Rg>
+    reduce(ExecutionPolicy&& policy, Rg&& rg)
+    {
+      return detail::transform_reduce(policy, std::ranges::begin(rg), std::ranges::end(rg),
+                                      std::ranges::range_value_t<Rg>{}, std::plus<>(),
+                                      [](auto const& x) { return x; });
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg,
+            typename T>
+    constexpr T
+    reduce(ExecutionPolicy&& policy, Rg&& rg, T init)
+    {
+      return detail::transform_reduce(policy, std::ranges::begin(rg), std::ranges::end(rg), init,
+                                      std::plus<>(), [](auto const& x) { return x; });
+    }
+
+  template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg,
+            typename T, typename BinaryReductionOp>
+    constexpr T
+    reduce(ExecutionPolicy&& policy, Rg&& rg, T init, BinaryReductionOp reduce)
+    {
+      return detail::transform_reduce(policy, std::ranges::begin(rg), std::ranges::end(rg), init,
+                                      reduce, [](auto const& x) { return x; });
+    }
+
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename F>
     constexpr int
@@ -1399,6 +1452,33 @@ namespace std
     transform_reduce(ExecutionPolicy&& policy, It first, It last, T init, BinaryReductionOp reduce,
                      UnaryTransformOp transform)
     { return vir::detail::transform_reduce(policy, first, last, init, reduce, transform); }
+
+  template <vir::detail::simd_execution_policy ExecutionPolicy,
+            vir::detail::simd_execution_iterator It>
+    constexpr std::iter_value_t<It>
+    reduce(ExecutionPolicy&& policy, It first, It last)
+    {
+      return vir::detail::transform_reduce(policy, first, last, std::iter_value_t<It>{},
+                                           std::plus<>(), [](auto const& x) { return x; });
+    }
+
+  template <vir::detail::simd_execution_policy ExecutionPolicy,
+            vir::detail::simd_execution_iterator It, typename T>
+    constexpr T
+    reduce(ExecutionPolicy&& policy, It first, It last, T init)
+    {
+      return vir::detail::transform_reduce(policy, first, last, init, std::plus<>(),
+                                           [](auto const& x) { return x; });
+    }
+
+  template <vir::detail::simd_execution_policy ExecutionPolicy,
+            vir::detail::simd_execution_iterator It, typename T, typename BinaryReductionOp>
+    constexpr T
+    reduce(ExecutionPolicy&& policy, It first, It last, T init, BinaryReductionOp reduce)
+    {
+      return vir::detail::transform_reduce(policy, first, last, init, reduce,
+                                           [](auto const& x) { return x; });
+    }
 
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename F>

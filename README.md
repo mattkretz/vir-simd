@@ -188,6 +188,7 @@ ranges / iterators.
 * `std::count_if` / `vir::count_if`
 * `std::transform` / `vir::transform`
 * `std::transform_reduce` / `vir::transform_reduce`
+* `std::reduce` / `vir::reduce`
 
 #### Example
 
