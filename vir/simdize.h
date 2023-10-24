@@ -479,10 +479,10 @@ namespace vir
 	inline static constexpr std::size_t memory_alignment = alignof(U);
 
       template <typename... Ts>
-	requires requires(Ts&&... args) { base_type(static_cast<Ts&&>(args)...); }
+	requires requires(Ts&&... args) { base_type{static_cast<Ts&&>(args)...}; }
 	VIR_ALWAYS_INLINE constexpr
 	vectorized_struct(Ts&&... args)
-	: base_type(static_cast<Ts&&>(args)...)
+	: base_type{static_cast<Ts&&>(args)...}
 	{}
 
       VIR_ALWAYS_INLINE constexpr
