@@ -49,6 +49,9 @@ namespace vir
   template <typename T, int N>
     class simd_tuple;
 
+  template <typename T, int N>
+    class vectorized_struct;
+
   namespace detail
   {
     template <typename V, bool... Values>
@@ -297,7 +300,7 @@ namespace vir
 
     template <vectorizable_struct T, int N>
       struct simdize_impl<T, N>
-      { using type = simd_tuple<T, N == 0 ? default_simdize_size_v<T> : N>; };
+      { using type = vectorized_struct<T, N == 0 ? default_simdize_size_v<T> : N>; };
   } // namespace detail
 
   /**
@@ -448,7 +451,7 @@ namespace vir
    * stdx::simd-like interface on top of vectorized types (template argument substitution).
    */
   template <vectorizable_struct T, int N>
-    class simd_tuple<T, N> : public detail::simdize_template_arguments_t<T, N>
+    class vectorized_struct<T, N> : public detail::simdize_template_arguments_t<T, N>
     {
       using tuple_type = typename detail::make_simd_tuple<T, N>::type;
       using base_type = detail::simdize_template_arguments_t<T, N>;
@@ -478,12 +481,12 @@ namespace vir
       template <typename... Ts>
 	requires requires(Ts&&... args) { base_type(static_cast<Ts&&>(args)...); }
 	VIR_ALWAYS_INLINE constexpr
-	simd_tuple(Ts&&... args)
+	vectorized_struct(Ts&&... args)
 	: base_type(static_cast<Ts&&>(args)...)
 	{}
 
       VIR_ALWAYS_INLINE constexpr
-      simd_tuple(const base_type& init)
+      vectorized_struct(const base_type& init)
       : base_type(init)
       {}
 
@@ -495,7 +498,7 @@ namespace vir
 	constexpr
 	explicit(not detail::test_all_of<std::is_convertible, struct_element, U,
 					 std::tuple_element, tuple_type>(_struct_size_idx_seq).value)
-	simd_tuple(const U& init)
+	vectorized_struct(const U& init)
 	: base_type([&]<std::size_t... Is>(std::index_sequence<Is...>) {
 	    return base_type {std::tuple_element_t<Is, tuple_type>(vir::struct_get<Is>(init))...};
 	  }(_struct_size_idx_seq))
@@ -834,7 +837,7 @@ namespace vir
       template <std::contiguous_iterator It, typename Flags = stdx::element_aligned_tag>
 	requires std::same_as<std::iter_value_t<It>, T>
 	constexpr
-	simd_tuple(It it, Flags = {})
+	vectorized_struct(It it, Flags = {})
 	: base_type(_load_elements_via_permute(std::to_address(it)))
 	{}
 
@@ -855,15 +858,15 @@ namespace vir
 	copy_to(It it, Flags = {}) const
 	{ _store_elements_via_permute(std::to_address(it), std::make_integer_sequence<int, N>()); }
 
-      // The following enables implicit conversions added by simd_tuple. E.g.
+      // The following enables implicit conversions added by vectorized_struct. E.g.
       // `simdize<Point> + Point` will broadcast the latter to a `simdize<Point>` before applying
       // operator+.
       template <typename R>
-	using _op_return_type = std::conditional_t<std::same_as<R, base_type>, simd_tuple, R>;
+	using _op_return_type = std::conditional_t<std::same_as<R, base_type>, vectorized_struct, R>;
 
 #define VIR_OPERATOR_FWD(op)                                                                       \
       VIR_ALWAYS_INLINE friend constexpr auto                                                      \
-      operator op(simd_tuple const& a, simd_tuple const& b)                                        \
+      operator op(vectorized_struct const& a, vectorized_struct const& b)                          \
       requires requires(base_type const& x) { {x op x}; }                                          \
       {                                                                                            \
 	return static_cast<_op_return_type<decltype(a._as_base_type() op b._as_base_type())>>(     \
@@ -871,7 +874,7 @@ namespace vir
       }                                                                                            \
                                                                                                    \
       VIR_ALWAYS_INLINE friend constexpr auto                                                      \
-      operator op(base_type const& a, simd_tuple const& b)                                         \
+      operator op(base_type const& a, vectorized_struct const& b)                                  \
       requires requires(base_type const& x) { {x op x}; }                                          \
       {                                                                                            \
 	return static_cast<_op_return_type<decltype(a op b._as_base_type())>>(                     \
@@ -879,7 +882,7 @@ namespace vir
       }                                                                                            \
                                                                                                    \
       VIR_ALWAYS_INLINE friend constexpr auto                                                      \
-      operator op(simd_tuple const& a, base_type const& b)                                         \
+      operator op(vectorized_struct const& a, base_type const& b)                                  \
       requires requires(base_type const& x) { {x op x}; }                                          \
       {                                                                                            \
 	return static_cast<_op_return_type<decltype(a._as_base_type() op b)>>(                     \
@@ -912,7 +915,7 @@ namespace vir
    */
   template <std::size_t I, vectorizable_struct T, int N>
     constexpr decltype(auto)
-    get(const simd_tuple<T, N>& tup)
+    get(const vectorized_struct<T, N>& tup)
     {
       return vir::struct_get<I>(
 	       static_cast<const detail::simdize_template_arguments_t<T, N>&>(tup));
@@ -920,7 +923,7 @@ namespace vir
 
   template <std::size_t I, vectorizable_struct T, int N>
     constexpr decltype(auto)
-    get(simd_tuple<T, N>& tup)
+    get(vectorized_struct<T, N>& tup)
     {
       return vir::struct_get<I>(
 	       static_cast<detail::simdize_template_arguments_t<T, N>&>(tup));
@@ -957,8 +960,13 @@ template <std::size_t I, vir::reflectable_struct T, int N>
 /**
  * Implements structured bindings interface for simd_tuple (template argument substitution based).
  */
+template <vir::vectorizable_struct T, int N>
+  struct std::tuple_size<vir::vectorized_struct<T, N>>
+    : std::integral_constant<std::size_t, vir::struct_size_v<T>>
+  {};
+
 template <std::size_t I, vir::vectorizable_struct T, int N>
-  struct std::tuple_element<I, vir::simd_tuple<T, N>>
+  struct std::tuple_element<I, vir::vectorized_struct<T, N>>
     : vir::struct_element<I, vir::detail::simdize_template_arguments_t<T, N>>
   {};
 
