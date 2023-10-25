@@ -939,6 +939,12 @@ namespace vir
     requires reflectable_struct<T> or vectorizable<T>
     using simdize = typename detail::simdize_impl<T, N>::type;
 
+  template <int N, typename V>
+    requires requires {
+      V::size();
+      typename V::value_type;
+    } and (reflectable_struct<typename V::value_type> or vectorizable<typename V::value_type>)
+    using resize_simdize_t = simdize<typename V::value_type, N>;
 } // namespace vir
 
 /**

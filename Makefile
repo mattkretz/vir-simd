@@ -28,6 +28,8 @@ else ifneq ($(findstring wasm,$(triplet)),)
 	CXXFLAGS+=-Wno-deprecated
 endif
 
+std=$(shell ./latest_std_flag.sh)
+
 check: check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
 
 debug:
@@ -40,7 +42,7 @@ debug:
 testsuite/$(build_dir)-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@rm -f $@
 	@echo "Generating simd testsuite ($*) subdirs and Makefiles ..."
-	@$(srcdir)/testsuite/generate_makefile.sh --destination="testsuite/$(build_dir)-$*" --sim="$(sim)" --testflags="$(testflags)" $(CXX) -$* -std=c++2a $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -DVIR_SIMD_TS_DROPIN
+	@$(srcdir)/testsuite/generate_makefile.sh --destination="testsuite/$(build_dir)-$*" --sim="$(sim)" --testflags="$(testflags)" $(CXX) -$* -std=$(std) $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -DVIR_SIMD_TS_DROPIN
 
 $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@rm -f $@
@@ -49,7 +51,7 @@ $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@echo for_each.cc > $(testdirext)/testsuite_files_simd
 	@echo transform.cc >> $(testdirext)/testsuite_files_simd
 	@echo transform_reduce.cc >> $(testdirext)/testsuite_files_simd
-	@cd $(testdirext) && ../generate_makefile.sh --destination="." --sim="$(sim)" --testflags="-O2 $(testflags)" $(CXX) -std=gnu++2a $(CXXFLAGS) -DVIR_SIMD_TS_DROPIN
+	@cd $(testdirext) && ../generate_makefile.sh --destination="." --sim="$(sim)" --testflags="-O2 $(testflags)" $(CXX) -std=$(std) $(CXXFLAGS) -DVIR_SIMD_TS_DROPIN
 
 testsuite-%: testsuite/$(build_dir)-%/Makefile
 	@rm -f testsuite/$(build_dir)-$*/.simd.summary
@@ -64,12 +66,12 @@ install:
 check-extensions: check-extensions-stdlib check-extensions-fallback
 
 check-extensions-stdlib:
-	@echo "gnu++2a: test extensions ($(CXXFLAGS))"
-	@$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o test.S
+	@echo "$(std): test extensions ($(CXXFLAGS))"
+	@$(CXX) -O2 -std=$(std) -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o test.S
 
 check-extensions-fallback:
-	@echo "gnu++2a: test extensions ($(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD)"
-	@$(CXX) -O2 -std=gnu++2a -Wall -Wextra $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -S vir/test.cpp -o test.S
+	@echo "$(std): test extensions ($(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD)"
+	@$(CXX) -O2 -std=$(std) -Wall -Wextra $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -S vir/test.cpp -o test.S
 
 check-constexpr_wrapper:
 	@echo "gnu++2a: test constexpr_wrapper ($(CXXFLAGS))"
