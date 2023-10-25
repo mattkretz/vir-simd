@@ -7,6 +7,7 @@
 #define VIR_DETAILS_H
 
 #include "simd.h"
+#include "constexpr_wrapper.h"
 #include <type_traits>
 #include <bit>
 
@@ -161,9 +162,21 @@ namespace vir::detail
     {
       if constexpr (Iterations != 0)
         {
-          fun(std::integral_constant<decltype(I), I>());
+          fun(vir::cw<I>);
           unroll<Iterations - 1, I + 1>(static_cast<F&&>(fun));
         }
+    }
+
+  template <int Iterations>
+    [[gnu::always_inline, gnu::flatten]]
+    constexpr void
+    unroll2(auto&& fun0, auto&& fun1)
+    {
+      [&]<int... Is>(std::integer_sequence<int, Is...>) VIR_LAMBDA_ALWAYS_INLINE {
+        [&](auto&&... r0s) VIR_LAMBDA_ALWAYS_INLINE {
+          (fun1(vir::cw<Is>, static_cast<decltype(r0s)>(r0s)), ...);
+        }(fun0(vir::cw<Is>)...);
+      }(std::make_integer_sequence<int, Iterations>());
     }
 }
 

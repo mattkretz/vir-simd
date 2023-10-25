@@ -24,10 +24,11 @@ template <typename V>
     std::vector<T> data0, data1;
     std::vector<int> dataInt;
     std::vector<Point2D<T>> data2;
-    data0.resize(N * 16 - 1);
-    data1.resize(N * 16 - 1);
-    dataInt.resize(N * 16 - 1);
-    data2.resize(N * 16 - 1);
+    constexpr int range_size = sizeof(T) == 1 ? std::min(N * 16 - 1, 123) : N * 16 - 1;
+    data0.resize(range_size);
+    data1.resize(range_size);
+    dataInt.resize(range_size);
+    data2.resize(range_size);
     std::iota(data0.begin(), data0.end(), T());
 
     VERIFY(data0 != data1);
@@ -56,11 +57,23 @@ template <typename V>
         COMPARE(data2[i].y, T(i + 3));
       }
 
-    std::transform(exec_simd.prefer_aligned(), data2.begin(), data2.end(), dataInt.begin(),
+    dataInt[0] = 3;
+    std::transform(exec_simd.prefer_aligned(), data2.begin() + 1, data2.end(), dataInt.begin() + 1,
                    []<typename U>(const U& v) {
                      return vir::stdx::static_simd_cast<vir::simdize<int, U::size()>>(v.y - v.x);
                    });
     for (int x : dataInt)
       COMPARE(x, 3);
+
+#if __cpp_lib_ranges_zip >= 202110L
+    vir::transform(exec_simd, std::views::zip(data0, data1), dataInt, [](const auto& v) {
+      using IV = vir::simdize<int, std::remove_cvref_t<decltype(v.first)>::size()>;
+      const IV a = vir::cvt(v.first);
+      const IV b = vir::cvt(v.second);
+      return a - b;
+    });
+    for (int x : dataInt)
+      COMPARE(x, -1);
+#endif
 #endif // VIR_HAVE_SIMD_EXECUTION
   }

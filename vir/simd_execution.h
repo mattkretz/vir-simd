@@ -21,6 +21,8 @@ namespace vir
 {
   namespace detail
   {
+    using namespace vir::literals;
+
     [[noreturn]] inline void
     unreachable()
     {
@@ -356,171 +358,6 @@ case0:
             simd_for_each_epilogue<V, write_back>(fun, leftover, last, f);
       }
 
-    template <typename V, typename R, std::size_t max_elements>
-      VIR_ALWAYS_INLINE constexpr void
-      simd_transform_prologue(auto&& unary_op, auto ptr, auto dst_ptr, std::size_t to_process)
-      {
-        // pre-conditions:
-        // * ptr is a valid pointer to a range [ptr, ptr + to_process)
-        // * to_process > 0
-        // * to_process < max_elements
-
-        static_assert(max_elements > 1);
-        static_assert(std::has_single_bit(max_elements));
-        static_assert(std::has_single_bit(unsigned(V::size())));
-
-        if (to_process == 0 or to_process >= max_elements)
-          unreachable();
-
-        if constexpr (max_elements == 2) // implies to_process == 1
-          {
-            const V v(ptr, stdx::vector_aligned);
-            const R& result = std::invoke(unary_op, v);
-            result.copy_to(dst_ptr, stdx::element_aligned);
-            return;
-          }
-        if (V::size() & to_process)
-          {
-            const V v(ptr, stdx::vector_aligned);
-            const R& result = std::invoke(unary_op, v);
-            result.copy_to(dst_ptr, stdx::element_aligned);
-            ptr += V::size();
-            dst_ptr += V::size();
-          }
-        if constexpr (V::size() * 2 < max_elements)
-          {
-            simd_transform_prologue<vir::simdize<typename V::value_type, V::size() * 2>,
-                                    vir::simdize<typename R::value_type, V::size() * 2>,
-                                    max_elements>(unary_op, ptr, dst_ptr, to_process);
-          }
-      }
-
-    template <typename V1, typename V2, typename R, unsigned max_elements>
-      VIR_ALWAYS_INLINE constexpr void
-      simd_transform_prologue(auto&& binary_op, auto ptr1, auto ptr2, auto dst_ptr,
-                              std::size_t to_process)
-      {
-        static_assert(max_elements > 1);
-        static_assert(std::has_single_bit(max_elements));
-        constexpr unsigned size = V1::size();
-        static_assert(std::has_single_bit(size));
-        static_assert(size == V2::size());
-        // pre-conditions:
-        // * ptr is a valid pointer to a range [ptr, ptr + to_process)
-        // * to_process > 0
-        // * to_process < max_elements
-
-        if (to_process == 0 or to_process >= max_elements)
-          unreachable();
-
-        if constexpr (max_elements == 2) // implies to_process == 1
-          {
-            const V1 v1(ptr1, stdx::element_aligned);
-            const V2 v2(ptr2, stdx::element_aligned);
-            const R& result = std::invoke(binary_op, v1, v2);
-            result.copy_to(dst_ptr, stdx::vector_aligned);
-            return;
-          }
-        if (size & to_process)
-          {
-            const V1 v1(ptr1, stdx::element_aligned);
-            const V2 v2(ptr2, stdx::element_aligned);
-            const R& result = std::invoke(binary_op, v1, v2);
-            result.copy_to(dst_ptr, stdx::vector_aligned);
-            ptr1 += size;
-            ptr2 += size;
-            dst_ptr += size;
-          }
-        if constexpr (size * 2 < max_elements)
-          {
-            simd_transform_prologue<vir::simdize<typename V1::value_type, size * 2>,
-                                    vir::simdize<typename V2::value_type, size * 2>,
-                                    vir::simdize<typename R::value_type, size * 2>,
-                                    max_elements>(binary_op, ptr1, ptr2, dst_ptr, to_process);
-          }
-      }
-
-    template <typename V0, typename R0>
-      VIR_ALWAYS_INLINE constexpr void
-      simd_transform_epilogue(auto&& unary_op, unsigned leftover, auto last, auto d_first, auto f)
-      {
-        // pre-conditions:
-        // * leftover > 0
-        // * leftover < V0::size()
-        // * [last - leftover, last) is a valid range
-        // * [d_first, d_first + leftover) is a valid range
-        static_assert(V0::size() > 1);
-        static_assert(V0::size() == R0::size());
-        if constexpr (V0::size() == 2) // implies leftover == 1
-          {
-            using V1 = vir::simdize<typename V0::value_type, 1>;
-            using R1 = vir::simdize<typename R0::value_type, 1>;
-            const V1 v(std::to_address(last - 1), f);
-            const R1& result = std::invoke(unary_op, v);
-            result.copy_to(std::to_address(d_first), stdx::element_aligned);
-            return;
-          }
-        using V = vir::simdize<typename V0::value_type, std::bit_ceil(unsigned(V0::size())) / 2>;
-        using R = vir::simdize<typename R0::value_type, V::size()>;
-        if (leftover & V::size())
-          {
-            static_assert(std::has_single_bit(unsigned(V::size()))); // by construction
-            const V v(std::to_address(last - leftover), f);
-            const R& result = std::invoke(unary_op, v);
-            result.copy_to(std::to_address(d_first), stdx::element_aligned);
-            leftover -= V::size();
-            d_first += V::size();
-          }
-        if constexpr (V::size() > 1)
-          if (leftover)
-            simd_transform_epilogue<V, R>(unary_op, leftover, last, d_first, f);
-      }
-
-    template <typename V0, typename W0, typename R0>
-      VIR_ALWAYS_INLINE constexpr void
-      simd_transform_epilogue(auto&& binary_op, unsigned leftover, auto last, auto ptr2,
-                              auto d_first, auto f)
-      {
-        // pre-conditions:
-        // * leftover > 0
-        // * leftover < V0::size()
-        // * [last - leftover, last) is a valid range
-        // * [ptr2, ptr2 + leftover) is a valid range
-        // * [d_first, d_first + leftover) is a valid range
-        constexpr unsigned size0 = V0::size();
-        static_assert(size0 > 1);
-        static_assert(size0 == W0::size());
-        static_assert(size0 == R0::size());
-        if constexpr (size0 == 2) // implies leftover == 1
-          {
-            using V1 = vir::simdize<typename V0::value_type, 1>;
-            using W1 = vir::simdize<typename W0::value_type, 1>;
-            using R1 = vir::simdize<typename R0::value_type, 1>;
-            const V1 v(std::to_address(last - 1), stdx::element_aligned);
-            const W1 w(ptr2, stdx::element_aligned);
-            const R1& result = std::invoke(binary_op, v, w);
-            result.copy_to(std::to_address(d_first), f);
-            return;
-          }
-        using V = vir::simdize<typename V0::value_type, std::bit_ceil(size0) / 2>;
-        using W = vir::simdize<typename W0::value_type, V::size()>;
-        using R = vir::simdize<typename R0::value_type, V::size()>;
-        if (leftover & V::size())
-          {
-            static_assert(std::has_single_bit(unsigned(V::size()))); // by construction
-            const V v(std::to_address(last - leftover), stdx::element_aligned);
-            const W w(ptr2, stdx::element_aligned);
-            const R& result = std::invoke(binary_op, v, w);
-            result.copy_to(std::to_address(d_first), f);
-            leftover -= V::size();
-            ptr2 += V::size();
-            d_first += V::size();
-          }
-        if constexpr (V::size() > 1)
-          if (leftover)
-            simd_transform_epilogue<V, W, R>(binary_op, leftover, last, ptr2, d_first, f);
-      }
-
     struct simd_policy_prefer_aligned_t {};
 
     inline constexpr simd_policy_prefer_aligned_t simd_policy_prefer_aligned{};
@@ -678,17 +515,19 @@ case0:
 
           if constexpr (use_aligned_loadstore or maybe_execute_prologue_anyway)
             {
-              const auto misaligned_by
+              static constexpr auto max_misalignment = vir::cw<memory_alignment_v<V> / sizeof(T)>;
+              const auto misaligned_by_bytes
                 = reinterpret_cast<std::uintptr_t>(std::to_address(iterator_to_align))
                     % memory_alignment_v<V>;
-              if (misaligned_by == 0)
+              if (misaligned_by_bytes == 0)
                 return;
-              const auto to_process = (memory_alignment_v<V> - misaligned_by) / sizeof(T);
+              const auto misaligned_by_elements = misaligned_by_bytes / sizeof(T);
+              const auto to_process = max_misalignment - misaligned_by_elements;
               if constexpr (use_aligned_loadstore)
-                do_prologue(to_process);
+                do_prologue(max_misalignment, to_process);
               else if (remaining * sizeof(T) > 4000
                          or (to_process & remaining) == to_process) // prologue replaces epilogue
-                do_prologue(to_process);
+                do_prologue(max_misalignment, to_process);
               else
                 return;
               ((iterators_to_advance += to_process), ...);
@@ -703,6 +542,187 @@ case0:
      */
     template <typename It, int size>
       using iter_simdize_t = vir::simdize<std::iter_value_t<It>, size>;
+
+    template <typename... Its>
+      constexpr auto
+      simdized_load_and_invoke(auto op, vir::constexpr_value auto size, Its... its)
+      {
+        return std::invoke(
+                 op, iter_simdize_t<Its, size>(std::to_address(its), stdx::element_aligned)...);
+      }
+
+    template <typename It0, typename... Its>
+      constexpr auto
+      simdized_load_flag1_and_invoke(auto op, vir::constexpr_value auto size, auto flag0, It0 it0,
+                                     Its... its)
+      {
+        return std::invoke(
+                 op, iter_simdize_t<It0, size>(std::to_address(it0), flag0),
+                 iter_simdize_t<Its, size>(std::to_address(its), stdx::element_aligned)...);
+      }
+
+    template <typename R, typename... Ts>
+      VIR_ALWAYS_INLINE constexpr void
+      simd_transform_prologue(auto&& op, auto dst_ptr, std::size_t to_process,
+                              vir::constexpr_value auto max_elements, const Ts*... ptrs)
+      {
+        static_assert(max_elements > 1);
+        static_assert(std::has_single_bit(unsigned(max_elements)));
+        static constexpr auto size = vir::cw<R::size()>;
+        static_assert(std::has_single_bit(unsigned(size)));
+        static_assert(size < max_elements);
+        // pre-conditions:
+        // * ptr is a valid pointer to a range [ptr, ptr + to_process)
+        // * to_process > 0
+        // * to_process < max_elements
+        // => if max_elements == 2 then to_process == 1 and size == 1
+
+        if (to_process == 0 or to_process >= max_elements)
+          unreachable();
+
+        if (max_elements == 2 or size & to_process)
+          {
+            const R& result = simdized_load_and_invoke(op, size, ptrs...);
+            result.copy_to(dst_ptr, stdx::vector_aligned);
+            if constexpr (max_elements == 2)
+              return;
+            ((ptrs += size), ...);
+            dst_ptr += size;
+          }
+        if constexpr (size * 2 < max_elements)
+          {
+            simd_transform_prologue<vir::resize_simdize_t<size * 2, R>, Ts...>(
+              op, dst_ptr, to_process, max_elements, ptrs...);
+          }
+      }
+
+    template <typename V0, typename R0, typename... More>
+      VIR_ALWAYS_INLINE constexpr void
+      simd_transform_epilogue(auto&& binary_op, unsigned leftover, auto last, auto d_first, auto f,
+                              const More*... ptrs)
+      {
+        // pre-conditions:
+        // * leftover > 0
+        // * leftover < V0::size()
+        // * [last - leftover, last) is a valid range
+        // * [ptr2, ptr2 + leftover) is a valid range
+        // * [d_first, d_first + leftover) is a valid range
+        constexpr unsigned size0 = V0::size();
+        static_assert(size0 > 1);
+        static_assert(size0 == R0::size());
+        using T0 = typename V0::value_type;
+        if constexpr (size0 == 2) // implies leftover == 1
+          {
+            using R1 = vir::simdize<typename R0::value_type, 1>;
+            const R1& result = simdized_load_and_invoke(binary_op, 1_cw, last - 1, ptrs...);
+            result.copy_to(std::to_address(d_first), f);
+            return;
+          }
+        using V = vir::simdize<T0, std::bit_ceil(size0) / 2>;
+        using R = vir::simdize<typename R0::value_type, V::size()>;
+        if (leftover & V::size())
+          {
+            static_assert(std::has_single_bit(unsigned(V::size()))); // by construction
+            const R& result = simdized_load_and_invoke(binary_op, vir::cw<V::size()>,
+                                                       last - leftover, ptrs...);
+            result.copy_to(std::to_address(d_first), f);
+            leftover -= V::size();
+            ((ptrs += V::size()), ...);
+            d_first += V::size();
+          }
+        if constexpr (V::size() > 1)
+          if (leftover)
+            simd_transform_epilogue<V, R, More...>(binary_op, leftover, last, d_first, f, ptrs...);
+      }
+
+    template<simd_execution_policy ExecutionPolicy, simd_execution_iterator It1,
+             simd_execution_iterator OutIt, typename Operation, simd_execution_iterator... It2>
+      constexpr OutIt
+      transform(ExecutionPolicy, It1 first1, It1 last1, OutIt d_first, Operation op, It2... first2)
+      {
+        using T1 = std::iter_value_t<It1>;
+        using OutT = std::iter_value_t<OutIt>;
+        static constexpr auto size = vir::cw<([] {
+          if constexpr (ExecutionPolicy::_size > 0)
+            return ExecutionPolicy::_size;
+          else
+            return std::max({int(iter_simdize_t<It1, 0>::size()),
+                             int(iter_simdize_t<It2, 0>::size())...});
+        }())>;
+        using V1 = vir::simdize<T1, size>;
+        using OutV = vir::simdize<OutT, size>;
+
+        if (first1 == last1)
+          return d_first;
+
+        auto advance = [](int n, auto&... it) { ((it += n), ...); };
+
+        std::size_t distance = std::distance(first1, last1);
+        if (std::is_constant_evaluated())
+          {
+            // needs element_aligned because of GCC PR111302
+            for (; first1 + size <= last1; advance(size, first1, d_first, first2...))
+              {
+                const OutV& result = simdized_load_and_invoke(op, size, first1, first2...);
+                result.copy_to(std::to_address(d_first), stdx::element_aligned);
+              }
+
+            for (; first1 < last1; advance(1, first1, d_first, first2...))
+              {
+                const vir::simdize<OutT, 1>& result
+                  = simdized_load_and_invoke(op, 1_cw, first1, first2...);
+                result.copy_to(std::to_address(d_first), stdx::element_aligned);
+              }
+          }
+        else
+          {
+            // There are three addresses and we can only ensure alignment on one of them. In
+            // principle, we could check at runtime whether two of three can be aligned. But the
+            // branching necessary to make this work - with relatively little gain (presumably) -
+            // renders this approach not interesting.
+            // Instead, let's simply focus on aligning the store address, avoiding pressure on the
+            // store execution ports (a factor of 2 throughput difference with AVX-512 vectors).
+            constexpr prologue<OutV, ExecutionPolicy> p;
+            constexpr auto flags = p.flags;
+            p(distance, d_first, [&] (auto max_elements, auto to_process) {
+              simd_transform_prologue<vir::simdize<OutT, 1>, T1, std::iter_value_t<It2>...>(
+                op, std::to_address(d_first), to_process, max_elements, std::to_address(first1),
+                std::to_address(first2)...);
+            }, first1, d_first, first2...);
+            const auto leftover = distance % size;
+
+            if constexpr (ExecutionPolicy::_unroll_by > 1)
+              {
+                constexpr auto step = size * ExecutionPolicy::_unroll_by;
+                const auto unrolled_last = last1 - step;
+                for (; first1 <= unrolled_last; advance(step, first1, d_first, first2...))
+                  {
+                    unroll2<ExecutionPolicy::_unroll_by>([&](auto i) {
+                      return simdized_load_and_invoke(op, size, first1 + i * size,
+                                                      first2 + i * size...);
+                    }, [&](auto i, const OutV& result) {
+                      result.copy_to(std::to_address(d_first + i * size), flags);
+                    });
+                  }
+              }
+
+            const auto simd_last = last1 - size;
+            for (; first1 <= simd_last; advance(size, first1, d_first, first2...))
+              {
+                const OutV& result = simdized_load_and_invoke(op, size, first1, first2...);
+                result.copy_to(std::to_address(d_first), flags);
+              }
+
+            if constexpr (size > 1)
+              if (leftover)
+                {
+                  simd_transform_epilogue<V1, OutV, std::iter_value_t<It2>...>(
+                    op, leftover, last1, d_first, flags, std::to_address(first2)...);
+                  d_first += leftover;
+                }
+          }
+        return d_first;
+      }
 
     template <int size, int max_size, typename A1, typename It1, typename... It2>
       VIR_ALWAYS_INLINE constexpr A1
@@ -719,11 +739,10 @@ case0:
         if (to_process & size)
           {
             const std::size_t offset = to_process & (size - 1);
-            const std::tuple vs = {
-              iter_simdize_t<It1, size>(std::to_address(first1 + offset), stdx::vector_aligned),
-              iter_simdize_t<It2, size>(std::to_address(first2 + offset), stdx::element_aligned)...
-            };
-            const A1 x = reduce(std::apply(transform_op, vs), reduce_op);
+            const A1 x = reduce(simdized_load_flag1_and_invoke(
+                                  transform_op, vir::cw<size>, stdx::vector_aligned,
+                                  first1 + offset, first2 + offset...),
+                                reduce_op);
             acc1 = std::invoke(reduce_op, acc1, x);
           }
         if constexpr (size < max_size)
@@ -750,11 +769,9 @@ case0:
         static_assert(std::has_single_bit(unsigned(A::size())));
         if (leftover & A::size())
           {
-            const std::tuple vs = {
-              iter_simdize_t<It1, A::size()>(std::to_address(first1), flags1),
-              iter_simdize_t<It2, A::size()>(std::to_address(first2), stdx::element_aligned)...
-            };
-            acc = std::invoke(reduce_op, acc, std::apply(transform_op, vs));
+            acc = std::invoke(reduce_op, acc,
+                              simdized_load_flag1_and_invoke(transform_op, vir::cw<A::size()>,
+                                                             flags1, first1, first2...));
             if constexpr (A::size() == 1)
               // definetely no more work
               return std::invoke(reduce_op, acc1, acc)[0];
@@ -804,11 +821,8 @@ case0:
         using A = vir::simdize<typename A1::value_type, size>;
         if (leftover & size)
           {
-            const std::tuple vs = {
-              iter_simdize_t<It1, size>(std::to_address(first1), flags1),
-              iter_simdize_t<It2, size>(std::to_address(first2), stdx::element_aligned)...
-            };
-            A acc = std::apply(transform_op, vs);
+            A acc = simdized_load_flag1_and_invoke(transform_op, vir::cw<size>, flags1, first1,
+                                                   first2...);
             if constexpr (size == 1)
               // definetely no more work
               return std::invoke(reduce_op, acc1, acc)[0];
@@ -848,13 +862,13 @@ case0:
                        TransformOp transform_op, It2... first2)
       {
         using T1 = std::iter_value_t<It1>;
-        constexpr int size = [] {
+        static constexpr auto size = vir::cw<([] {
           if constexpr (ExecutionPolicy::_size > 0)
             return ExecutionPolicy::_size;
           else
             return std::max({int(iter_simdize_t<It1, 0>::size()),
                              int(iter_simdize_t<It2, 0>::size())...});
-        }();
+        }())>;
         using A1 = vir::simdize<T, 1>;
         using A = vir::simdize<T, size>;
         using V1 = vir::simdize<T1, size>;
@@ -870,11 +884,7 @@ case0:
             // needs element_aligned because of GCC PR111302
             for (; first1 < last1; ((first1 += 1), ..., (first2 += 1)))
               {
-                const std::tuple vs = {
-                  iter_simdize_t<It1, 1>(std::to_address(first1), stdx::element_aligned),
-                  iter_simdize_t<It2, 1>(std::to_address(first2), stdx::element_aligned)...
-                };
-                const A1 r = std::apply(transform_op, vs);
+                const A1 r = simdized_load_and_invoke(transform_op, 1_cw, first1, first2...);
                 acc1 = std::invoke(reduce_op, acc1, r);
               }
             return acc1[0];
@@ -883,10 +893,11 @@ case0:
           {
             constexpr prologue<V1, ExecutionPolicy> p;
             constexpr auto flags = p.flags;
-            p(distance, first1, [&] (auto to_process) VIR_LAMBDA_ALWAYS_INLINE {
-              acc1 = simd_transform_reduce_prologue<1, memory_alignment_v<V1> / sizeof(T1)>(
-                       acc1, first1, to_process, reduce_op, transform_op, first2...);
-            }, first1, first2...);
+            p(distance, first1, [&] (vir::constexpr_value auto max_elements, auto to_process)
+              VIR_LAMBDA_ALWAYS_INLINE {
+                acc1 = simd_transform_reduce_prologue<1, max_elements>(
+                         acc1, first1, to_process, reduce_op, transform_op, first2...);
+              }, first1, first2...);
 
             const auto leftover = distance % size;
 
@@ -910,12 +921,9 @@ case0:
                           {
                             return {
                               [&](std::size_t offset) -> A VIR_LAMBDA_ALWAYS_INLINE {
-                                return std::apply(transform_op,
-                                                  std::tuple{
-                                                    V1(std::to_address(first1 + offset), flags),
-                                                    iter_simdize_t<It2, size>(
-                                                      std::to_address(first2 + offset),
-                                                      stdx::element_aligned)... });
+                                return simdized_load_flag1_and_invoke(
+                                         transform_op, size, flags,
+                                         first1 + offset, first2 + offset...);
                               }(Is * size)...
                             };
                           }(unroll_idx_seq);
@@ -928,12 +936,9 @@ case0:
                                   ([&](std::size_t i) VIR_LAMBDA_ALWAYS_INLINE {
                                     acc[i] = std::invoke(
                                                reduce_op, acc[i],
-                                               std::apply(
-                                                 transform_op, std::tuple{
-                                                   V1(std::to_address(first1 + i * size), flags),
-                                                   iter_simdize_t<It2, size>(
-                                                     std::to_address(first2 + i * size),
-                                                     stdx::element_aligned)...}));
+                                               simdized_load_flag1_and_invoke(
+                                                 transform_op, size, flags,
+                                                 first1 + i * size, first2 + i * size...));
                                   }(Is), ...);
                                 }(unroll_idx_seq);
                               first1 += step;
@@ -953,21 +958,16 @@ case0:
                             return acc[0];
                           }
                     }
-                  const std::tuple vs = {
-                    V1 (std::to_address(first1), flags),
-                    iter_simdize_t<It2, size> (std::to_address(first2), stdx::element_aligned)...
-                  };
+                  auto ret = simdized_load_flag1_and_invoke(transform_op, size, flags, first1, first2...);
                   first1 += size;
                   ((first2 += size), ...);
-                  return std::apply(transform_op, vs);
+                  return ret;
                 }();
                 for (; first1 <= simd_last; ((first1 += size), ..., (first2 += size)))
                   {
-                    const std::tuple vs = {
-                      V1(std::to_address(first1), flags),
-                      iter_simdize_t<It2, size>(std::to_address(first2), stdx::element_aligned)...
-                    };
-                    acc = std::invoke(reduce_op, acc, std::apply(transform_op, vs));
+                    acc = std::invoke(reduce_op, acc,
+                                      simdized_load_flag1_and_invoke(transform_op, size, flags,
+                                                                     first1, first2...));
                   }
                 if constexpr (size == 1)
                   return std::invoke(reduce_op, acc1, acc)[0];
@@ -1025,9 +1025,8 @@ case0:
         {
           constexpr detail::prologue<V, ExecutionPolicy> prologue;
           constexpr auto flags = prologue.flags;
-          prologue(distance, first, [&] (auto to_process) {
-            detail::simd_for_each_prologue<vir::simdize<T, 1>, write_back,
-                                           detail::memory_alignment_v<V> / sizeof(T)>(
+          prologue(distance, first, [&] (auto max_elements, auto to_process) {
+            detail::simd_for_each_prologue<vir::simdize<T, 1>, write_back, max_elements>(
               fun, std::to_address(first), to_process);
           }, first);
           const auto leftover = distance % size;
@@ -1064,195 +1063,58 @@ case0:
   template<detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
            detail::simd_execution_iterator OutIt, typename UnaryOperation>
     constexpr OutIt
-    transform(ExecutionPolicy, It1 first1, It1 last1, OutIt d_first, UnaryOperation unary_op)
-    {
-      using T = std::iter_value_t<It1>;
-      using V = vir::simdize<T, ExecutionPolicy::_size>;
-      using R = vir::simdize<std::iter_value_t<OutIt>, V::size()>;
-      using V1 = vir::simdize<T, 1>;
-      using R1 = vir::simdize<std::iter_value_t<OutIt>, 1>;
-      constexpr int size = V::size();
-      if (first1 == last1)
-        return d_first;
-      std::size_t distance = std::distance(first1, last1);
-      if (std::is_constant_evaluated())
-        {
-          // needs element_aligned because of GCC PR111302
-          for (; first1 + size <= last1; first1 += size, d_first += size)
-            {
-              const V v(std::to_address(first1), stdx::element_aligned);
-              const R& result = std::invoke(unary_op, v);
-              result.copy_to(std::to_address(d_first), stdx::element_aligned);
-            }
-
-          for (; first1 < last1; first1 += 1, d_first += 1)
-            {
-              const V1 v(std::to_address(first1), stdx::element_aligned);
-              const R1& result = std::invoke(unary_op, v);
-              result.copy_to(std::to_address(d_first), stdx::element_aligned);
-            }
-        }
-      else
-        {
-          constexpr detail::prologue<V, ExecutionPolicy> prologue;
-          constexpr auto flags = prologue.flags;
-          prologue(distance, first1, [&](auto to_process) {
-            detail::simd_transform_prologue<V1, R1,
-                                            detail::memory_alignment_v<V> / sizeof(T)>(
-              unary_op, std::to_address(first1), std::to_address(d_first), to_process);
-          }, first1, d_first);
-          const auto leftover = distance % size;
-
-          if constexpr (ExecutionPolicy::_unroll_by > 1)
-            {
-              constexpr auto step = size * ExecutionPolicy::_unroll_by;
-              const auto unrolled_last = last1 - step;
-              for (; first1 <= unrolled_last; first1 += step, d_first += step)
-                {
-                  detail::simd_load_and_invoke<V>(
-                    unary_op, std::to_address(first1), [&](const R& result, auto offset) {
-                      result.copy_to(std::to_address(d_first + offset.value),
-                                     stdx::element_aligned);
-                    }, flags, std::make_index_sequence<ExecutionPolicy::_unroll_by>());
-                }
-            }
-
-          const auto simd_last = last1 - size;
-          for (; first1 <= simd_last; first1 += size, d_first += size)
-            {
-              const V v(std::to_address(first1), flags);
-              const R& result = std::invoke(unary_op, v);
-              result.copy_to(std::to_address(d_first), stdx::element_aligned);
-            }
-
-          if constexpr (size > 1)
-            if (leftover)
-              {
-                detail::simd_transform_epilogue<V, R>(unary_op, leftover, last1, d_first, flags);
-                d_first += leftover;
-              }
-        }
-      return d_first;
-    }
+    transform(ExecutionPolicy pol, It1 first1, It1 last1, OutIt d_first, UnaryOperation unary_op)
+    { return detail::transform(pol, first1, last1, d_first, unary_op); }
 
   template<detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
            detail::simd_execution_iterator It2, detail::simd_execution_iterator OutIt,
            typename BinaryOperation>
     constexpr OutIt
-    transform(ExecutionPolicy, It1 first1, It1 last1, It2 first2, OutIt d_first,
+    transform(ExecutionPolicy pol, It1 first1, It1 last1, It2 first2, OutIt d_first,
               BinaryOperation binary_op)
-    {
-      using T1 = std::iter_value_t<It1>;
-      using T2 = std::iter_value_t<It2>;
-      using T3 = std::iter_value_t<OutIt>;
-      constexpr int size = [] {
-        if constexpr (ExecutionPolicy::_size > 0)
-          return ExecutionPolicy::_size;
-        else
-          {
-            constexpr int size1 = vir::simdize<T1>::size();
-            constexpr int size2 = vir::simdize<T2>::size();
-            return std::max(size1, size2);
-          }
-      }();
-      using V1 = vir::simdize<T1, size>;
-      using V2 = vir::simdize<T2, size>;
-      using V3 = vir::simdize<T3, size>;
-
-      if (first1 == last1)
-        return d_first;
-
-      std::size_t distance = std::distance(first1, last1);
-      if (std::is_constant_evaluated())
-        {
-          // needs element_aligned because of GCC PR111302
-          for (; first1 + size <= last1; first1 += size, first2 += size, d_first += size)
-            {
-              const V1 v1(std::to_address(first1), stdx::element_aligned);
-              const V2 v2(std::to_address(first2), stdx::element_aligned);
-              const V3& result = std::invoke(binary_op, v1, v2);
-              result.copy_to(std::to_address(d_first), stdx::element_aligned);
-            }
-
-          for (; first1 < last1; first1 += 1, first2 += 1, d_first += 1)
-            {
-              const vir::simdize<T1, 1> v1(std::to_address(first1), stdx::element_aligned);
-              const vir::simdize<T2, 1> v2(std::to_address(first2), stdx::element_aligned);
-              const vir::simdize<T3, 1>& result = std::invoke(binary_op, v1, v2);
-              result.copy_to(std::to_address(d_first), stdx::element_aligned);
-            }
-        }
-      else
-        {
-          // There are three addresses and we can only ensure alignment on one of them. In
-          // principle, we could check at runtime whether two of three can be aligned. But the
-          // branching necessary to make this work - with relatively little gain (presumably) -
-          // renders this approach not interesting.
-          // Instead, let's simply focus on aligning the store address, avoiding pressure on the
-          // store execution ports (a factor of 2 throughput difference with AVX-512 vectors).
-          constexpr detail::prologue<V3, ExecutionPolicy> prologue;
-          constexpr auto flags = prologue.flags;
-          prologue(distance, d_first, [&] (auto to_process) {
-            detail::simd_transform_prologue<
-              V1, V2, V3, detail::memory_alignment_v<V3> / sizeof(T3)>(
-              binary_op, std::to_address(first1), std::to_address(first2), std::to_address(d_first),
-              to_process);
-          }, first1, first2, d_first);
-          const auto leftover = distance % size;
-
-          if constexpr (ExecutionPolicy::_unroll_by > 1)
-            {
-              constexpr std::make_index_sequence<ExecutionPolicy::_unroll_by> unroll_idx_seq;
-              constexpr auto step = size * ExecutionPolicy::_unroll_by;
-              const auto unrolled_last = last1 - step;
-              for (; first1 <= unrolled_last; first1 += step, first2 += step, d_first += step)
-                {
-                  detail::simd_load_and_invoke<V1, V2>(
-                    binary_op, std::to_address(first1), std::to_address(first2),
-                    [&](const V3& result, auto offset) {
-                      result.copy_to(std::to_address(d_first + offset.value), flags);
-                    }, stdx::element_aligned, unroll_idx_seq);
-                }
-            }
-
-          const auto simd_last = last1 - size;
-          for (; first1 <= simd_last; first1 += size, first2 += size, d_first += size)
-            {
-              const V1 v1(std::to_address(first1), stdx::element_aligned);
-              const V2 v2(std::to_address(first2), stdx::element_aligned);
-              const V3& result = std::invoke(binary_op, v1, v2);
-              result.copy_to(std::to_address(d_first), flags);
-            }
-
-          if constexpr (size > 1)
-            if (leftover)
-              {
-                detail::simd_transform_epilogue<V1, V2, V3>(
-                  binary_op, leftover, last1, std::to_address(first2), d_first, flags);
-                d_first += leftover;
-              }
-        }
-      return d_first;
-    }
+    { return detail::transform(pol, first1, last1, d_first, binary_op, first2); }
 
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R1,
             detail::simd_execution_range R2, typename UnaryOperation>
-    constexpr void
+    constexpr auto
     transform(ExecutionPolicy pol, R1&& rng1, R2& d_rng, UnaryOperation unary_op)
     {
-      vir::transform(pol, std::ranges::begin(rng1), std::ranges::end(rng1),
-                     std::ranges::begin(d_rng), unary_op);
+      return detail::transform(pol, std::ranges::begin(rng1), std::ranges::end(rng1),
+                               std::ranges::begin(d_rng), unary_op);
     }
 
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R1,
             detail::simd_execution_range R2, detail::simd_execution_range R3,
             typename BinaryOperation>
-    constexpr void
+    constexpr auto
     transform(ExecutionPolicy pol, R1&& rng1, R2&& rng2, R3& d_rng, BinaryOperation binary_op)
     {
-      vir::transform(pol, std::ranges::begin(rng1), std::ranges::end(rng1),
-                     std::ranges::begin(rng2), std::ranges::begin(d_rng), binary_op);
+      return detail::transform(pol, std::ranges::begin(rng1), std::ranges::end(rng1),
+                               std::ranges::begin(d_rng), binary_op, std::ranges::begin(rng2));
     }
+
+#if __cpp_lib_ranges_zip >= 202110L
+  template <detail::simd_execution_range... Rs>
+    constexpr auto
+    transform(detail::simd_execution_policy auto pol, const std::ranges::zip_view<Rs...>& rg,
+              detail::simd_execution_range auto&& d_rg, auto op)
+    {
+      const auto size = std::ranges::size(rg);
+      const auto it = std::ranges::begin(rg);
+      const auto first0 = std::addressof(std::get<0>(*it));
+      return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+        return detail::transform(
+                 pol, first0, first0 + size, std::ranges::begin(d_rg),
+                 [&op](auto&&... vs) {
+                   if constexpr (sizeof...(vs) == 2)
+                     return std::invoke(op, std::pair{static_cast<decltype(vs)>(vs)...});
+                   else
+                     return std::invoke(op, std::tuple{static_cast<decltype(vs)>(vs)...});
+                 },
+                 std::addressof(std::get<1 + Is>(*it))...);
+      }(std::make_index_sequence<sizeof...(Rs) - 1>());
+    }
+#endif
 
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
             detail::simd_execution_iterator It2, typename T>
@@ -1413,9 +1275,8 @@ namespace std
            vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator OutIt,
            typename UnaryOperation>
     constexpr OutIt
-    transform(ExecutionPolicy pol, It1 first1, It1 last1, OutIt d_first,
-              UnaryOperation unary_op)
-    { return vir::transform(pol, first1, last1, d_first, unary_op); }
+    transform(ExecutionPolicy pol, It1 first1, It1 last1, OutIt d_first, UnaryOperation unary_op)
+    { return vir::detail::transform(pol, first1, last1, d_first, unary_op); }
 
   template<vir::detail::simd_execution_policy ExecutionPolicy,
            vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
@@ -1423,7 +1284,7 @@ namespace std
     constexpr OutIt
     transform(ExecutionPolicy pol, It1 first1, It1 last1, It2 first2, OutIt d_first,
               BinaryOperation binary_op)
-    { return vir::transform(pol, first1, last1, first2, d_first, binary_op); }
+    { return vir::detail::transform(pol, first1, last1, d_first, binary_op, first2); }
 
   template <vir::detail::simd_execution_policy ExecutionPolicy,
            vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
