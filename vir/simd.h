@@ -34,6 +34,7 @@ namespace vir::stdx
 
 #else
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #ifdef _GLIBCXX_DEBUG_UB
