@@ -151,7 +151,6 @@ namespace vir
 	if constexpr (std::has_single_bit(sizeof(V)) and V::size() <= stdx::native_simd<T>::size())
 	  {
 #if defined __AVX2__
-	    using v8sf [[gnu::vector_size(32)]] = float;
 	    using v4df [[gnu::vector_size(32)]] = double;
 	    if constexpr (std::same_as<T, float> and std::is_trivially_copyable_v<V>
 			    and sizeof(v4df) == sizeof(V)
