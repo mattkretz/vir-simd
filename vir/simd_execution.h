@@ -474,16 +474,26 @@ case0:
       {};
 
     template <typename V, typename T = typename V::value_type>
-      inline constexpr std::size_t memory_alignment_v = [] {
-        if constexpr (stdx::is_simd_v<V>)
-          return stdx::memory_alignment_v<V, T>;
-        else if constexpr (requires {
-          {V::template memory_alignment<T>} -> std::same_as<std::size_t>;
-        })
-          return V::template memory_alignment<T>;
-        else
-          return alignof(T);
-      }();
+      struct memory_alignment
+      : vir::constexpr_wrapper<alignof(T)>
+      {};
+
+    template <typename V, typename T>
+      requires (stdx::is_simd_v<V>)
+      struct memory_alignment<V, T>
+      : stdx::memory_alignment<V, T>
+      {};
+
+    template <typename V, typename T>
+      requires (not stdx::is_simd_v<V>) and requires {
+        {V::template memory_alignment<T>} -> std::same_as<std::size_t>;
+      }
+      struct memory_alignment<V, T>
+      : vir::constexpr_wrapper<V::template memory_alignment<T>>
+      {};
+
+    template <typename V, typename T = typename V::value_type>
+      inline constexpr std::size_t memory_alignment_v = memory_alignment<V, T>::value;
 
     template <typename V, simd_execution_policy ExecutionPolicy>
       struct prologue
