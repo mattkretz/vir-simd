@@ -8,10 +8,12 @@
 
 #if defined __cpp_concepts && __cpp_concepts >= 201907 && __has_include(<concepts>)
 #define VIR_HAVE_CONSTEXPR_WRAPPER 1
+#include <algorithm>
+#include <array>
 #include <concepts>
+#include <limits>
 #include <type_traits>
 #include <utility>
-#include <charconv>
 
 namespace vir
 {
@@ -368,103 +370,82 @@ namespace vir
 
   namespace detail
   {
-    struct cw_base_and_offset_result
-    {
-      int base;
-      int offset;
-    };
-
-    enum class cw_status
-    {
-      okay,
-      try_next_type,
-      error
-    };
-
-    template <typename T>
-      struct cw_result
+    template <char... Chars>
+      consteval auto
+      cw_prepare_array()
       {
-        T value;
-        cw_status status;
-      };
-
-    template <typename T, auto size>
-      consteval cw_result<T>
-      do_parse(const char* arr, cw_base_and_offset_result bao)
-      {
-        T x = {};
-        const auto result = std::from_chars(arr + bao.offset, arr + size, x, bao.base);
-        if (result.ec == std::errc::result_out_of_range)
-          return cw_result<T>{x, cw_status::try_next_type};
-        else if (result.ec != std::errc {} or result.ptr != arr + size)
-          return cw_result<T>{x, cw_status::error};
-        else
-          return cw_result<T>{x, cw_status::okay};
+	constexpr auto not_digit_sep = [](char c) { return c != '\''; };
+	constexpr char arr0[sizeof...(Chars)] = {Chars...};
+	constexpr auto size
+	  = std::count_if(std::begin(arr0), std::end(arr0), not_digit_sep);
+	std::array<char, size> tmp = {};
+	std::copy_if(std::begin(arr0), std::end(arr0), tmp.begin(), not_digit_sep);
+	return tmp;
       }
 
     template <char... Chars>
       consteval auto
       cw_parse()
       {
-        constexpr auto size = sizeof...(Chars);
-        constexpr char arr[size] = {Chars...};
-        constexpr auto bao = [&]() -> cw_base_and_offset_result {
-          if constexpr (arr[0] == '0' and 2 < size)
-            {
-              constexpr bool is_hex = arr[1] == 'x' or arr[1] == 'X';
-              constexpr bool is_binary = arr[1] == 'b';
+	constexpr std::array arr = cw_prepare_array<Chars...>();
+	constexpr int base = arr[0] == '0' and 2 < arr.size()
+				 ? arr[1] == 'x' or arr[1] == 'X' ? 16
+								      : arr[1] == 'b' ? 2 : 8
+				 : 10;
+        constexpr int offset = base == 10 ? 0 : base == 8 ? 1 : 2;
+        constexpr bool valid_chars = std::all_of(arr.begin() + offset, arr.end(), [=](char c) {
+                                       if constexpr (base == 16)
+                                         return (c >= 'a' and c <= 'f') or (c >= 'A' and c <= 'F')
+                                                  or (c >= '0' and c <= '9');
+                                       else
+                                         return c >= '0' and c < char('0' + base);
+                                     });
+        static_assert(valid_chars, "invalid characters in constexpr_wrapper literal");
 
-              if constexpr (is_hex)
-                return {16, 2};
-              else if constexpr (is_binary)
-                return {2, 2};
-              else
-                return {8, 1};
+        // common values, freeing values for error conditions
+        if constexpr (arr == std::array {'0'})
+          return static_cast<signed char>(0);
+        else if constexpr (arr == std::array {'1'})
+          return static_cast<signed char>(1);
+        else if constexpr (arr == std::array {'2'})
+          return static_cast<signed char>(2);
+
+        constexpr unsigned long long x = [&]() {
+          unsigned long long x = {};
+          constexpr auto max = std::numeric_limits<unsigned long long>::max();
+          auto it = arr.begin() + offset;
+          for (; it != arr.end(); ++it)
+            {
+              unsigned nextdigit = *it - '0';
+              if constexpr (base == 16)
+                {
+                  if (*it >= 'a')
+                    nextdigit = *it - 'a' + 10;
+                  else if (*it >= 'A')
+                    nextdigit = *it - 'A' + 10;
+                }
+              if (x > max / base)
+                return 0ull;
+              x *= base;
+              if (x > max - nextdigit)
+                return 0ull;
+              x += nextdigit;
             }
-          else
-            return {10, 0};
+          return x;
         }();
-        constexpr cw_result result0 = do_parse<signed char, size>(arr, bao);
-        if constexpr (result0.status == cw_status::try_next_type)
-          {
-            constexpr cw_result result1 = do_parse<signed short, size>(arr, bao);
-            if constexpr (result1.status == cw_status::try_next_type)
-              {
-                constexpr cw_result result2 = do_parse<signed int, size>(arr, bao);
-                if constexpr (result2.status == cw_status::try_next_type)
-                  {
-                    constexpr cw_result result3 = do_parse<signed long, size>(arr, bao);
-                    if constexpr (result3.status == cw_status::try_next_type)
-                      {
-                        constexpr cw_result result4 = do_parse<signed long long, size>(arr, bao);
-                        if constexpr (result4.status == cw_status::try_next_type)
-                          {
-                            constexpr cw_result result5 = do_parse<unsigned long long, size>(arr, bao);
-                            if constexpr (result5.status == cw_status::try_next_type)
-                              {
-                                double x = {};
-                                const auto result = std::from_chars(arr, arr + size, x);
-                                if (result.ec == std::errc {} and result.ptr == arr + size)
-                                  return x;
-                              }
-                            else if constexpr (result5.status != cw_status::error)
-                              return result5.value;
-                          }
-                        else if constexpr (result4.status != cw_status::error)
-                              return result4.value;
-                      }
-                    else if constexpr (result3.status != cw_status::error)
-                      return result3.value;
-                  }
-                else if constexpr (result2.status != cw_status::error)
-                  return result2.value;
-              }
-            else if constexpr (result1.status != cw_status::error)
-              return result1.value;
-          }
-        else if constexpr (result0.status != cw_status::error)
-          return result0.value;
-        throw;
+        static_assert(x != 0, "constexpr_wrapper literal value out of range");
+        if constexpr (x <= std::numeric_limits<signed char>::max())
+          return static_cast<signed char>(x);
+        else if constexpr (x <= std::numeric_limits<signed short>::max())
+          return static_cast<signed short>(x);
+        else if constexpr (x <= std::numeric_limits<signed int>::max())
+          return static_cast<signed int>(x);
+        else if constexpr (x <= std::numeric_limits<signed long>::max())
+          return static_cast<signed long>(x);
+        else if constexpr (x <= std::numeric_limits<signed long long>::max())
+          return static_cast<signed long long>(x);
+        else
+          return x;
       }
   }
 
