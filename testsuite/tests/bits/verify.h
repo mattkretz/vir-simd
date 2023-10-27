@@ -261,7 +261,7 @@ namespace vir {
   namespace test
   {
     template <typename T>
-      inline T _S_fuzzyness = 0.5;
+      inline T _S_fuzzyness = std::is_floating_point_v<T> ? T(0.5) : T();
 
     template <typename T>
       void
