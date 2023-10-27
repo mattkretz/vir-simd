@@ -92,8 +92,11 @@ template <typename V>
 		   MAKE_TESTER(lgamma), MAKE_TESTER(nearbyint), MAKE_TESTER(rint),
 		   MAKE_TESTER(lrint), MAKE_TESTER(llrint), MAKE_TESTER(ilogb));
 
+
+#ifdef FE_INEXACT
     FloatExceptCompare::ignore_spurious = FE_INEXACT;
     FloatExceptCompare::ignore_missing = FE_INEXACT;
+#endif
 
     test_values<V>(input_values, {10000}, MAKE_TESTER(ceil), MAKE_TESTER(floor), MAKE_TESTER(trunc),
 		   MAKE_TESTER(round), MAKE_TESTER(lround), MAKE_TESTER(llround));
