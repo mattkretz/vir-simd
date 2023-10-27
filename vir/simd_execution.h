@@ -10,7 +10,7 @@
 #include "simd_cvt.h"
 #include "simdize.h"
 
-#if VIR_HAVE_SIMD_CONCEPTS and VIR_HAVE_SIMDIZE and VIR_HAVE_SIMD_CVT
+#if VIR_HAVE_SIMD_CONCEPTS and VIR_HAVE_SIMDIZE and VIR_HAVE_SIMD_CVT and VIR_HAVE_CONSTEXPR_WRAPPER
 #define VIR_HAVE_SIMD_EXECUTION 1
 
 #include <ranges>
@@ -525,7 +525,7 @@ case0:
 
           if constexpr (use_aligned_loadstore or maybe_execute_prologue_anyway)
             {
-              static constexpr auto max_misalignment = vir::cw<memory_alignment_v<V> / sizeof(T)>;
+              constexpr auto max_misalignment = vir::cw<memory_alignment_v<V> / sizeof(T)>;
               const auto misaligned_by_bytes
                 = reinterpret_cast<std::uintptr_t>(std::to_address(iterator_to_align))
                     % memory_alignment_v<V>;
@@ -578,7 +578,7 @@ case0:
       {
         static_assert(max_elements > 1);
         static_assert(std::has_single_bit(unsigned(max_elements)));
-        static constexpr auto size = vir::cw<R::size()>;
+        constexpr auto size = vir::cw<R::size()>;
         static_assert(std::has_single_bit(unsigned(size)));
         static_assert(size < max_elements);
         // pre-conditions:
@@ -652,7 +652,7 @@ case0:
       {
         using T1 = std::iter_value_t<It1>;
         using OutT = std::iter_value_t<OutIt>;
-        static constexpr auto size = vir::cw<([] {
+        constexpr auto size = vir::cw<([] {
           if constexpr (ExecutionPolicy::_size > 0)
             return ExecutionPolicy::_size;
           else
@@ -707,10 +707,10 @@ case0:
                 const auto unrolled_last = last1 - step;
                 for (; first1 <= unrolled_last; advance(step, first1, d_first, first2...))
                   {
-                    unroll2<ExecutionPolicy::_unroll_by>([&](auto i) {
+                    unroll2<ExecutionPolicy::_unroll_by>([&,size](auto i) {
                       return simdized_load_and_invoke(op, size, first1 + i * size,
                                                       first2 + i * size...);
-                    }, [&](auto i, const OutV& result) {
+                    }, [&,size](auto i, const OutV& result) {
                       result.copy_to(std::to_address(d_first + i * size), flags);
                     });
                   }
@@ -872,13 +872,13 @@ case0:
                        TransformOp transform_op, It2... first2)
       {
         using T1 = std::iter_value_t<It1>;
-        static constexpr auto size = vir::cw<([] {
+        constexpr int size = [] {
           if constexpr (ExecutionPolicy::_size > 0)
             return ExecutionPolicy::_size;
           else
             return std::max({int(iter_simdize_t<It1, 0>::size()),
                              int(iter_simdize_t<It2, 0>::size())...});
-        }())>;
+        }();
         using A1 = vir::simdize<T, 1>;
         using A = vir::simdize<T, size>;
         using V1 = vir::simdize<T1, size>;
@@ -932,7 +932,7 @@ case0:
                             return {
                               [&](std::size_t offset) -> A VIR_LAMBDA_ALWAYS_INLINE {
                                 return simdized_load_flag1_and_invoke(
-                                         transform_op, size, flags,
+                                         transform_op, vir::cw<size>, flags,
                                          first1 + offset, first2 + offset...);
                               }(Is * size)...
                             };
@@ -947,7 +947,7 @@ case0:
                                     acc[i] = std::invoke(
                                                reduce_op, acc[i],
                                                simdized_load_flag1_and_invoke(
-                                                 transform_op, size, flags,
+                                                 transform_op, vir::cw<size>, flags,
                                                  first1 + i * size, first2 + i * size...));
                                   }(Is), ...);
                                 }(unroll_idx_seq);
@@ -968,7 +968,8 @@ case0:
                             return acc[0];
                           }
                     }
-                  auto ret = simdized_load_flag1_and_invoke(transform_op, size, flags, first1, first2...);
+                  auto ret = simdized_load_flag1_and_invoke(transform_op, vir::cw<size>, flags,
+                                                            first1, first2...);
                   first1 += size;
                   ((first2 += size), ...);
                   return ret;
@@ -976,8 +977,8 @@ case0:
                 for (; first1 <= simd_last; ((first1 += size), ..., (first2 += size)))
                   {
                     acc = std::invoke(reduce_op, acc,
-                                      simdized_load_flag1_and_invoke(transform_op, size, flags,
-                                                                     first1, first2...));
+                                      simdized_load_flag1_and_invoke(transform_op, vir::cw<size>,
+                                                                     flags, first1, first2...));
                   }
                 if constexpr (size == 1)
                   return std::invoke(reduce_op, acc1, acc)[0];
