@@ -159,10 +159,13 @@ template <typename V>
 
 	VERIFY((is_substitution_failure<vdouble, llong>));
 	VERIFY((is_substitution_failure<vdouble, ullong>));
-	VERIFY((is_substitution_failure<vdouble, vf64<long>>));
-	VERIFY((is_substitution_failure<vdouble, vf64<ulong>>));
 	VERIFY((is_substitution_failure<vdouble, vf64<llong>>));
 	VERIFY((is_substitution_failure<vdouble, vf64<ullong>>));
+	if constexpr (not std::is_same_v<vdouble, vf64<double>>)
+	  {
+	    VERIFY((is_substitution_failure<vdouble, vf64<long>>));
+	    VERIFY((is_substitution_failure<vdouble, vf64<ulong>>));
+	  }
 
 	VERIFY((is_substitution_failure<vf64<double>, llong>));
 	VERIFY((is_substitution_failure<vf64<double>, ullong>));
@@ -312,10 +315,11 @@ template <typename V>
 	VERIFY((is_substitution_failure<vlong, ullong>));
 	VERIFY((is_substitution_failure<vlong, float>));
 	VERIFY((is_substitution_failure<vlong, double>));
+	VERIFY((is_substitution_failure<vlong, vl<float>>));
 	VERIFY((is_substitution_failure<vlong, vl<ulong>>));
 	VERIFY((is_substitution_failure<vlong, vl<ullong>>));
-	VERIFY((is_substitution_failure<vlong, vl<float>>));
-	VERIFY((is_substitution_failure<vlong, vl<double>>));
+	if constexpr (not std::is_same_v<vlong, vl<long>>)
+	  VERIFY((is_substitution_failure<vlong, vl<double>>));
 	VERIFY((is_substitution_failure<vl<long>, vulong>));
 	VERIFY((is_substitution_failure<vi32<long>, ulong>));
 	VERIFY((is_substitution_failure<vi32<long>, ullong>));
@@ -397,9 +401,12 @@ template <typename V>
 	VERIFY((is_substitution_failure<vulong, vl<short>>));
 	VERIFY((is_substitution_failure<vulong, vl<int>>));
 	VERIFY((is_substitution_failure<vulong, vl<long>>));
-	VERIFY((is_substitution_failure<vulong, vl<llong>>));
 	VERIFY((is_substitution_failure<vulong, vl<float>>));
-	VERIFY((is_substitution_failure<vulong, vl<double>>));
+	if constexpr (not std::is_same_v<vulong, vl<ulong>>)
+	  {
+	    VERIFY((is_substitution_failure<vulong, vl<llong>>));
+	    VERIFY((is_substitution_failure<vulong, vl<double>>));
+	  }
 	VERIFY((is_substitution_failure<vl<ulong>, vlong>));
 	VERIFY((is_substitution_failure<vi32<ulong>, schar>));
 	VERIFY((is_substitution_failure<vi32<ulong>, short>));
@@ -475,12 +482,13 @@ template <typename V>
 	    binary_op_return_type<vllong, ulong>();
 	  }
 
+	if constexpr (not std::is_same_v<vllong, vi64<llong>>)
+	  VERIFY((is_substitution_failure<vllong, vi64<ulong>>));
+	VERIFY((is_substitution_failure<vllong, vi64<ullong>>));
 	VERIFY((is_substitution_failure<vllong, vullong>));
 	VERIFY((is_substitution_failure<vllong, ullong>));
 	VERIFY((is_substitution_failure<vllong, float>));
 	VERIFY((is_substitution_failure<vllong, double>));
-	VERIFY((is_substitution_failure<vllong, vi64<ulong>>));
-	VERIFY((is_substitution_failure<vllong, vi64<ullong>>));
 	VERIFY((is_substitution_failure<vllong, vi64<float>>));
 	VERIFY((is_substitution_failure<vllong, vi64<double>>));
 	VERIFY((is_substitution_failure<vi32<llong>, ullong>));
