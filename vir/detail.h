@@ -155,6 +155,7 @@ namespace vir::detail
 #endif
     }
 
+#if VIR_HAVE_CONSTEXPR_WRAPPER
   template <int Iterations, auto I = 0, typename F>
     [[gnu::always_inline, gnu::flatten]]
     constexpr void
@@ -178,6 +179,7 @@ namespace vir::detail
         }(fun0(vir::cw<Is>)...);
       }(std::make_integer_sequence<int, Iterations>());
     }
+#endif
 }
 
 #endif // VIR_DETAILS_H
