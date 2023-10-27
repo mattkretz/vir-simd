@@ -8,6 +8,7 @@
 
 #include "simd.h"
 #include "detail.h"
+#include <type_traits>
 
 namespace vir
 {
@@ -18,10 +19,11 @@ namespace vir
                                         meta::is_simd_or_mask<From>>, To>
     simd_bit_cast(const From& x)
     {
-#if VIR_GLIBCXX_STDX_SIMD
-      return std::experimental::__proposed::simd_bit_cast<To>(x);
-#else
-      return detail::bit_cast<To>(x);
+      if constexpr (std::is_trivially_copyable_v<From> and std::is_trivially_copyable_v<To>)
+        return detail::bit_cast<To>(x);
+#if VIR_GLIBCXX_STDX_SIMD and _GLIBCXX_RELEASE >= 12
+      else
+        return std::experimental::__proposed::simd_bit_cast<To>(x);
 #endif
     }
 }
