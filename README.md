@@ -438,6 +438,61 @@ defines the following functions:
   elimination leading up to the results passed to this function.
 
 
+### `constexpr_wrapper`: function arguments as constant expressions
+
+The header
+```c++
+#include <vir/constexpr_wrapper.h>
+```
+defines the following tools:
+
+* `vir::constexpr_value` (concept): Satisfied by any type with a static 
+  `::value` member that can be used in a constant expression.
+
+* `vir::constexpr_wrapper<auto>` (class template): A type storing the value of 
+  its NTTP (non-type template parameter) and overloading all operators to 
+  return another `constexpr_wrapper`. `constexpr_wrapper` objects are 
+  implicitly convertible to their value type (a `constexpr_wrapper` 
+  automatically unwraps its constant expression).
+
+* `vir::cw<auto>` (variable template): Shorthand for producing 
+  `constexpr_wrapper` objects with the given value.
+
+* `vir::literals` (namespace with `_cw` UDL): Shorthand for producing 
+  `constexpr_wrapper` objects of the integer literal in front of the `_cw` 
+  suffix. The type will be deduced automatically from the value of the literal 
+  to be the smallest signed integral type, or if the value is larger, `unsigned 
+  long long`. If the value is too large for an `unsigned long long`, the 
+  program is ill-formed.
+
+`constexpr_wrapper` may appear unrelated to `simd`. However, it is an important 
+tool used in many places in the implementation and on interfaces of vir-simd 
+tools. `vir::constexpr_wrapper` is very similar to `std::integral_constant`, 
+which is used in the `simd` TS interface for generator constructors.
+
+#### Example
+
+```c++
+#include <vir/constexpr_wrapper.h>
+
+auto f(vir::constexpr_value auto N)
+{
+  std::array<int, N> x = {};
+  return x;
+}
+
+std::array a = f(vir::cw<4>); // array<int, 4>
+
+using namespace vir::literals;
+
+std::array b = f(10_cw); // array<int, 10>
+```
+
+This example cannot work with a signature `constexpr auto f(int n)` (or 
+`consteval`) because `n` will never be considered a constant expression in the 
+body of the function.
+
+
 ## Debugging
 
 Compile with `-D _GLIBCXX_DEBUG_UB` to get runtime checks for undefined 
