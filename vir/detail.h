@@ -17,7 +17,7 @@
 #define VIR_GLIBCXX_STDX_SIMD 0
 #endif
 
-#ifdef __GNUC__
+#if defined __GNUC__ and not defined __clang__
 #define VIR_LAMBDA_ALWAYS_INLINE __attribute__((__always_inline__))
 #else
 #define VIR_LAMBDA_ALWAYS_INLINE
