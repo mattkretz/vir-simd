@@ -659,7 +659,7 @@ case0:
         if (std::is_constant_evaluated())
           {
             // needs element_aligned because of GCC PR111302
-            for (; first1 + size <= last1; advance(size, first1, d_first, first2...))
+            for (; first1 + (size - 1) < last1; advance(size, first1, d_first, first2...))
               {
                 const OutV& result = simdized_load_and_invoke(op, size, first1, first2...);
                 result.copy_to(std::to_address(d_first), stdx::element_aligned);
@@ -1012,7 +1012,7 @@ case0:
       if (std::is_constant_evaluated())
         {
           // needs element_aligned because of GCC PR111302
-          for (; first + size <= last; first += size)
+          for (; first + (size - 1) < last; first += size)
             detail::simd_load_and_invoke<V, write_back>(fun, std::to_address(first),
                                                         stdx::element_aligned, detail::no_unroll);
 
