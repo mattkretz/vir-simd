@@ -11,6 +11,7 @@
 #include "simdize.h"
 
 #if VIR_HAVE_SIMD_CONCEPTS and VIR_HAVE_SIMDIZE and VIR_HAVE_SIMD_CVT and VIR_HAVE_CONSTEXPR_WRAPPER
+#if not defined __clang_major__ or not defined _GLIBCXX_RELEASE or __clang_major__ >= 17 or _GLIBCXX_RELEASE < 13
 #define VIR_HAVE_SIMD_EXECUTION 1
 
 #include <ranges>
@@ -1346,6 +1347,7 @@ namespace std
     count_if(ExecutionPolicy&& pol, It first, It last, F&& fun)
     { return vir::count_if(pol, first, last, std::forward<F>(fun)); }
 }
+#endif // no Clang < 17
 #endif // VIR_HAVE_SIMD_CONCEPTS
 #endif // VIR_SIMD_EXECUTION_H_
 
