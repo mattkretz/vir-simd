@@ -25,17 +25,19 @@ template <typename V>
   {
     using int_v = std::experimental::fixed_size_simd<int, V::size()>;
     using T = typename V::value_type;
+#if COMPLETE_IEC559_SUPPORT
     constexpr auto denorm_min = vir::denorm_min_v<T>;
     constexpr auto norm_min = vir::norm_min_v<T>;
-    constexpr auto max = vir::finite_max_v<T>;
     constexpr auto nan = vir::quiet_NaN_v<T>;
     constexpr auto inf = vir::infinity_v<T>;
+#endif
+    constexpr auto max = vir::finite_max_v<T>;
     test_values<V>(
       {0, 0.25, 0.5, 1, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 31, -0., -0.25, -0.5, -1,
        -3, -4, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16, -17, -18,
        -19, -20, -21, -22, -23, -24, -25, -26, -27, -28, -29, -32, -31,
-#if __GCC_IEC_559 >= 2
+#if COMPLETE_IEC559_SUPPORT
        denorm_min, -denorm_min, norm_min / 2, -norm_min / 2,
 #endif
        max, -max, max * 0.123f, -max * 0.123f},
@@ -53,7 +55,7 @@ template <typename V>
 	COMPARE(exponent, expectedExponent)
 	  << "\ninput: " << input << ", fraction: " << fraction;
       });
-#ifdef __STDC_IEC_559__
+#if COMPLETE_IEC559_SUPPORT
     test_values<V>(
       // If x is a NaN, a NaN is returned, and the value of *exp is unspecified.
       //
