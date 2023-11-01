@@ -44,10 +44,10 @@ template <typename V>
     COMPARE(i, T(data0.size()));
     COMPARE(data0, data1);
 
-    vir::transform(exec_simd.template unroll_by<2>(), data0, data1, [&i](auto v) {
+    vir::transform(exec_simd.template unroll_by<2>(), data0, data1, [](auto v) {
       return v + 1;
     });
-    vir::transform(exec_simd, data0, data1, data2, [&i](auto v0, auto v1) {
+    vir::transform(exec_simd, data0, data1, data2, [](auto v0, auto v1) {
       return Point2D<decltype(v0)>{v0, v1 + 2};
     });
 
@@ -65,7 +65,11 @@ template <typename V>
     for (int x : dataInt)
       COMPARE(x, 3);
 
-#if __cpp_lib_ranges_zip >= 202110L
+#if defined __clang_major__ and __clang_major__ <= 17
+  // Clang 17 fails to compile libstdc++ zip_view code
+#define BAD_COMPILER 1
+#endif
+#if __cpp_lib_ranges_zip >= 202110L and not BAD_COMPILER
     vir::transform(exec_simd, std::views::zip(data0, data1), dataInt, [](const auto& v) {
       using IV = vir::simdize<int, std::remove_cvref_t<decltype(v.first)>::size()>;
       const IV a = vir::cvt(v.first);
