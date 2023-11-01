@@ -360,18 +360,11 @@ case0:
 
     struct simd_policy_prefer_aligned_t {};
 
-    inline constexpr simd_policy_prefer_aligned_t simd_policy_prefer_aligned{};
-
     struct simd_policy_auto_prologue_t {};
-
-    inline constexpr simd_policy_auto_prologue_t simd_policy_auto_prologue{};
 
     template <int N>
       struct simd_policy_unroll_by_t
       {};
-
-    template <int N>
-      inline constexpr simd_policy_unroll_by_t<N> simd_policy_unroll_by{};
 
     template <typename T>
       struct simd_policy_unroll_value
@@ -379,7 +372,7 @@ case0:
       {};
 
     template <int N>
-      struct simd_policy_unroll_value<const simd_policy_unroll_by_t<N>>
+      struct simd_policy_unroll_value<simd_policy_unroll_by_t<N>>
       : std::integral_constant<int, N>
       {};
 
@@ -387,16 +380,13 @@ case0:
       struct simd_policy_size_t
       {};
 
-    template <int N>
-      inline constexpr simd_policy_size_t<N> simd_policy_size{};
-
     template <typename T>
       struct simd_policy_size_value
       : std::integral_constant<int, 0>
       {};
 
     template <int N>
-      struct simd_policy_size_value<const simd_policy_size_t<N>>
+      struct simd_policy_size_value<simd_policy_size_t<N>>
       : std::integral_constant<int, N>
       {};
 
@@ -421,33 +411,31 @@ case0:
 
   namespace execution
   {
-    template <auto... Options>
+    template <typename... Options>
       struct simd_policy
       {
         static constexpr bool _prefers_aligned
-          = (false or ... or std::same_as<decltype(Options),
-                                          const detail::simd_policy_prefer_aligned_t>);
+          = (false or ... or std::same_as<Options, detail::simd_policy_prefer_aligned_t>);
 
         static constexpr bool _auto_prologue
-          = (false or ... or std::same_as<decltype(Options),
-                                          const detail::simd_policy_auto_prologue_t>);
+          = (false or ... or std::same_as<Options, detail::simd_policy_auto_prologue_t>);
 
         static constexpr int _unroll_by
-          = (0 + ... + detail::simd_policy_unroll_value<decltype(Options)>::value);
+          = (0 + ... + detail::simd_policy_unroll_value<Options>::value);
 
         static constexpr int _size
-          = (0 + ... + detail::simd_policy_size_value<decltype(Options)>::value);
+          = (0 + ... + detail::simd_policy_size_value<Options>::value);
 
-        static constexpr simd_policy<Options..., detail::simd_policy_prefer_aligned>
+        static constexpr simd_policy<Options..., detail::simd_policy_prefer_aligned_t>
         prefer_aligned() requires(not _prefers_aligned and not _auto_prologue)
         { return {}; }
 
-        static constexpr simd_policy<Options..., detail::simd_policy_auto_prologue>
+        static constexpr simd_policy<Options..., detail::simd_policy_auto_prologue_t>
         auto_prologue() requires(not _prefers_aligned and not _auto_prologue)
         { return {}; }
 
         template <int N>
-          static constexpr simd_policy<Options..., detail::simd_policy_unroll_by<N>>
+          static constexpr simd_policy<Options..., detail::simd_policy_unroll_by_t<N>>
           unroll_by() requires(_unroll_by == 0)
           {
             static_assert(N > 1);
@@ -455,7 +443,7 @@ case0:
           }
 
         template <int N>
-          static constexpr simd_policy<Options..., detail::simd_policy_size<N>>
+          static constexpr simd_policy<Options..., detail::simd_policy_size_t<N>>
           prefer_size() requires(_size == 0)
           {
             static_assert(N > 0);
@@ -468,7 +456,7 @@ case0:
 
   namespace detail
   {
-    template <auto... Options>
+    template <typename... Options>
       struct is_simd_policy<execution::simd_policy<Options...>>
       : std::true_type
       {};
