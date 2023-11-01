@@ -10,6 +10,11 @@ triplet := $(shell $(CXX) -dumpmachine)
 CXXFLAGS+=-Wno-attributes -Wno-unknown-pragmas -Wno-psabi
 ifneq ($(findstring GCC,$(shell $(CXX) --version)),)
 	CXXFLAGS+=-static-libstdc++
+else ifneq ($(findstring clang,$(shell $(CXX) --version)),)
+	# Avoid warning on self-assignment tests
+	CXXFLAGS+=-Wno-self-assign-overloaded
+	# Avoid warning about PCH inclusion method
+	CXXFLAGS+=-Wno-deprecated
 endif
 CXXFLAGS+=-I$(PWD)
 prefix=/usr/local
@@ -25,7 +30,6 @@ ifneq ($(findstring 86,$(triplet)),)
 	testflags=-march=native
 else ifneq ($(findstring wasm,$(triplet)),)
 	testflags=
-	CXXFLAGS+=-Wno-deprecated
 endif
 
 std=$(shell ./latest_std_flag.sh)
