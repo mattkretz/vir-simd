@@ -45,14 +45,16 @@ template <typename V>
   {
     using T = typename V::value_type;
     using intv = std::experimental::fixed_size_simd<int, V::size()>;
+#if COMPLETE_IEC559_SUPPORT
     constexpr T inf = vir::infinity_v<T>;
     constexpr T denorm_min = vir::infinity_v<T>;
     constexpr T nan = vir::quiet_NaN_v<T>;
+#endif
     constexpr T max = vir::finite_max_v<T>;
     constexpr T norm_min = vir::norm_min_v<T>;
     test_values<V>(
       {0., 1., -1.,
-#if __GCC_IEC_559 >= 2
+#if COMPLETE_IEC559_SUPPORT
        -0., inf, -inf, denorm_min, -denorm_min, nan,
        norm_min * 0.9, -norm_min * 0.9,
 #endif
