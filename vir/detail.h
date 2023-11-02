@@ -72,6 +72,8 @@ namespace vir::meta
       struct as_int<T, short, false>
       : as_int<T, signed char> {};
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
     template <typename T>
       struct as_int<T, signed char, false>
   #ifdef __SIZEOF_INT128__
@@ -81,6 +83,7 @@ namespace vir::meta
       struct as_int<T, __int128, false>
   #endif // __SIZEOF_INT128__
       {};
+#pragma GCC diagnostic pop
 
     template <typename T>
       using as_int_t = typename as_int<T>::type;
@@ -108,6 +111,8 @@ namespace vir::meta
       struct as_unsigned<T, unsigned short, false>
       : as_unsigned<T, unsigned char> {};
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
     template <typename T>
       struct as_unsigned<T, unsigned char, false>
   #ifdef __SIZEOF_INT128__
@@ -117,6 +122,7 @@ namespace vir::meta
       struct as_unsigned<T, unsigned __int128, false>
   #endif // __SIZEOF_INT128__
       {};
+#pragma GCC diagnostic pop
 
     template <typename T>
       using as_unsigned_t = typename as_unsigned<T>::type;

@@ -449,7 +449,7 @@ case0:
           {
             static_assert(N > 0);
             return {};
-          };
+          }
       };
 
     inline constexpr simd_policy<> simd {};
