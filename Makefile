@@ -7,7 +7,7 @@ build_dir := build-$(subst /,-,$(build_dir:/%=%))
 
 triplet := $(shell $(CXX) -dumpmachine)
 
-CXXFLAGS+=-Wno-attributes -Wno-unknown-pragmas -Wno-psabi
+CXXFLAGS+=-Wall -Wextra -Wpedantic -Wno-attributes -Wno-unknown-pragmas -Wno-psabi
 ifneq ($(findstring GCC,$(shell $(CXX) --version)),)
 	CXXFLAGS+=-static-libstdc++
 else ifneq ($(findstring clang,$(shell $(CXX) --version)),)
