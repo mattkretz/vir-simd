@@ -403,11 +403,11 @@ namespace vir
         static_assert(valid_chars, "invalid characters in constexpr_wrapper literal");
 
         // common values, freeing values for error conditions
-        if constexpr (arr == std::array {'0'})
+        if constexpr (arr.size() == 1 and arr[0] =='0')
           return static_cast<signed char>(0);
-        else if constexpr (arr == std::array {'1'})
+        else if constexpr (arr.size() == 1 and arr[0] =='1')
           return static_cast<signed char>(1);
-        else if constexpr (arr == std::array {'2'})
+        else if constexpr (arr.size() == 1 and arr[0] =='2')
           return static_cast<signed char>(2);
 
         constexpr unsigned long long x = [&]() {
