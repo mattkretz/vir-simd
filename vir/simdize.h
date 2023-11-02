@@ -518,7 +518,8 @@ namespace vir
       {
 #if VIR_HAVE_BUILTIN_SHUFFLEVECTOR
 	if (not std::is_constant_evaluated())
-	  if constexpr (N > 1 and sizeof(T) * N == sizeof(base_type) and _flat_member_count >= 2)
+	  if constexpr (N > 1 and sizeof(T) * N == sizeof(base_type) and _flat_member_count >= 2
+			  and std::has_single_bit(unsigned(N)))
 	    {
 	      const std::byte* byte_ptr = reinterpret_cast<const std::byte*>(addr);
 	      // struct_size_v == 2 doesn't need anything, the fallback works fine, unless
@@ -529,7 +530,6 @@ namespace vir
 		{
 		  static_assert(N == V0::size());
 		  constexpr int N2 = N / 2;
-		  static_assert(std::has_single_bit(unsigned(N2)));
 		  using U = typename V0::value_type;
 		  if constexpr (sizeof(U) == sizeof(vir::struct_element_t<0, T>)
 				  and sizeof(U) == sizeof(vir::struct_element_t<1, T>)
@@ -748,12 +748,12 @@ namespace vir
 #if VIR_HAVE_BUILTIN_SHUFFLEVECTOR
 	  if (not std::is_constant_evaluated())
 	    if constexpr (N > 2 and _flat_member_count >= 2
-			    and sizeof(T) * N == sizeof(base_type))
+			    and sizeof(T) * N == sizeof(base_type)
+			    and std::has_single_bit(unsigned(N)))
 	      {
 		using V0 = detail::flat_element_t<0, tuple_type>;
 		//using V1 = detail::flat_element_t<1, tuple_type>;
 		static_assert(N == V0::size());
-		static_assert(std::has_single_bit(unsigned(N)));
 		using U = typename V0::value_type;
 		using V [[gnu::vector_size(sizeof(U) * N)]] = U;
 		std::byte* byte_ptr = reinterpret_cast<std::byte*>(addr);
