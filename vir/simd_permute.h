@@ -169,7 +169,7 @@ namespace vir
 		return std::bit_cast<R>(__builtin_ia32_permdf256(intrin, control));
 	      }
 #endif
-#if VIR_HAVE_BUILTIN_SHUFFLEVECTOR
+#if VIR_HAVE_WORKING_SHUFFLEVECTOR
 	    using VecType [[gnu::vector_size(sizeof(V))]] = T;
 	    if constexpr (std::is_trivially_copyable_v<V> and std::is_constructible_v<R, VecType>)
 	      {
