@@ -228,18 +228,18 @@ template <typename T>
   }
 
 #define COMPARE(_a, _b)                                                        \
-  [&](auto&& _aa, auto&& _bb) {                                                \
+  [&](const auto& fun, auto&& _aa, auto&& _bb) {                               \
     return verify(std::experimental::all_of(_aa == _bb), __FILE__, __LINE__,   \
-		  __PRETTY_FUNCTION__, #_a " == " #_b, #_a " = ", _aa,         \
+                  fun, #_a " == " #_b, #_a " = ", _aa,                         \
 		  "\n" #_b " = ", _bb);                                        \
-  }(force_fp_truncation(_a), force_fp_truncation(_b))
+  }(__PRETTY_FUNCTION__, force_fp_truncation(_a), force_fp_truncation(_b))
 #else
 #define COMPARE(_a, _b)                                                        \
-  [&](auto&& _aa, auto&& _bb) {                                                \
+  [&](const auto& fun, auto&& _aa, auto&& _bb) {                               \
     return verify(std::experimental::all_of(_aa == _bb), __FILE__, __LINE__,   \
-		  __PRETTY_FUNCTION__, #_a " == " #_b, #_a " = ", _aa,         \
+                  fun, #_a " == " #_b, #_a " = ", _aa,                         \
 		  "\n" #_b " = ", _bb);                                        \
-  }((_a), (_b))
+  }(__PRETTY_FUNCTION__, (_a), (_b))
 #endif
 
 #define VERIFY(_test)                                                          \
@@ -248,14 +248,14 @@ template <typename T>
   // ulp_distance_signed can raise FP exceptions and thus must be conditionally
   // executed
 #define ULP_COMPARE(_a, _b, _allowed_distance)                                 \
-  [&](auto&& _aa, auto&& _bb) {                                                \
+  [&](const auto& fun, auto&& _aa, auto&& _bb) {                               \
     const bool success = std::experimental::all_of(                            \
       vir::test::ulp_distance(_aa, _bb) <= (_allowed_distance));               \
-    return verify(success, __FILE__, __LINE__, __PRETTY_FUNCTION__,            \
+    return verify(success, __FILE__, __LINE__, fun,                            \
 		  #_a " ~~ " #_b, #_a " = ", _aa, "\n" #_b " = ", _bb,         \
 		  "\ndistance = ",                                             \
 		  success ? 0 : vir::test::ulp_distance_signed(_aa, _bb));     \
-  }((_a), (_b))
+  }(__PRETTY_FUNCTION__, (_a), (_b))
 
 namespace vir {
   namespace test
