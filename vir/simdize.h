@@ -62,7 +62,7 @@ namespace vir
     template <typename T, int N, unsigned Bytes = sizeof(T) * std::bit_ceil(unsigned(N))>
       using gnu_vector [[gnu::vector_size(Bytes)]] = T;
 
-#if VIR_HAVE_BUILTIN_SHUFFLEVECTOR
+#if VIR_HAVE_WORKING_SHUFFLEVECTOR
     /**
      * Return a with a[i] replaced by b[i] for all i in {Indexes...}.
      */
@@ -516,7 +516,7 @@ namespace vir
       static constexpr base_type
       _load_elements_via_permute(const T* addr)
       {
-#if VIR_HAVE_BUILTIN_SHUFFLEVECTOR
+#if VIR_HAVE_WORKING_SHUFFLEVECTOR
 	if (not std::is_constant_evaluated())
 	  if constexpr (N > 1 and sizeof(T) * N == sizeof(base_type) and _flat_member_count >= 2
 			  and std::has_single_bit(unsigned(N)))
@@ -731,7 +731,7 @@ namespace vir
 		    }
 		}
 	    }
-#endif // VIR_HAVE_BUILTIN_SHUFFLEVECTOR
+#endif // VIR_HAVE_WORKING_SHUFFLEVECTOR
 
 	// not optimized fallback
 	return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
@@ -745,7 +745,7 @@ namespace vir
 	VIR_ALWAYS_INLINE constexpr void
 	_store_elements_via_permute(T* addr, std::integer_sequence<int, Is...>) const
 	{
-#if VIR_HAVE_BUILTIN_SHUFFLEVECTOR
+#if VIR_HAVE_WORKING_SHUFFLEVECTOR
 	  if (not std::is_constant_evaluated())
 	    if constexpr (N > 2 and _flat_member_count >= 2
 			    and sizeof(T) * N == sizeof(base_type)

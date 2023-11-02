@@ -24,12 +24,15 @@
 #endif
 
 #ifdef __has_builtin
-#if __has_builtin(__builtin_shufflevector)
-#define VIR_HAVE_BUILTIN_SHUFFLEVECTOR 1
+// Clang 17 miscompiles permuting loads and stores for simdized types. I was unable to pin down the
+// cause, but it seems highly likely that some __builtin_shufflevector calls get miscompiled. So
+// far, not using __builtin_shufflevector has resolved all failures.
+#if __has_builtin(__builtin_shufflevector) and __clang_major__ != 17
+#define VIR_HAVE_WORKING_SHUFFLEVECTOR 1
 #endif
 #endif
-#ifndef VIR_HAVE_BUILTIN_SHUFFLEVECTOR
-#define VIR_HAVE_BUILTIN_SHUFFLEVECTOR 0
+#ifndef VIR_HAVE_WORKING_SHUFFLEVECTOR
+#define VIR_HAVE_WORKING_SHUFFLEVECTOR 0
 #endif
 
 
