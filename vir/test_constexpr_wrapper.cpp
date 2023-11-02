@@ -266,5 +266,20 @@ test()
   check<int>(1 + vir::cw<NeedsAdl(1)>);
   check<strlit<char, 7>>("foo"_sc + "bar");
   check<strlit<char, 7>>("foo" + "bar"_sc);
+
+  using namespace vir::literals;
+  check<3>(1_cw + 2_cw);
+  check<(signed char)(1)>(1_cw);
+  check<(signed char)(127)>(127_cw);
+  check<short(128)>(128_cw);
+  check<60'000>(60'000_cw);
+  check<2'000'000'000>(2'000'000'000_cw);
+  check<-2'000'000'000>(-2'000'000'000_cw);
+  check<4'000'000'000L>(4'000'000'000_cw);
+  check<4'000'000'000L>(4'000'000'000_cw);
+  check<9223372036854775807L  >(9223372036854775807_cw);
+  check<9223372036854775808ULL>(9223372036854775808_cw);
+  check<0xFFFF>(0xFFFF_cw);
+  check<(signed char)0b1101>(0b1101_cw);
 }
 #endif // VIR_HAVE_CONSTEXPR_WRAPPER
