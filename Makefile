@@ -1,4 +1,3 @@
-CXX ?= c++
 build_dir := $(shell which $(CXX))
 tmp := "case $$(readlink -f $(build_dir)) in *icecc) which $${ICECC_CXX:-g++};; *) echo $(build_dir);; esac"
 build_dir := $(shell sh -c $(tmp))
@@ -32,7 +31,7 @@ else ifneq ($(findstring wasm,$(triplet)),)
 	testflags=
 endif
 
-std=$(shell ./latest_std_flag.sh)
+std=$(shell env CXX=$(CXX) ./latest_std_flag.sh)
 
 check: check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
 
@@ -41,7 +40,9 @@ debug:
 	@echo "triplet: $(triplet)"
 	@echo "testflags: $(testflags)"
 	@echo "DRIVEROPTS: $(DRIVEROPTS)"
+	@echo "CXX: $(CXX)"
 	@echo "CXXFLAGS: $(CXXFLAGS)"
+	@echo "std: $(std)"
 
 testsuite/$(build_dir)-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@rm -f $@
