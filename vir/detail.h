@@ -9,7 +9,6 @@
 #include "simd.h"
 #include "constexpr_wrapper.h"
 #include <type_traits>
-#include <bit>
 
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD_H && defined __cpp_lib_experimental_parallel_simd
 #define VIR_GLIBCXX_STDX_SIMD 1
