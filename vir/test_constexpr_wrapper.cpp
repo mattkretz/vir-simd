@@ -190,8 +190,19 @@ struct numarray
 };
 
 void
+overload(vir::constexpr_value auto)
+{}
+
+void
+overload(std::integral auto)
+{}
+
+void
 test()
 {
+  overload(1);
+  overload(vir::cw<1>);
+
   // all of the following find the hidden friends in constexpr_wrapper via ADL:
   check<2>(vir::cw<1> + vir::cw<1>);
   check<3>(vir::cw<1> + vir::cw<2>);

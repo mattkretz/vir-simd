@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright © 2023 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
- *                  Matthias Kretz <m.kretz@gsi.de>
+/* Copyright © 2023-2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+ *                       Matthias Kretz <m.kretz@gsi.de>
  */
 
 #ifndef VIR_CONSTEXPR_WRAPPER_H_
@@ -338,23 +338,27 @@ namespace vir
       // overload operator[] for constexpr_value and non-constexpr_value
 #if __cpp_multidimensional_subscript
       template <constexpr_value... Args>
+        requires std::is_compound_v<value_type>
         _static constexpr constexpr_wrapper<value[Args::value...]>
         operator[](Args...) _const
         { return {}; }
 
       template <typename... Args>
         requires (not constexpr_value<std::remove_cvref_t<Args>> || ...)
+          && std::is_compound_v<value_type>
         _static constexpr decltype(value[std::declval<Args>()...])
         operator[](Args&&... _args) _const
         { return value[std::forward<Args>(_args)...]; }
 #else
       template <constexpr_value Arg>
+        requires std::is_compound_v<value_type>
         _static constexpr constexpr_wrapper<value[Arg::value]>
         operator[](Arg) _const
         { return {}; }
 
       template <typename Arg>
         requires (not constexpr_value<std::remove_cvref_t<Arg>>)
+          && std::is_compound_v<value_type>
         _static constexpr decltype(value[std::declval<Arg>()])
         operator[](Arg&& _arg) _const
         { return value[std::forward<Arg>(_arg)]; }
