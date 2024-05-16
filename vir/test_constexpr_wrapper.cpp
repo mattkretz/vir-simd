@@ -280,6 +280,7 @@ test()
 
   using namespace vir::literals;
   check<3>(1_cw + 2_cw);
+  check<(signed char)(0)>(0_cw);
   check<(signed char)(1)>(1_cw);
   check<(signed char)(127)>(127_cw);
   check<short(128)>(128_cw);

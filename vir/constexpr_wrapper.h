@@ -391,11 +391,11 @@ namespace vir
       consteval auto
       cw_parse()
       {
-	constexpr std::array arr = cw_prepare_array<Chars...>();
-	constexpr int base = arr[0] == '0' and 2 < arr.size()
-				 ? arr[1] == 'x' or arr[1] == 'X' ? 16
-								      : arr[1] == 'b' ? 2 : 8
-				 : 10;
+        constexpr std::array arr = cw_prepare_array<Chars...>();
+        constexpr int base = arr[0] == '0' and 2 < arr.size()
+                               ? arr[1] == 'x' or arr[1] == 'X' ? 16
+                                                                : arr[1] == 'b' ? 2 : 8
+                               : 10;
         constexpr int offset = base == 10 ? 0 : base == 8 ? 1 : 2;
         constexpr bool valid_chars = std::all_of(arr.begin() + offset, arr.end(), [=](char c) {
                                        if constexpr (base == 16)
@@ -413,43 +413,45 @@ namespace vir
           return static_cast<signed char>(1);
         else if constexpr (arr.size() == 1 and arr[0] =='2')
           return static_cast<signed char>(2);
-
-        constexpr unsigned long long x = [&]() {
-          unsigned long long x = {};
-          constexpr auto max = std::numeric_limits<unsigned long long>::max();
-          auto it = arr.begin() + offset;
-          for (; it != arr.end(); ++it)
-            {
-              unsigned nextdigit = *it - '0';
-              if constexpr (base == 16)
-                {
-                  if (*it >= 'a')
-                    nextdigit = *it - 'a' + 10;
-                  else if (*it >= 'A')
-                    nextdigit = *it - 'A' + 10;
-                }
-              if (x > max / base)
-                return 0ull;
-              x *= base;
-              if (x > max - nextdigit)
-                return 0ull;
-              x += nextdigit;
-            }
-          return x;
-        }();
-        static_assert(x != 0, "constexpr_wrapper literal value out of range");
-        if constexpr (x <= std::numeric_limits<signed char>::max())
-          return static_cast<signed char>(x);
-        else if constexpr (x <= std::numeric_limits<signed short>::max())
-          return static_cast<signed short>(x);
-        else if constexpr (x <= std::numeric_limits<signed int>::max())
-          return static_cast<signed int>(x);
-        else if constexpr (x <= std::numeric_limits<signed long>::max())
-          return static_cast<signed long>(x);
-        else if constexpr (x <= std::numeric_limits<signed long long>::max())
-          return static_cast<signed long long>(x);
         else
-          return x;
+          {
+            constexpr unsigned long long x = [&]() {
+              unsigned long long x = {};
+              constexpr auto max = std::numeric_limits<unsigned long long>::max();
+              auto it = arr.begin() + offset;
+              for (; it != arr.end(); ++it)
+                {
+                  unsigned nextdigit = *it - '0';
+                  if constexpr (base == 16)
+                    {
+                      if (*it >= 'a')
+                        nextdigit = *it - 'a' + 10;
+                      else if (*it >= 'A')
+                        nextdigit = *it - 'A' + 10;
+                    }
+                  if (x > max / base)
+                    return 0ull;
+                  x *= base;
+                  if (x > max - nextdigit)
+                    return 0ull;
+                  x += nextdigit;
+                }
+              return x;
+            }();
+            static_assert(x != 0, "constexpr_wrapper literal value out of range");
+            if constexpr (x <= std::numeric_limits<signed char>::max())
+              return static_cast<signed char>(x);
+            else if constexpr (x <= std::numeric_limits<signed short>::max())
+              return static_cast<signed short>(x);
+            else if constexpr (x <= std::numeric_limits<signed int>::max())
+              return static_cast<signed int>(x);
+            else if constexpr (x <= std::numeric_limits<signed long>::max())
+              return static_cast<signed long>(x);
+            else if constexpr (x <= std::numeric_limits<signed long long>::max())
+              return static_cast<signed long long>(x);
+            else
+              return x;
+          }
       }
   }
 
