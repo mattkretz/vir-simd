@@ -6,7 +6,7 @@
 #ifndef VIR_SIMD_CONCEPTS_H_
 #define VIR_SIMD_CONCEPTS_H_
 
-#if defined __cpp_concepts && __cpp_concepts >= 201907 && __has_include(<concepts>)
+#if defined __cpp_concepts && __cpp_concepts >= 201907 && __has_include(<concepts>) && __GNUC__ > 10
 #define VIR_HAVE_SIMD_CONCEPTS 1
 #include <concepts>
 

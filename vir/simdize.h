@@ -7,8 +7,9 @@
 #define VIR_SIMD_SIMDIZE_H_
 
 #include "struct_reflect.h"
+#include "constexpr_wrapper.h"
 
-#if VIR_HAVE_STRUCT_REFLECT
+#if VIR_HAVE_STRUCT_REFLECT and VIR_HAVE_CONSTEXPR_WRAPPER
 #define VIR_HAVE_SIMDIZE 1
 
 #include <tuple>
@@ -17,7 +18,6 @@
 #include "detail.h"
 #include "simd_concepts.h"
 #include "simd_permute.h"
-#include "constexpr_wrapper.h"
 
 namespace vir
 {

@@ -6,7 +6,7 @@
 #ifndef VIR_CONSTEXPR_WRAPPER_H_
 #define VIR_CONSTEXPR_WRAPPER_H_
 
-#if defined __cpp_concepts && __cpp_concepts >= 201907 && __has_include(<concepts>)
+#if defined __cpp_concepts && __cpp_concepts >= 201907 && __has_include(<concepts>) && __GNUC__ > 10
 #define VIR_HAVE_CONSTEXPR_WRAPPER 1
 #include <algorithm>
 #include <array>
