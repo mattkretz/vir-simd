@@ -110,22 +110,21 @@ template <class F, class T>
   {
     static_assert(std::is_floating_point<T>::value, "");
     static const auto cache
-      = std::string("reference-") + F::str
-      + (sizeof(T) == 4 && vir::digits_v<T> == 24
+      = std::string("reference-") + std::string(F::str)
+      + std::string(sizeof(T) == 4 && vir::digits_v<T> == 24
 	 && vir::max_exponent_v<T> == 128
-	 ? "-sp"
+	 ? "-sp.dat"
 	 : (sizeof(T) == 8
 	    && vir::digits_v<T> == 53
 	    && vir::max_exponent_v<T> == 1024
-	    ? "-dp"
+	    ? "-dp.dat"
 	    : (sizeof(T) == 16 && vir::digits_v<T> == 64
 	       && vir::max_exponent_v<T> == 16384
-	       ? "-ep"
+	       ? "-ep.dat"
 	       : (sizeof(T) == 16 && vir::digits_v<T> == 113
 		  && vir::max_exponent_v<T> == 16384
-		  ? "-qp"
-		  : "-unknown"))))
-      + ".dat";
+		  ? "-qp.dat"
+		  : "-unknown.dat"))));
     return cache;
   }
 
