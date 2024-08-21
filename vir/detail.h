@@ -147,19 +147,51 @@ namespace vir::detail
   template <typename T, int N>
     using deduced_simd_mask = stdx::simd_mask<T, stdx::simd_abi::deduce_t<T, N>>;
 
-  template <typename To, typename From>
-#ifdef __cpp_lib_bit_cast
-    constexpr
+  template <typename T>
+    std::false_type
+    is_vec_builtin_impl(...);
+
+#ifdef __GNUC__
+  template <typename T>
+    std::true_type
+    is_vec_builtin_impl([[gnu::vector_size(sizeof(T))]] decltype(T()[0]));
 #endif
-    std::enable_if_t<sizeof(To) == sizeof(From), To>
+
+  template <typename T>
+    struct is_vec_builtin
+    : decltype(is_vec_builtin_impl<T>(std::declval<T>()))
+    {};
+
+  template <typename T>
+    constexpr bool is_vec_builtin_v = is_vec_builtin<T>::value;
+
+  namespace test
+  {
+    static_assert(not is_vec_builtin_v<int>);
+#ifdef __GNUC__
+    using V [[gnu::vector_size(16)]] = int;
+    static_assert(is_vec_builtin_v<V>);
+#endif
+  }
+
+  template <typename To, typename From>
+    constexpr To
     bit_cast(const From& x)
     {
+      static_assert(sizeof(To) == sizeof(From));
 #ifdef __cpp_lib_bit_cast
       return std::bit_cast<To>(x);
+#elif __has_builtin(__builtin_bit_cast)
+      return __builtin_bit_cast(To, x);
 #else
-      To r;
-      std::memcpy(&r, &x, sizeof(x));
-      return r;
+      if constexpr (is_vec_builtin_v<To>)
+        return reinterpret_cast<To>(x);
+      else
+        {
+          To r;
+          std::memcpy(&r, &x, sizeof(x));
+          return r;
+        }
 #endif
     }
 

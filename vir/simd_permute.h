@@ -161,19 +161,19 @@ namespace vir
 				-> std::same_as<std::true_type>;
 			    })
 	      {
-		const v4df intrin = std::bit_cast<v4df>(v);
+		const v4df intrin = detail::bit_cast<v4df>(v);
 		constexpr int control = ((F::Offset / 2) << 0)
 					  | (((F::Offset / 2 + 1) % 4) << 2)
 					  | (((F::Offset / 2 + 2) % 4) << 4)
 					  | (((F::Offset / 2 + 3) % 4) << 6);
-		return std::bit_cast<R>(__builtin_ia32_permdf256(intrin, control));
+		return detail::bit_cast<R>(__builtin_ia32_permdf256(intrin, control));
 	      }
 #endif
 #if VIR_HAVE_WORKING_SHUFFLEVECTOR
 	    using VecType [[gnu::vector_size(sizeof(V))]] = T;
 	    if constexpr (std::is_trivially_copyable_v<V> and std::is_constructible_v<R, VecType>)
 	      {
-		const VecType vec = std::bit_cast<VecType>(v);
+		const VecType vec = detail::bit_cast<VecType>(v);
 		const auto idx_perm2 = [&](constexpr_value auto i) -> int {
 		  constexpr int j = [&]() {
 		    if constexpr (detail::index_permutation_function_nosize<F>)
