@@ -48,6 +48,7 @@ testsuite/$(build_dir)-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Make
 	@rm -f $@
 	@echo "Generating simd testsuite ($*) subdirs and Makefiles ..."
 	@$(srcdir)/testsuite/generate_makefile.sh --destination="testsuite/$(build_dir)-$*" --sim="$(sim)" --testflags="$(testflags)" $(CXX) -$* -std=$(std) $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -DVIR_SIMD_TS_DROPIN
+	@test -e ../vc-testdata/reference-sincos-dp.dat && dir=$$PWD && cd "testsuite/$(build_dir)-$*" && ln -s $$dir/../vc-testdata/*.dat .
 
 $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@rm -f $@
@@ -57,6 +58,7 @@ $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@echo transform.cc >> $(testdirext)/testsuite_files_simd
 	@echo transform_reduce.cc >> $(testdirext)/testsuite_files_simd
 	@cd $(testdirext) && ../generate_makefile.sh --destination="." --sim="$(sim)" --testflags="-O2 $(testflags)" $(CXX) -std=$(std) $(CXXFLAGS) -DVIR_SIMD_TS_DROPIN
+	@test -e ../vc-testdata/reference-sincos-dp.dat && dir=$$PWD && cd $(testdirext) && ln -s $$dir/../vc-testdata/*.dat .
 
 testsuite-%: testsuite/$(build_dir)-%/Makefile
 	@rm -f testsuite/$(build_dir)-$*/.simd.summary
