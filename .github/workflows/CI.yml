@@ -15,7 +15,24 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          path: vir-simd
+
+      - name: Cache test data
+        id: cache-testdata
+        uses: actions/cache@v4
+        with:
+          path: vc-testdata
+          key: testdata-1
+          enableCrossOsArchive: true
+
+      - name: Download test data
+        if: steps.cache-testdata.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: VcDevel/vc-testdata
+          path: vc-testdata
 
       - name: Install GCC ${{ matrix.version }}
         run: |
@@ -26,7 +43,7 @@ jobs:
       - name: Run test suite
         env:
           CXX: g++-${{ matrix.version }}
-        run: make check DRIVEROPTS=-vvf
+        run: cd vir-simd && make check DRIVEROPTS=-vvf
 
   clang:
     strategy:
@@ -37,7 +54,24 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          path: vir-simd
+
+      - name: Cache test data
+        id: cache-testdata
+        uses: actions/cache@v4
+        with:
+          path: vc-testdata
+          key: testdata-1
+          enableCrossOsArchive: true
+
+      - name: Download test data
+        if: steps.cache-testdata.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: VcDevel/vc-testdata
+          path: vc-testdata
 
       - name: Install Clang ${{ matrix.version }}
         run: |
@@ -51,7 +85,7 @@ jobs:
       - name: Run test suite
         env:
           CXX: clang++-${{ matrix.version }}
-        run: make check DRIVEROPTS=-vvf
+        run: cd vir-simd && make check DRIVEROPTS=-vvf
 
   clang-libcxx:
     strategy:
@@ -62,7 +96,24 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          path: vir-simd
+
+      - name: Cache test data
+        id: cache-testdata
+        uses: actions/cache@v4
+        with:
+          path: vc-testdata
+          key: testdata-1
+          enableCrossOsArchive: true
+
+      - name: Download test data
+        if: steps.cache-testdata.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: VcDevel/vc-testdata
+          path: vc-testdata
 
       - name: Install Clang ${{ matrix.version }}
         run: |
@@ -75,7 +126,7 @@ jobs:
         env:
           CXX: clang++-${{ matrix.version }}
           CXXFLAGS: -stdlib=libc++
-        run: make check DRIVEROPTS=-vvf
+        run: cd vir-simd && make check DRIVEROPTS=-vvf
 
   emscripten:
     strategy:
@@ -86,7 +137,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install emscripten ${{ matrix.version }}
         run: |
@@ -114,10 +165,27 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          path: vir-simd
+
+      - name: Cache test data
+        id: cache-testdata
+        uses: actions/cache@v4
+        with:
+          path: vc-testdata
+          key: testdata-1
+          enableCrossOsArchive: true
+
+      - name: Download test data
+        if: steps.cache-testdata.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: VcDevel/vc-testdata
+          path: vc-testdata
 
       - name: Configure test
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE:STRING=Release
+        run: cmake -S vir-simd -B build -DCMAKE_BUILD_TYPE:STRING=Release
 
       - name: Compile test
         run: cmake --build build --config Release
