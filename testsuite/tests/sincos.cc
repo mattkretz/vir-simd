@@ -16,7 +16,7 @@
 // <http://www.gnu.org/licenses/>.
 
 // only: float|double|ldouble * * *
-// xfail: run * * * *
+// xfail: run * * * * 'test ! -r reference-sincos-dp.dat'
 // expensive: * [1-9] * *
 #include "bits/main.h"
 

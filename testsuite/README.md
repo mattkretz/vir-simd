@@ -120,21 +120,24 @@ allowed_distance)` macros.
 
 ### Directives
 
+In the following, the optional `<shell code>` is considered as "matching" if it 
+either isn't given or if evaluation (in the build directory) returns 0.
+
 * `// skip: <type pattern> <ABI subset pattern> <target triplet pattern> 
-  <CXXFLAGS pattern>`
+  <CXXFLAGS pattern> ['<shell code>']`
   If all patterns match, the test is silently skipped.
 
 * `// only: <type pattern> <ABI subset pattern> <target triplet pattern> 
-  <CXXFLAGS pattern>`
+  <CXXFLAGS pattern> ['<shell code>']`
   If any pattern doesn't match, the test is silently skipped.
 
 * `// expensive: <type pattern> <ABI subset pattern> <target triplet pattern>
-  <CXXFLAGS pattern>`
+  <CXXFLAGS pattern> ['<shell code>']`
   If all patterns match, the test is `UNSUPPORTED` unless expensive tests are 
   enabled.
 
 * `// xfail: run|compile <type pattern> <ABI subset pattern> <target triplet 
-  pattern> <CXXFLAGS pattern>`
+  pattern> <CXXFLAGS pattern> ['<shell code>']`
   If all patterns match, test compilation or execution is expected to fail. The 
   test then shows as "XFAIL: ...". If the test passes, the test shows "XPASS: 
   ...".

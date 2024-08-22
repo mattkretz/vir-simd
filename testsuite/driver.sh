@@ -272,9 +272,19 @@ test_selector() {
       pat_triplet="${string%% *}"
       [ -z "$target_triplet" ] && target_triplet=$($CXX -dumpmachine)
       if matches "$target_triplet" "$pat_triplet"; then
-        pat_flags="${string#* }"
+        string="${string#* }"
+        pat_flags="${string%% \'*\'}"
         if matches "$CXXFLAGS" "*$pat_flags*"; then
-          return 0
+          if test "$string" = "$pat_flags"; then
+            return 0;
+          fi
+          shelltest="${string#* \'}"
+          shelltest="${shelltest%\'}"
+          if [ -n "$shelltest" ]; then
+            eval "$shelltest" && return 0
+          else
+            return 0
+          fi;
         fi
       fi
     fi
