@@ -29,9 +29,15 @@
 #if __has_builtin(__builtin_shufflevector) and __clang_major__ != 17
 #define VIR_HAVE_WORKING_SHUFFLEVECTOR 1
 #endif
+#if __has_builtin(__builtin_bit_cast)
+#define VIR_HAVE_BUILTIN_BIT_CAST 1
+#endif
 #endif
 #ifndef VIR_HAVE_WORKING_SHUFFLEVECTOR
 #define VIR_HAVE_WORKING_SHUFFLEVECTOR 0
+#endif
+#ifndef VIR_HAVE_BUILTIN_BIT_CAST
+#define VIR_HAVE_BUILTIN_BIT_CAST 0
 #endif
 
 
@@ -181,7 +187,7 @@ namespace vir::detail
       static_assert(sizeof(To) == sizeof(From));
 #ifdef __cpp_lib_bit_cast
       return std::bit_cast<To>(x);
-#elif __has_builtin(__builtin_bit_cast)
+#elif VIR_HAVE_BUILTIN_BIT_CAST
       return __builtin_bit_cast(To, x);
 #else
       if constexpr (is_vec_builtin_v<To>)
