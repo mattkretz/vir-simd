@@ -59,9 +59,6 @@ namespace vir
 	= typename V::mask_type(std::array<bool, sizeof...(Values)>{Values...}.data(),
 				stdx::element_aligned);
 
-    template <typename T, int N, unsigned Bytes = sizeof(T) * std::bit_ceil(unsigned(N))>
-      using gnu_vector [[gnu::vector_size(Bytes)]] = T;
-
 #if VIR_HAVE_WORKING_SHUFFLEVECTOR
     /**
      * Return a with a[i] replaced by b[i] for all i in {Indexes...}.

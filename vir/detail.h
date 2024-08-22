@@ -154,14 +154,22 @@ namespace vir::detail
     using deduced_simd_mask = stdx::simd_mask<T, stdx::simd_abi::deduce_t<T, N>>;
 
   template <typename T>
-    std::false_type
-    is_vec_builtin_impl(...);
+    constexpr T
+    bit_ceil(T x)
+    { return (x & (x - 1)) == 0 ? x : bit_ceil((x | (x >> 1)) + 1); }
 
 #ifdef __GNUC__
+  template <typename T, int N, unsigned Bytes = sizeof(T) * bit_ceil(unsigned(N))>
+    using gnu_vector [[gnu::vector_size(Bytes)]] = T;
+
   template <typename T>
     std::true_type
-    is_vec_builtin_impl([[gnu::vector_size(sizeof(T))]] decltype(T()[0]));
+    is_vec_builtin_impl(gnu_vector<decltype(T()[0]), 0, sizeof(T)>);
 #endif
+
+  template <typename T>
+    std::false_type
+    is_vec_builtin_impl(...);
 
   template <typename T>
     struct is_vec_builtin
@@ -175,8 +183,7 @@ namespace vir::detail
   {
     static_assert(not is_vec_builtin_v<int>);
 #ifdef __GNUC__
-    using V [[gnu::vector_size(16)]] = int;
-    static_assert(is_vec_builtin_v<V>);
+    static_assert(is_vec_builtin_v<gnu_vector<int, 4>>);
 #endif
   }
 
