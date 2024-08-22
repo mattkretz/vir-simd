@@ -1096,6 +1096,14 @@ namespace vir::stdx
 
       T data;
 
+      friend constexpr T&
+      _data_(simd& x)
+      { return x.data; }
+
+      friend constexpr const T&
+      _data_(const simd& x)
+      { return x.data; }
+
     public:
       using value_type = T;
       using reference = T&;
@@ -1390,6 +1398,16 @@ namespace vir::stdx
         split(const simd<U, simd_abi::fixed_size<int((Sizes + ...))>>&);
 
       T data[N];
+
+      using _data_type_ = T[N];
+
+      friend constexpr _data_type_&
+      _data_(simd& x)
+      { return x.data; }
+
+      friend constexpr const _data_type_&
+      _data_(const simd& x)
+      { return x.data; }
 
       template <typename F, size_t... Is>
         constexpr

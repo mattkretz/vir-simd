@@ -187,6 +187,23 @@ namespace vir::detail
 #endif
   }
 
+  template <typename T>
+    T
+    internal_data_hack(T&& x, float)
+    { return x; }
+
+  template <typename T>
+    auto
+    internal_data_hack(T&& x, int) -> std::enable_if_t<sizeof(T) == sizeof(decltype(__data(x))),
+                                                       decltype(__data(x))>
+    { return __data(x); }
+
+  template <typename T>
+    auto
+    internal_data_hack(T&& x, int) -> std::enable_if_t<sizeof(T) == sizeof(decltype(_data_(x))),
+                                                       decltype(_data_(x))>
+    { return _data_(x); }
+
   template <typename To, typename From>
     constexpr To
     bit_cast(const From& x)
@@ -202,7 +219,7 @@ namespace vir::detail
       else
         {
           To r;
-          std::memcpy(&r, &x, sizeof(x));
+          std::memcpy(&internal_data_hack(r, 0), &internal_data_hack(x, 0), sizeof(x));
           return r;
         }
 #endif
