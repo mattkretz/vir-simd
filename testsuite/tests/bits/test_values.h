@@ -289,7 +289,7 @@ template <typename TestF, typename RefF, typename ExcF>
   {
     return [=](auto... inputs) {
       using namespace std::experimental;
-      static constexpr auto as_scalar = []<typename T>(const T& x, std::size_t i) {
+      static constexpr auto as_scalar = []<typename T>(const T& x, [[maybe_unused]] std::size_t i) {
         if constexpr (std::is_arithmetic_v<T>)
           return x;
         else
