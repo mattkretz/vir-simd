@@ -164,7 +164,8 @@ namespace vir::detail
 
   template <typename T>
     std::true_type
-    is_vec_builtin_impl(gnu_vector<decltype(T()[0]), 0, sizeof(T)>);
+    is_vec_builtin_impl(gnu_vector<std::remove_cv_t<std::remove_reference_t<decltype(T()[0])>>,
+                                   0, sizeof(T)>);
 #endif
 
   template <typename T>
