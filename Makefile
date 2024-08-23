@@ -33,9 +33,14 @@ endif
 
 std=$(shell env CXX=$(CXX) ./latest_std_flag.sh)
 
+version=$(shell grep '\<VIR_SIMD_VERSION\>' vir/simd_version.h | \
+	sed -e 's/.*0x/0x/' -e 's/'\''//g' | \
+	(read v; echo $$((v/0x10000)).$$((v%0x10000/0x100)).$$((v%0x100));))
+
 check: check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
 
 debug:
+	@echo "vir::simd_version: $(version)"
 	@echo "build_dir: $(build_dir)"
 	@echo "triplet: $(triplet)"
 	@echo "testflags: $(testflags)"
@@ -75,6 +80,7 @@ testsuite-%: testsuite/$(build_dir)-%/Makefile
 	@cat testsuite/$(build_dir)-$*/.simd.summary && rm testsuite/$(build_dir)-$*/.simd.summary
 
 install:
+	@echo "Installing vir::stdx::simd $(version) to $(includedir)/vir"
 	install -d $(includedir)/vir
 	install -m 644 -t $(includedir)/vir vir/*.h
 
