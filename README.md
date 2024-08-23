@@ -13,6 +13,37 @@ that only implements the `scalar` and `fixed_size<N>` ABI tags. Thus, your code
 can still compile and run correctly, even if it is missing the performance 
 gains a proper implementation provides.
 
+## Table of Contents
+
+* [Installation](#installation)
+* [Usage](#usage)
+* [Options](#options)
+* [Additional Features](#additional-features)
+  - [Simple iota `simd` constants](#simple-iota-simd-constants)
+  - [Making `simd` conversions more 
+    convenient](#making-simd-conversions-more-convenient)
+  - [Permutations](#permutations-paper)
+  - [SIMD execution policy](#simd-execution-policy-p0350)
+    + [Usable algorithms](#usable-algorithms)
+    + [Example](#example)
+    + [Execution policy modifiers](#execution-policy-modifiers)
+  - [Bitwise operators for floating-point 
+    `simd`](#bitwise-operators-for-floating-point-simd)
+  - [Conversion between `std::bitset` and 
+    `simd_mask`](#conversion-between-stdbitset-and-simd_mask)
+  - [vir::simd_resize and 
+    vir::simd_size_cast](#virsimd_resize-and-virsimd_size_cast)
+  - [vir::simd_bit_cast](#virsimd_bit_cast)
+  - [Concepts](#concepts)
+  - [simdize type transformation](#simdize-type-transformation)
+  - [Benchmark support functions](#benchmark-support-functions)
+  - [`constexpr_wrapper`: function arguments as constant 
+    expressions](#constexpr_wrapper-function-arguments-as-constant-expressions)
+    + [Example](#example-1)
+  - [Testing for the version of the vir::stdx::simd (vir-simd) 
+    library](#testing-for-the-version-of-the-virstdxsimd-vir-simd-library)
+    + [Semantics of version numbers](#semantics-of-version-numbers)
+  - [Debugging](#debugging)
 
 ## Installation
 
@@ -62,7 +93,7 @@ The TS curiously forgot to add `simd_cast` and `static_simd_cast` overloads for
 `simd_mask`. With `vir::stdx::(static_)simd_cast`, casts will also work for 
 `simd_mask`. This does not require any additional includes.
 
-### Simple iota `simd` constants:
+### Simple iota `simd` constants
 
 *Requires Concepts (C++20).*
 
@@ -78,7 +109,7 @@ the elements of the variable will be initialized to `0, 1, 2, 3, 4, ...`,
 depending on the number of elements in `T`. For arithmetic types 
 `vir::iota_v<T>` is always just `0`.
 
-### Making `simd` conversions more convenient:
+### Making `simd` conversions more convenient
 
 *Requires Concepts (C++20).*
 
@@ -116,7 +147,7 @@ Note that `vir::cvt` also works for `simd_mask` and non-`simd` types. Thus,
 (i.e. well-formed for `T` and `simd<T>`).
 
 
-### Permutations ([paper](https://wg21.link/P2664)):
+### Permutations ([paper](https://wg21.link/P2664))
 
 *Requires Concepts (C++20).*
 
@@ -171,7 +202,7 @@ Example:
 vir::simd_shift_in<1>(v, w);
 ```
 
-### SIMD execution policy ([P0350](https://wg21.link/P0350)):
+### SIMD execution policy ([P0350](https://wg21.link/P0350))
 
 *Requires Concepts (C++20).*
 
@@ -245,7 +276,7 @@ its behavior:
   Determine from run-time information (i.e. add a branch) whether a prologue 
   for alignment of the main chunked iteration might be more efficient.
 
-### Bitwise operators for floating-point `simd`:
+### Bitwise operators for floating-point `simd`
 
 ```c++
 #include <vir/simd_float_ops.h>
@@ -256,7 +287,7 @@ Then the `&`, `|`, and `^` binary operators can be used with objects of type
 `simd<`floating-point`, A>`.
 
 
-### Conversion between `std::bitset` and `simd_mask`:
+### Conversion between `std::bitset` and `simd_mask`
 
 ```c++
 #include <vir/simd_bitset.h>
