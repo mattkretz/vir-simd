@@ -11,6 +11,13 @@
 #include "simd_permute.h"
 #include "simd_execution.h"
 
+// GCC 11.4, 12.4, 13.2, 14.1, ...
+#if !defined __cpp_lib_experimental_parallel_simd || __GLIBCXX__ >= 20230528
+#define SIMD_IS_CONSTEXPR_ENOUGH 1
+#else
+#define SIMD_IS_CONSTEXPR_ENOUGH 0
+#endif
+
 static_assert(vir::simd_version == vir::simd_version_t{0,3,100});
 static_assert(vir::simd_version <= vir::simd_version_t{0,3,100});
 static_assert(vir::simd_version >= vir::simd_version_t{0,3,100});
@@ -114,7 +121,7 @@ static_assert(
   all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::swap_neighbors<2>),
 	    make_simd(2, 3, 0, 1)));
 
-#if !defined __cpp_lib_experimental_parallel_simd || _GLIBCXX_RELEASE > 11
+#if SIMD_IS_CONSTEXPR_ENOUGH
 static_assert(
   all_equal(vir::simd_permute(make_simd(0, 1, 2, 3, 4, 5), vir::simd_permutations::swap_neighbors<3>),
 	    make_simd(3, 4, 5, 0, 1, 2)));
@@ -402,19 +409,25 @@ static_assert([] {
 			  V<float>([](short i) { return i + 1; }),
 			  V<float>([](short i) { return i + 1; })};
   {
-    auto p = p1 + p2;
+    [[maybe_unused]] auto p = p1 + p2;
+#if SIMD_IS_CONSTEXPR_ENOUGH
     if (any_of(p != p3))
       return false;
+#endif
   }
   {
-    auto p = Point{1.f, 1.f, 1.f} + p2;
+    [[maybe_unused]] auto p = Point{1.f, 1.f, 1.f} + p2;
+#if SIMD_IS_CONSTEXPR_ENOUGH
     if (any_of(p != p3))
       return false;
+#endif
   }
   {
-    PointTpl<V<float>> p = p1 + p2;
+    [[maybe_unused]] PointTpl<V<float>> p = p1 + p2;
+#if SIMD_IS_CONSTEXPR_ENOUGH
     if (any_of(p != p3))
       return false;
+#endif
   }
   return true;
 }());
@@ -452,12 +465,16 @@ static_assert([] {
   std::array<Point, 5> data = {};
   vir::simdize<Point, 4> v(data.begin());
   PointTpl<DV<float, 4>> w = v;
+#if SIMD_IS_CONSTEXPR_ENOUGH
   if (not all_of(w.x == 0.f and w.y == 0.f and w.z == 0.f))
     return false;
+#endif
   v.copy_from(data.begin() + 1);
   w = v;
+#if SIMD_IS_CONSTEXPR_ENOUGH
   if (not all_of(w.x == 0.f and w.y == 0.f and w.z == 0.f))
     return false;
+#endif
   w.x = 1.f;
   w.y = DV<float, 4>([](float i) { return i; });
   v = w;
