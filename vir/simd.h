@@ -10,6 +10,8 @@
 #error "simd requires C++17 or later"
 #endif
 
+#include "simd_version.h"
+
 #if __has_include (<experimental/simd>) && !defined VIR_DISABLE_STDX_SIMD && !defined __clang__
 #include <experimental/simd>
 #endif

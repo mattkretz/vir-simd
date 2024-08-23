@@ -493,6 +493,42 @@ This example cannot work with a signature `constexpr auto f(int n)` (or
 body of the function.
 
 
+### Testing for the version of the vir::stdx::simd (vir-simd) library
+
+The header
+```c++
+#include <vir/simd_version.h>
+```
+(which is also included from `<vir/simd.h>`) defines the type and constant
+```c++
+namespace vir
+{
+  struct simd_version_t { int major, minor, patchlevel; };
+
+  constexpr simd_version_t simd_version;
+}
+```
+in addition to the macros `VIR_SIMD_VERSION`, `VIR_SIMD_VERSION_MAJOR`, 
+`VIR_SIMD_VERSION_MINOR`, and `VIR_SIMD_VERSION_PATCHLEVEL`.
+
+`simd_version_t` implements all comparison operators, allowing e.g.
+```c++
+static_assert(vir::simd_version >= vir::simd_version_t{0,4,0});
+```
+
+#### Semantics of version numbers
+
+* An increment of the major version number implies a breaking change.
+
+* An increment of the minor version number implies new features without 
+  breaking changes.
+
+* An increment of the patchlevel is used for bug fixes.
+
+* A value `>= 100` for minor or patchlevel numbers is reserved for development 
+  and alpha/beta releases.
+
+
 ## Debugging
 
 Compile with `-D _GLIBCXX_DEBUG_UB` to get runtime checks for undefined 
