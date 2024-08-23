@@ -56,7 +56,7 @@ testsuite/$(build_dir)-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Make
 	@if test -e ../vc-testdata/reference-sincos-dp.dat; then \
 		dir=$$PWD && \
 		cd "testsuite/$(build_dir)-$*" && \
-		ln -s $$dir/../vc-testdata/*.dat .; \
+		ln -sf $$dir/../vc-testdata/*.dat .; \
 	fi
 
 $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
@@ -70,7 +70,7 @@ $(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
 	@if test -e ../vc-testdata/reference-sincos-dp.dat; then \
 		dir=$$PWD && \
 		cd "$(testdirext)" && \
-		ln -s $$dir/../vc-testdata/*.dat .; \
+		ln -sf $$dir/../vc-testdata/*.dat .; \
 	fi
 
 testsuite-%: testsuite/$(build_dir)-%/Makefile
