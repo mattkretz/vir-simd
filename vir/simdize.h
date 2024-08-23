@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright © 2023 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
- *                  Matthias Kretz <m.kretz@gsi.de>
+/* Copyright © 2023–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+ *                       Matthias Kretz <m.kretz@gsi.de>
  */
 
 #ifndef VIR_SIMD_SIMDIZE_H_
