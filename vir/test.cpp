@@ -3,13 +3,22 @@
  *                       Matthias Kretz <m.kretz@gsi.de>
  */
 
-#include "vir/simd.h"
-#include "vir/simdize.h"
-#include "vir/simd_benchmarking.h"
-#include "vir/simd_iota.h"
-#include "vir/simd_cvt.h"
-#include "vir/simd_permute.h"
-#include "vir/simd_execution.h"
+#include "simd.h"
+#include "simdize.h"
+#include "simd_benchmarking.h"
+#include "simd_iota.h"
+#include "simd_cvt.h"
+#include "simd_permute.h"
+#include "simd_execution.h"
+
+static_assert(vir::simd_version == vir::simd_version_t{0,3,100});
+static_assert(vir::simd_version <= vir::simd_version_t{0,3,100});
+static_assert(vir::simd_version >= vir::simd_version_t{0,3,100});
+static_assert(vir::simd_version != vir::simd_version_t{0,3,0});
+static_assert(vir::simd_version >= vir::simd_version_t{0,3,0});
+static_assert(vir::simd_version >  vir::simd_version_t{0,3,0});
+static_assert(vir::simd_version <= vir::simd_version_t{0,vir::simd_version.minor + 1,0});
+static_assert(vir::simd_version <  vir::simd_version_t{0,vir::simd_version.minor + 1,0});
 
 namespace stdx = vir::stdx;
 
