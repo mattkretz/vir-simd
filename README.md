@@ -566,3 +566,19 @@ Compile with `-D _GLIBCXX_DEBUG_UB` to get runtime checks for undefined
 behavior in the `simd` implementation(s). Otherwise, `-fsanitize=undefined` 
 without the macro definition will also find the problems, but without 
 additional error message.
+
+Preconditions in the vir::stdx::simd implementation and extensions are 
+controlled via the `-D VIR_CHECK_PRECONDITIONS=N` macro, which defaults to `3`. 
+Compile-time diagnostics are only possible if the compiler's optimizer can 
+detect the precondition failure. If you get a bogus compile-time failure, you 
+need to introduce the necessary assumption into your calling function, which is 
+typically a missing precondition check in your function.
+
+| **Option** | **at compile-time** | **at run-time** |
+|:--------------------------|:-------------------:|:---------------:|
+| `-DVIR_CHECK_PRECONDITIONS=0` | warning | invoke UB/unreachable |
+| `-DVIR_CHECK_PRECONDITIONS=1` |   error | invoke UB/unreachable |
+| `-DVIR_CHECK_PRECONDITIONS=2` | warning | trap |
+| `-DVIR_CHECK_PRECONDITIONS=3` |   error | trap |
+| `-DVIR_CHECK_PRECONDITIONS=4` | warning | print error and abort |
+| `-DVIR_CHECK_PRECONDITIONS=5` |   error | print error and abort |

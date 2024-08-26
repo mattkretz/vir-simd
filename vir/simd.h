@@ -19,10 +19,116 @@
 #ifndef VIR_ALWAYS_INLINE
 #ifdef __GNUC__
 #define VIR_ALWAYS_INLINE [[gnu::always_inline]]
+#define VIR_GNU_COLD [[gnu::cold]]
+#define VIR_GNU_ATTR_COLD __attribute__((cold))
 #else
 #define VIR_ALWAYS_INLINE __forceinline
+#define VIR_GNU_COLD
+#define VIR_GNU_ATTR_COLD
 #endif
 #endif
+
+namespace vir::detail
+{
+  [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE inline void
+  unreachable()
+  {
+#if defined __GNUC__
+    __builtin_unreachable();
+#elif defined __has_cpp_attribute and __has_cpp_attribute(assume)
+    [[assume(false)]];
+#else
+    __assume(false);
+#endif
+  }
+
+  [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE inline void
+  trap()
+  {
+#if defined __GNUC__
+    __builtin_trap();
+#else
+    std::abort();
+#endif
+  }
+
+  template <typename... Args>
+    [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE inline void
+    invoke_ub([[maybe_unused]] const char* msg,
+              [[maybe_unused]] const Args&... args)
+    {
+#if VIR_CHECK_PRECONDITIONS < 2
+      unreachable();
+#elif defined __GNUC__ and VIR_CHECK_PRECONDITIONS < 4
+      __builtin_trap();
+#else
+      [&] VIR_GNU_ATTR_COLD () {
+        std::fprintf(stderr, msg, args...);
+      }();
+      std::abort();
+#endif
+    }
+}
+
+#define VIR_SIMD_TOSTRING_IMPL(x) #x
+#define VIR_SIMD_TOSTRING(x) VIR_SIMD_TOSTRING_IMPL(x)
+#define VIR_SIMD_LOC __FILE__ ":" VIR_SIMD_TOSTRING(__LINE__) ": "
+
+/* VIR_CHECK_PRECONDITIONS:
+ * 0: Compile-time warning, invoke UB on run-time failure.
+ * 1: Compile-time   error, invoke UB on run-time failure.
+ * 2: Compile-time warning, trap on run-time failure.
+ * 3: Compile-time   error, trap on run-time failure.
+ * 4: Compile-time warning, print error and abort on run-time failure.
+ * 5: Compile-time   error, print error and abort on run-time failure.
+ */
+
+#ifndef VIR_CHECK_PRECONDITIONS
+#define VIR_CHECK_PRECONDITIONS 3
+#endif
+
+#if VIR_CHECK_PRECONDITIONS > 5 or VIR_CHECK_PRECONDITIONS < 0
+#warning "Invalid value for VIR_CHECK_PRECONDITIONS."
+#endif
+
+#if VIR_CHECK_PRECONDITIONS < 0
+#define vir_simd_precondition(expr, msg, ...)                                             \
+  (void) bool(expr)
+#elif defined __clang__ or __GNUC__ >= 10
+#if (VIR_CHECK_PRECONDITIONS & 1) == 1
+#define VIR_CONSTPROP_PRECONDITION_FAILURE_ACTION __error__
+#else
+#define VIR_CONSTPROP_PRECONDITION_FAILURE_ACTION __warning__
+#endif
+#if defined __GNUC__ and not defined __clang__
+#define VIR_ATTR_NOIPA __noipa__,
+#else
+#define VIR_ATTR_NOIPA
+#endif
+#define vir_simd_precondition(expr, msg, ...)                                               \
+  do {                                                                                      \
+    const bool precondition_result = bool(expr);                                            \
+    if (__builtin_constant_p(precondition_result) and not precondition_result)              \
+      []() __attribute__((__noinline__, __noreturn__, VIR_ATTR_NOIPA                        \
+        VIR_CONSTPROP_PRECONDITION_FAILURE_ACTION("precondition failure."                   \
+        "\n" VIR_SIMD_LOC "note: " msg " (precondition '" #expr "' does not hold)")))       \
+        { vir::detail::trap(); }();                                                         \
+    else if (__builtin_expect(not precondition_result, false))                              \
+      vir::detail::invoke_ub(                                                               \
+        VIR_SIMD_LOC "precondition failure in '%s': " msg " ('" #expr "' does not hold)\n", \
+        __PRETTY_FUNCTION__ __VA_OPT__(,) __VA_ARGS__);                                     \
+  } while(false)
+#else
+#define vir_simd_precondition(expr, msg, ...)                                               \
+  do {                                                                                      \
+    const bool precondition_result = bool(expr);                                            \
+    if (not precondition_result) [[unlikely]]                                               \
+      vir::detail::invoke_ub(                                                               \
+        VIR_SIMD_LOC "precondition failure in '%s': " msg " ('" #expr "' does not hold)\n", \
+        __PRETTY_FUNCTION__ __VA_OPT__(,) __VA_ARGS__);                                     \
+  } while(false)
+#endif
+
 
 #if defined __cpp_lib_experimental_parallel_simd && __cpp_lib_experimental_parallel_simd >= 201803
 
@@ -112,19 +218,6 @@ namespace vir::stdx
 
       constexpr operator bool() const { return data; }
     };
-
-    template <typename... Args>
-      [[noreturn]] VIR_ALWAYS_INLINE inline void
-      invoke_ub([[maybe_unused]] const char* msg,
-                [[maybe_unused]] const Args&... args)
-      {
-#ifdef _GLIBCXX_DEBUG_UB
-        std::fprintf(stderr, msg, args...);
-        __builtin_trap();
-#else
-        __builtin_unreachable();
-#endif
-      }
 
     template <typename T>
       using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -547,16 +640,14 @@ namespace vir::stdx
       constexpr reference
       operator[](size_t i)
       {
-        if (i >= size())
-          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
         return data;
       }
 
       constexpr value_type
       operator[](size_t i) const
       {
-        if (i >= size())
-          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
         return data;
       }
 
@@ -699,16 +790,14 @@ namespace vir::stdx
       constexpr reference
       operator[](size_t i)
       {
-        if (i >= size())
-          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
         return data[i];
       }
 
       constexpr value_type
       operator[](size_t i) const
       {
-        if (i >= size())
-          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
         return data[i];
       }
 
@@ -842,8 +931,7 @@ namespace vir::stdx
     constexpr int
     find_first_set(simd_mask<T, simd_abi::scalar> k) noexcept
     {
-      if (not k[0])
-        detail::invoke_ub("find_first_set(empty mask) is UB");
+      vir_simd_precondition(k[0], "find_first_set(empty mask) is UB");
       return 0;
     }
 
@@ -851,8 +939,7 @@ namespace vir::stdx
     constexpr int
     find_last_set(simd_mask<T, simd_abi::scalar> k) noexcept
     {
-      if (not k[0])
-        detail::invoke_ub("find_last_set(empty mask) is UB");
+      vir_simd_precondition(k[0], "find_last_set(empty mask) is UB");
       return 0;
     }
 
@@ -919,24 +1006,26 @@ namespace vir::stdx
     constexpr int
     find_first_set(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
     {
+      vir_simd_precondition(any_of(k), "find_first_set(empty mask) is UB");
       for (int i = 0; i < N; ++i)
         {
           if (k[i])
             return i;
         }
-      detail::invoke_ub("find_first_set(empty mask) is UB");
+      vir::detail::unreachable();
     }
 
   template <typename T, int N>
     constexpr int
     find_last_set(const simd_mask<T, simd_abi::fixed_size<N>>& k) noexcept
     {
+      vir_simd_precondition(any_of(k), "find_last_set(empty mask) is UB");
       for (int i = N - 1; i >= 0; --i)
         {
           if (k[i])
             return i;
         }
-      detail::invoke_ub("find_last_set(empty mask) is UB");
+      vir::detail::unreachable();
     }
 
   constexpr bool
@@ -1160,16 +1249,14 @@ namespace vir::stdx
       constexpr reference
       operator[](size_t i)
       {
-        if (i >= size())
-          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
         return data;
       }
 
       constexpr value_type
       operator[](size_t i) const
       {
-        if (i >= size())
-          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
         return data;
       }
 
@@ -1487,16 +1574,14 @@ namespace vir::stdx
       constexpr reference
       operator[](size_t i)
       {
-        if (i >= size())
-          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
         return data[i];
       }
 
       constexpr value_type
       operator[](size_t i) const
       {
-        if (i >= size())
-          detail::invoke_ub("Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
         return data[i];
       }
 

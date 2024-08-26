@@ -121,11 +121,11 @@ template <typename V>
 	}
     }
     COMPARE(find_first_set(M{true}), 0);
-    if (M::size() > 1)
+    if constexpr (M::size() > 1)
       {
 	COMPARE(find_first_set(gen({0, 1})), 1);
       }
-    if (M::size() > 2)
+    if constexpr (M::size() > 2)
       {
 	COMPARE(find_first_set(gen({0, 0, 1})), 2);
       }
@@ -157,12 +157,12 @@ template <typename V>
 	}
     }
     COMPARE(find_last_set(M{true}), int(M::size()) - 1);
-    if (M::size() > 1)
+    if constexpr (M::size() > 1)
       {
 	COMPARE(find_last_set(gen({1, 0})),
 		int(M::size()) - 2 + int(M::size() & 1));
       }
-    if (M::size() > 3 && (M::size() & 3) == 0)
+    if constexpr (M::size() > 3 && (M::size() & 3) == 0)
       {
 	COMPARE(find_last_set(gen({1, 0, 0, 0})),
 		int(M::size()) - 4 - int(M::size() & 3));

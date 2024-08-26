@@ -24,16 +24,6 @@ namespace vir
   {
     using namespace vir::literals;
 
-    [[noreturn]] inline void
-    unreachable()
-    {
-#if __cpp_lib_unreachable >= 202202L
-      std::unreachable();
-#elif defined __GNUC__
-      __builtin_unreachable();
-#endif
-    }
-
     template <typename T>
       VIR_ALWAYS_INLINE constexpr auto
       data_or_ptr(T&& r) -> decltype(std::ranges::data(r))
