@@ -353,6 +353,8 @@ case0:
 
     struct simd_policy_auto_prologue_t {};
 
+    struct simd_policy_assume_matching_size_t {};
+
     template <int N>
       struct simd_policy_unroll_by_t
       {};
@@ -411,18 +413,29 @@ case0:
         static constexpr bool _auto_prologue
           = (false or ... or std::same_as<Options, detail::simd_policy_auto_prologue_t>);
 
+        static constexpr bool _assume_matching_size
+          = (false or ... or std::same_as<Options, detail::simd_policy_assume_matching_size_t>);
+
         static constexpr int _unroll_by
           = (0 + ... + detail::simd_policy_unroll_value<Options>::value);
 
         static constexpr int _size
           = (0 + ... + detail::simd_policy_size_value<Options>::value);
 
+        // The following three are mutually exclusive:
         static constexpr simd_policy<Options..., detail::simd_policy_prefer_aligned_t>
-        prefer_aligned() requires(not _prefers_aligned and not _auto_prologue)
+        prefer_aligned() requires(not _prefers_aligned and not _auto_prologue
+                                    and not _assume_matching_size)
         { return {}; }
 
         static constexpr simd_policy<Options..., detail::simd_policy_auto_prologue_t>
-        auto_prologue() requires(not _prefers_aligned and not _auto_prologue)
+        auto_prologue() requires(not _prefers_aligned and not _auto_prologue
+                                   and not _assume_matching_size)
+        { return {}; }
+
+        static constexpr simd_policy<Options..., detail::simd_policy_assume_matching_size_t>
+        assume_matching_size() requires(not _prefers_aligned and not _auto_prologue
+                                          and not _assume_matching_size)
         { return {}; }
 
         template <int N>
@@ -647,6 +660,12 @@ case0:
         auto advance = [](int n, auto&... it) { ((it += n), ...); };
 
         std::size_t distance = std::distance(first1, last1);
+        constexpr bool assume_matching_size = ExecutionPolicy::_assume_matching_size;
+        if constexpr (assume_matching_size)
+          vir_simd_precondition(
+            distance % size == 0, "The explicit assumption, that the range size (%d) is a multiple "
+                                  "of the SIMD width (%d), does not hold.", size);
+
         if (std::is_constant_evaluated())
           {
             // needs element_aligned because of GCC PR111302
@@ -678,7 +697,6 @@ case0:
                 op, std::to_address(d_first), to_process, max_elements, std::to_address(first1),
                 std::to_address(first2)...);
             }, first1, d_first, first2...);
-            const auto leftover = distance % size;
 
             if constexpr (ExecutionPolicy::_unroll_by > 1)
               {
@@ -696,19 +714,23 @@ case0:
               }
 
             const auto simd_last = last1 - size;
-            for (; first1 <= simd_last; advance(size, first1, d_first, first2...))
+            for (; assume_matching_size ? first1 != last1 : first1 <= simd_last;
+                 advance(size, first1, d_first, first2...))
               {
                 const OutV& result = simdized_load_and_invoke(op, size, first1, first2...);
                 result.copy_to(std::to_address(d_first), flags);
               }
 
-            if constexpr (size > 1)
-              if (leftover)
-                {
-                  simd_transform_epilogue<V1, OutV, std::iter_value_t<It2>...>(
-                    op, leftover, last1, d_first, flags, std::to_address(first2)...);
-                  d_first += leftover;
-                }
+            if constexpr (size > 1 and !assume_matching_size)
+              {
+                const auto leftover = distance % size;
+                if (leftover)
+                  {
+                    simd_transform_epilogue<V1, OutV, std::iter_value_t<It2>...>(
+                      op, leftover, last1, d_first, flags, std::to_address(first2)...);
+                    d_first += leftover;
+                  }
+              }
           }
         return d_first;
       }
@@ -868,6 +890,12 @@ case0:
         A1 acc1 = init;
 
         std::size_t distance = std::distance(first1, last1);
+        constexpr bool assume_matching_size = ExecutionPolicy::_assume_matching_size;
+        if constexpr (assume_matching_size)
+          vir_simd_precondition(
+            distance % size == 0, "The explicit assumption, that the range size (%d) is a multiple "
+                                  "of the SIMD width (%d), does not hold.", size);
+
         if (std::is_constant_evaluated())
           {
             // needs element_aligned because of GCC PR111302
@@ -894,7 +922,9 @@ case0:
             constexpr int hi_size = size - lo_size;
 
             const auto simd_last = last1 - size;
-            if (first1 <= simd_last)
+            // 'assume_matching_size' implies size is 0 or at least one simd width, and 0 has an
+            // early return above
+            if (assume_matching_size or first1 <= simd_last)
               {
                 A acc = [&]() VIR_LAMBDA_ALWAYS_INLINE {
                   if constexpr (ExecutionPolicy::_unroll_by > 1)
@@ -953,7 +983,8 @@ case0:
                   ((first2 += size), ...);
                   return ret;
                 }();
-                for (; first1 <= simd_last; ((first1 += size), ..., (first2 += size)))
+                for (; assume_matching_size ? first1 != last1 : first1 <= simd_last;
+                     ((first1 += size), ..., (first2 += size)))
                   {
                     acc = std::invoke(reduce_op, acc,
                                       simdized_load_flag1_and_invoke(transform_op, vir::cw<size>,
@@ -961,7 +992,7 @@ case0:
                   }
                 if constexpr (size == 1)
                   return std::invoke(reduce_op, acc1, acc)[0];
-                else if (leftover == 0)
+                else if (assume_matching_size or leftover == 0)
                   return std::invoke(reduce_op, acc1, A1(reduce(acc, reduce_op)))[0];
                 else
                   {
@@ -999,7 +1030,14 @@ case0:
                                     and std::invocable<F, V&> and not std::invocable<F, V&&>;
       if (first == last)
         return;
+
       std::size_t distance = std::distance(first, last);
+        constexpr bool assume_matching_size = ExecutionPolicy::_assume_matching_size;
+        if constexpr (assume_matching_size)
+          vir_simd_precondition(
+            distance % size == 0, "The explicit assumption, that the range size (%d) is a multiple "
+                                  "of the SIMD width (%d), does not hold.", size);
+
       if (std::is_constant_evaluated())
         {
           // needs element_aligned because of GCC PR111302
@@ -1034,11 +1072,11 @@ case0:
             }
 
           const auto simd_last = last - size;
-          for (; first <= simd_last; first += size)
+          for (; assume_matching_size ? first != last : first <= simd_last; first += size)
             detail::simd_load_and_invoke<V, write_back>(fun, std::to_address(first), flags,
                                                         detail::no_unroll);
 
-          if constexpr (size > 1)
+          if constexpr (not assume_matching_size and size > 1)
             if (leftover)
               detail::simd_for_each_epilogue<V, write_back>(fun, leftover, last, flags);
         }

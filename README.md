@@ -264,6 +264,14 @@ its behavior:
   the need for returning an `array` or `tuple` of `simd_mask`). Such algorithms 
   will still make use of unrolling inside their implementation.
 
+* `vir::execution::simd.assume_matching_size()`:
+  Add a precondition to the algorithm, that the given range size is a multiple 
+  of the SIMD width (but not the SIMD width multiplied by the above unroll 
+  factor). This modifier is only valid without prologue (the following two 
+  modifiers). The algorithm consequently does not implement an epilogue and all 
+  given callables are called with a single simd type (same width and ABI tag). 
+  This can reduce code size significantly.
+
 * `vir::execution::simd.prefer_aligned()`:
   Unconditionally iterate using smaller chunks, until the main iteration can 
   load (and store) chunks from/to aligned addresses. This can be more efficient 
