@@ -394,7 +394,7 @@ namespace vir
 	constexpr
 	simd_tuple(It it, Flags = {})
 	: elements([&]<std::size_t... Is>(std::index_sequence<Is...>) {
-	    return tuple_type {std::tuple_element_t<Is, tuple_type>([&](auto i) {
+	    return tuple_type {std::tuple_element_t<Is, tuple_type>([&](size_t i) {
 				 return struct_get<Is>(it[i]);
 			       })...};
 	  }(tuple_size_idx_seq))
@@ -406,7 +406,7 @@ namespace vir
 	copy_from(It it, Flags = {})
 	{
 	  [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-	    ((std::get<Is>(elements) = std::tuple_element_t<Is, tuple_type>([&](auto i) {
+	    ((std::get<Is>(elements) = std::tuple_element_t<Is, tuple_type>([&](size_t i) {
 					 return struct_get<Is>(it[i]);
 				       })), ...);
 	  }(tuple_size_idx_seq);
@@ -650,9 +650,15 @@ namespace vir
 							detail::blend<0, 3, 6>(ac0, b), ac1));
 
 			  return {
-			    simd_permute(tmp0, [](auto i) { return std::array{0, 3, 2, 1, 4, 7, 6, 5}[i]; }),
-			    simd_permute(tmp1, [](auto i) { return std::array{1, 0, 3, 2, 5, 4, 7, 6}[i]; }),
-			    simd_permute(tmp2, [](auto i) { return std::array{2, 1, 0, 3, 6, 5, 4, 7}[i]; })
+			    simd_permute(tmp0, [](size_t i) {
+			      return std::array{0, 3, 2, 1, 4, 7, 6, 5}[i];
+			    }),
+			    simd_permute(tmp1, [](size_t i) {
+			      return std::array{1, 0, 3, 2, 5, 4, 7, 6}[i];
+			    }),
+			    simd_permute(tmp2, [](size_t i) {
+			      return std::array{2, 1, 0, 3, 6, 5, 4, 7}[i];
+			    })
 			  };
 			}
 		    }
@@ -732,7 +738,7 @@ namespace vir
 
 	// not optimized fallback
 	return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-	  return base_type {detail::flat_element_t<Is, tuple_type>([&](auto i) {
+	  return base_type {detail::flat_element_t<Is, tuple_type>([&](size_t i) {
 			      return detail::flat_get<Is>(addr[i]);
 			    })...};
 	}(_flat_member_idx_seq);
