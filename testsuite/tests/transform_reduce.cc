@@ -18,7 +18,7 @@ template <typename T>
   };
 
 #if VIR_HAVE_SIMDIZE
-static_assert(vir::vectorizable_struct<Point2D<float>>);
+static_assert(vir::vectorizable_struct_template<Point2D<float>>);
 #endif
 
 template <typename V>

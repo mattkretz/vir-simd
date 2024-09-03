@@ -451,7 +451,7 @@ defines the following types and constants:
   - `copy_to(std::contiguous_iterator)`: :construction: unoptimized store to a 
   contiguous array of struct.
 
-* `vir::simd_tuple<vectorizable_struct T, size_t N>`: TODO
+* `vir::simd_tuple<vectorizable_struct_template T, size_t N>`: TODO
 
 * `vir::get<I>(simd_tuple)`: Access to the `I`-th data member (a `simd`).
 

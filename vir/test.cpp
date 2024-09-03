@@ -337,7 +337,7 @@ static_assert(std::same_as<typename vir::simdize<Point>::mask_type,
 			   typename V<float>::mask_type>);
 
 void f(typename vir::detail::simdize_template_arguments<Point, 0>::type);
-static_assert(vir::vectorizable_struct<Point>);
+static_assert(vir::vectorizable_struct_template<Point>);
 
 namespace test_simdize
 {
@@ -379,7 +379,7 @@ namespace test_simdize
   : B<vir::simdize<float, 2>, 4>
   {};
 
-  static_assert(vir::vectorizable_struct<B<float, 4>>);
+  static_assert(vir::vectorizable_struct_template<B<float, 4>>);
   static_assert(std::same_as<vir::simdize<B<float, 4>, 1>, vir::vectorized_struct<B<float, 4>, 1>>);
   static_assert(vir::reflectable_struct<vir::simdize<B<float, 4>, 1>>);
   static_assert(std::same_as<vir::struct_element_t<0, B<float, 4>>, float[4]>);
@@ -397,7 +397,7 @@ namespace test_simdize
   static_assert(std::same_as<TS0, vir::simdize<float>[4]>);
   static_assert(std::tuple_size_v<TTup0> == std::extent_v<TS0>);
 
-  static_assert(vir::vectorizable_struct<T>);
+  static_assert(vir::vectorizable_struct_template<T>);
 }
 
 static_assert([] {
