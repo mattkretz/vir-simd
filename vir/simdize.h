@@ -273,11 +273,11 @@ namespace vir
   }
 
   /**
-   * A type T is vectorizable if all of its data-members can be vectorized via template argument
-   * substitution.
+   * A type T is a vectorizable struct template if all of its data-members can be vectorized via
+   * template argument simdization.
    */
   template <typename T>
-    concept vectorizable_struct
+    concept vectorizable_struct_template
       = reflectable_struct<T> and vir::struct_size_v<T> != 0
 	  and reflectable_struct<detail::simdize_template_arguments_t<T>>
 	  and struct_size_v<T> == struct_size_v<detail::simdize_template_arguments_t<T>>
@@ -287,7 +287,7 @@ namespace vir
   namespace detail
   {
     template <reflectable_struct Tup, int N>
-      requires (vir::struct_size_v<Tup> > 0 and not vectorizable_struct<Tup>)
+      requires (vir::struct_size_v<Tup> > 0 and not vectorizable_struct_template<Tup>)
       struct simdize_impl<Tup, N>
       {
 	static_assert(requires { typename simdize_impl<vir::struct_element_t<0, Tup>, N>::type; });
@@ -295,7 +295,7 @@ namespace vir
 	using type = simd_tuple<Tup, N == 0 ? default_simdize_size_v<Tup> : N>;
       };
 
-    template <vectorizable_struct T, int N>
+    template <vectorizable_struct_template T, int N>
       struct simdize_impl<T, N>
       { using type = vectorized_struct<T, N == 0 ? default_simdize_size_v<T> : N>; };
   } // namespace detail
@@ -433,13 +433,13 @@ namespace vir
    * \see std::tuple_size, std::tuple_element
    */
   template <std::size_t I, reflectable_struct T, int N>
-    requires (not vectorizable_struct<T>)
+    requires (not vectorizable_struct_template<T>)
     constexpr decltype(auto)
     get(const simd_tuple<T, N>& tup)
     { return std::get<I>(tup.as_tuple()); }
 
   template <std::size_t I, reflectable_struct T, int N>
-    requires (not vectorizable_struct<T>)
+    requires (not vectorizable_struct_template<T>)
     constexpr decltype(auto)
     get(simd_tuple<T, N>& tup)
     { return std::get<I>(tup.as_tuple()); }
@@ -447,7 +447,7 @@ namespace vir
   /**
    * stdx::simd-like interface on top of vectorized types (template argument substitution).
    */
-  template <vectorizable_struct T, int N>
+  template <vectorizable_struct_template T, int N>
     class vectorized_struct<T, N> : public detail::simdize_template_arguments_t<T, N>
     {
       using tuple_type = typename detail::make_simd_tuple<T, N>::type;
@@ -916,7 +916,7 @@ namespace vir
    *
    * \see std::tuple_size, std::tuple_element
    */
-  template <std::size_t I, vectorizable_struct T, int N>
+  template <std::size_t I, vectorizable_struct_template T, int N>
     constexpr decltype(auto)
     get(const vectorized_struct<T, N>& tup)
     {
@@ -924,7 +924,7 @@ namespace vir
 	       static_cast<const detail::simdize_template_arguments_t<T, N>&>(tup));
     }
 
-  template <std::size_t I, vectorizable_struct T, int N>
+  template <std::size_t I, vectorizable_struct_template T, int N>
     constexpr decltype(auto)
     get(vectorized_struct<T, N>& tup)
     {
@@ -969,12 +969,12 @@ template <std::size_t I, vir::reflectable_struct T, int N>
 /**
  * Implements structured bindings interface for simd_tuple (template argument substitution based).
  */
-template <vir::vectorizable_struct T, int N>
+template <vir::vectorizable_struct_template T, int N>
   struct std::tuple_size<vir::vectorized_struct<T, N>>
     : std::integral_constant<std::size_t, vir::struct_size_v<T>>
   {};
 
-template <std::size_t I, vir::vectorizable_struct T, int N>
+template <std::size_t I, vir::vectorizable_struct_template T, int N>
   struct std::tuple_element<I, vir::vectorized_struct<T, N>>
     : vir::struct_element<I, vir::detail::simdize_template_arguments_t<T, N>>
   {};
