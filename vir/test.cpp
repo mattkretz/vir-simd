@@ -11,6 +11,8 @@
 #include "simd_permute.h"
 #include "simd_execution.h"
 
+#include <complex>
+
 // GCC 11.4, 12.4, 13.2, 14.1, ...
 #if !defined __cpp_lib_experimental_parallel_simd || __GLIBCXX__ >= 20230528
 #define SIMD_IS_CONSTEXPR_ENOUGH 1
@@ -198,6 +200,7 @@ namespace test_struct_reflect
   static_assert(vir::reflectable_struct<std::array<int, 0>>);
   static_assert(vir::reflectable_struct<std::array<int, 2>>);
   static_assert(vir::reflectable_struct<std::pair<int, short>>);
+  static_assert(not vir::reflectable_struct<std::complex<float>>);
 
   template <typename T>
     struct A
@@ -336,8 +339,16 @@ static_assert(vir::simdize_size_v<vir::simdize<Point>> == stdx::native_simd<floa
 static_assert(std::same_as<typename vir::simdize<Point>::mask_type,
 			   typename V<float>::mask_type>);
 
+static_assert(not vir::vectorizable_struct<std::complex<float>>);
+static_assert(not vir::vectorizable_struct<std::tuple<std::complex<float>>>);
+static_assert(not vir::vectorizable_struct<std::tuple<std::complex<float>,
+							       std::complex<double>>>);
+static_assert(not vir::vectorizable_struct<std::tuple<int, float, double,
+							       std::complex<double>>>);
+
 void f(typename vir::detail::simdize_template_arguments<Point, 0>::type);
 static_assert(vir::vectorizable_struct_template<Point>);
+static_assert(vir::vectorizable_struct<Point>);
 
 namespace test_simdize
 {
@@ -380,6 +391,7 @@ namespace test_simdize
   {};
 
   static_assert(vir::vectorizable_struct_template<B<float, 4>>);
+  static_assert(vir::vectorizable_struct<B<float, 4>>);
   static_assert(std::same_as<vir::simdize<B<float, 4>, 1>, vir::vectorized_struct<B<float, 4>, 1>>);
   static_assert(vir::reflectable_struct<vir::simdize<B<float, 4>, 1>>);
   static_assert(std::same_as<vir::struct_element_t<0, B<float, 4>>, float[4]>);
@@ -398,6 +410,7 @@ namespace test_simdize
   static_assert(std::tuple_size_v<TTup0> == std::extent_v<TS0>);
 
   static_assert(vir::vectorizable_struct_template<T>);
+  static_assert(vir::vectorizable_struct<T>);
 }
 
 static_assert([] {
