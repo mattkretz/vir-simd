@@ -25,7 +25,7 @@ namespace vir
             return detail::bit_cast<V>(detail::bit_cast<I>(a) & detail::bit_cast<I>(b));
           }
         else
-          return stdx::simd<T, A>([&](auto i) {
+          return stdx::simd<T, A>([&](size_t i) {
             using I = meta::as_unsigned_t<T>;
             return detail::bit_cast<T>(detail::bit_cast<I>(a[i]) & detail::bit_cast<I>(b[i]));
           });
@@ -43,7 +43,7 @@ namespace vir
             return detail::bit_cast<V>(detail::bit_cast<I>(a) | detail::bit_cast<I>(b));
           }
         else
-          return stdx::simd<T, A>([&](auto i) {
+          return stdx::simd<T, A>([&](size_t i) {
             using I = meta::as_unsigned_t<T>;
             return detail::bit_cast<T>(detail::bit_cast<I>(a[i]) | detail::bit_cast<I>(b[i]));
           });
@@ -61,7 +61,7 @@ namespace vir
             return detail::bit_cast<V>(detail::bit_cast<I>(a) ^ detail::bit_cast<I>(b));
           }
         else
-          return stdx::simd<T, A>([&](auto i) {
+          return stdx::simd<T, A>([&](size_t i) {
             using I = meta::as_unsigned_t<T>;
             return detail::bit_cast<T>(detail::bit_cast<I>(a[i]) ^ detail::bit_cast<I>(b[i]));
           });

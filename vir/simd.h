@@ -745,7 +745,7 @@ namespace vir::stdx
       // explicit broadcast constructor
       explicit constexpr
       simd_mask(bool x)
-      : simd_mask([x](size_t) { return x; })
+      : simd_mask(std::make_index_sequence<N>(), [x](size_t) { return x; })
       {}
 
       template <typename F>
@@ -760,18 +760,19 @@ namespace vir::stdx
       template <typename U>
         constexpr
         simd_mask(const simd_mask<U, abi_type>& x)
-        : simd_mask([&x](auto i) { return x[i]; })
+        : simd_mask(std::make_index_sequence<N>(), [&x](size_t i) { return x[i]; })
         {}
 
       // load constructor
       template <typename Flags>
         simd_mask(const value_type* mem, Flags)
-        : simd_mask([mem](size_t i) { return mem[i]; })
+        : simd_mask(std::make_index_sequence<N>(), [mem](size_t i) { return mem[i]; })
         {}
 
       template <typename Flags>
         simd_mask(const value_type* mem, const simd_mask& k, Flags)
-        : simd_mask([mem, &k](size_t i) { return k[i] ? mem[i] : false; })
+        : simd_mask(std::make_index_sequence<N>(),
+                    [mem, &k](size_t i) { return k[i] ? mem[i] : false; })
         {}
 
       // loads [simd_mask.load]
@@ -1433,39 +1434,39 @@ namespace vir::stdx
 
       friend constexpr Derived
       operator%(const Derived& x, const Derived& y)
-      { return Derived([&](auto i) -> T { return x[i] % y[i]; }); }
+      { return Derived([&](size_t i) -> T { return x[i] % y[i]; }); }
 
       friend constexpr Derived
       operator&(const Derived& x, const Derived& y)
-      { return Derived([&](auto i) -> T { return x[i] & y[i]; }); }
+      { return Derived([&](size_t i) -> T { return x[i] & y[i]; }); }
 
       friend constexpr Derived
       operator|(const Derived& x, const Derived& y)
-      { return Derived([&](auto i) -> T { return x[i] | y[i]; }); }
+      { return Derived([&](size_t i) -> T { return x[i] | y[i]; }); }
 
       friend constexpr Derived
       operator^(const Derived& x, const Derived& y)
-      { return Derived([&](auto i) -> T { return x[i] ^ y[i]; }); }
+      { return Derived([&](size_t i) -> T { return x[i] ^ y[i]; }); }
 
       friend constexpr Derived
       operator<<(const Derived& x, const Derived& y)
-      { return Derived([&](auto i) -> T { return x[i] << y[i]; }); }
+      { return Derived([&](size_t i) -> T { return x[i] << y[i]; }); }
 
       friend constexpr Derived
       operator>>(const Derived& x, const Derived& y)
-      { return Derived([&](auto i) -> T { return x[i] >> y[i]; }); }
+      { return Derived([&](size_t i) -> T { return x[i] >> y[i]; }); }
 
       friend constexpr Derived
       operator<<(const Derived& x, int y)
-      { return Derived([&](auto i) -> T { return x[i] << y; }); }
+      { return Derived([&](size_t i) -> T { return x[i] << y; }); }
 
       friend constexpr Derived
       operator>>(const Derived& x, int y)
-      { return Derived([&](auto i) -> T { return x[i] >> y; }); }
+      { return Derived([&](size_t i) -> T { return x[i] >> y; }); }
 
       constexpr Derived
       operator~() const
-      { return Derived([&](auto i) -> T { return ~d(i); }); }
+      { return Derived([&](size_t i) -> T { return ~d(i); }); }
     };
 
   // simd (fixed_size)
@@ -1523,7 +1524,8 @@ namespace vir::stdx
       template <typename U>
         constexpr
         simd(detail::ValuePreservingOrInt<U, value_type>&& value) noexcept
-        : simd([v = static_cast<value_type>(value)](size_t) { return v; })
+        : simd(std::make_index_sequence<N>(),
+               [v = static_cast<value_type>(value)](size_t) { return v; })
         {}
 
       // conversion constructors
@@ -1533,7 +1535,8 @@ namespace vir::stdx
                                                 detail::is_higher_integer_rank<value_type, U>>>>
         constexpr
         simd(const simd<U, abi_type>& x)
-        : simd([&x](auto i) { return static_cast<value_type>(x[i]); })
+        : simd(std::make_index_sequence<N>(),
+               [&x](size_t i) { return static_cast<value_type>(x[i]); })
         {}
 
       // generator constructor
@@ -1549,7 +1552,7 @@ namespace vir::stdx
       template <typename U, typename Flags>
         constexpr
         simd(const U* mem, Flags)
-        : simd([mem](auto i) -> value_type { return mem[i]; })
+        : simd(std::make_index_sequence<N>(), [mem](size_t i) -> value_type { return mem[i]; })
         {}
 
       // loads [simd.load]
@@ -1623,7 +1626,7 @@ namespace vir::stdx
       // unary operators
       constexpr mask_type
       operator!() const
-      { return mask_type([&](auto i) { return !data[i]; }); }
+      { return mask_type([&](size_t i) { return !data[i]; }); }
 
       constexpr simd
       operator+() const
@@ -1631,7 +1634,7 @@ namespace vir::stdx
 
       constexpr simd
       operator-() const
-      { return simd([&](auto i) -> value_type { return -data[i]; }); }
+      { return simd([&](size_t i) -> value_type { return -data[i]; }); }
 
       // compound assignment [simd.cassign]
       constexpr friend simd&
@@ -1669,44 +1672,44 @@ namespace vir::stdx
       // binary operators [simd.binary]
       constexpr friend simd
       operator+(const simd& x, const simd& y)
-      { return simd([&](auto i) { return x.data[i] + y.data[i]; }); }
+      { return simd([&](size_t i) { return x.data[i] + y.data[i]; }); }
 
       constexpr friend simd
       operator-(const simd& x, const simd& y)
-      { return simd([&](auto i) { return x.data[i] - y.data[i]; }); }
+      { return simd([&](size_t i) { return x.data[i] - y.data[i]; }); }
 
       constexpr friend simd
       operator*(const simd& x, const simd& y)
-      { return simd([&](auto i) { return x.data[i] * y.data[i]; }); }
+      { return simd([&](size_t i) { return x.data[i] * y.data[i]; }); }
 
       constexpr friend simd
       operator/(const simd& x, const simd& y)
-      { return simd([&](auto i) { return x.data[i] / y.data[i]; }); }
+      { return simd([&](size_t i) { return x.data[i] / y.data[i]; }); }
 
       // compares [simd.comparison]
       constexpr friend mask_type
       operator==(const simd& x, const simd& y)
-      { return mask_type([&](auto i) { return x.data[i] == y.data[i]; }); }
+      { return mask_type([&](size_t i) { return x.data[i] == y.data[i]; }); }
 
       constexpr friend mask_type
       operator!=(const simd& x, const simd& y)
-      { return mask_type([&](auto i) { return x.data[i] != y.data[i]; }); }
+      { return mask_type([&](size_t i) { return x.data[i] != y.data[i]; }); }
 
       constexpr friend mask_type
       operator<(const simd& x, const simd& y)
-      { return mask_type([&](auto i) { return x.data[i] < y.data[i]; }); }
+      { return mask_type([&](size_t i) { return x.data[i] < y.data[i]; }); }
 
       constexpr friend mask_type
       operator<=(const simd& x, const simd& y)
-      { return mask_type([&](auto i) { return x.data[i] <= y.data[i]; }); }
+      { return mask_type([&](size_t i) { return x.data[i] <= y.data[i]; }); }
 
       constexpr friend mask_type
       operator>(const simd& x, const simd& y)
-      { return mask_type([&](auto i) { return x.data[i] > y.data[i]; }); }
+      { return mask_type([&](size_t i) { return x.data[i] > y.data[i]; }); }
 
       constexpr friend mask_type
       operator>=(const simd& x, const simd& y)
-      { return mask_type([&](auto i) { return x.data[i] >= y.data[i]; }); }
+      { return mask_type([&](size_t i) { return x.data[i] >= y.data[i]; }); }
     };
 
   // casts [simd.casts]
@@ -1715,25 +1718,25 @@ namespace vir::stdx
             typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
     constexpr simd<T, A>
     static_simd_cast(const simd<U, A>& x)
-    { return simd<T, A>([&x](auto i) { return static_cast<T>(x[i]); }); }
+    { return simd<T, A>([&x](size_t i) { return static_cast<T>(x[i]); }); }
 
   template <typename V, typename U, typename A,
             typename = std::enable_if_t<is_simd_v<V>>>
     constexpr V
     static_simd_cast(const simd<U, A>& x)
-    { return V([&x](auto i) { return static_cast<typename V::value_type>(x[i]); }); }
+    { return V([&x](size_t i) { return static_cast<typename V::value_type>(x[i]); }); }
 
   template <typename T, typename U, typename A,
             typename = std::enable_if_t<detail::is_vectorizable_v<T>>>
     constexpr simd_mask<T, A>
     static_simd_cast(const simd_mask<U, A>& x)
-    { return simd_mask<T, A>([&x](auto i) { return x[i]; }); }
+    { return simd_mask<T, A>([&x](size_t i) { return x[i]; }); }
 
   template <typename M, typename U, typename A,
             typename = std::enable_if_t<M::size() == simd_size_v<U, A>>>
     constexpr M
     static_simd_cast(const simd_mask<U, A>& x)
-    { return M([&x](auto i) { return x[i]; }); }
+    { return M([&x](size_t i) { return x[i]; }); }
 
   // simd_cast
   template <typename T, typename U, typename A,
@@ -1871,7 +1874,7 @@ namespace vir::stdx
     {
       constexpr int K = simd_size_v<T, A>;
       using R = simd<T, simd_abi::deduce_t<T, N * K>>;
-      return R([&](auto i) {
+      return R([&](size_t i) {
                return x[i / K][i % K];
              });
     }
@@ -1884,7 +1887,7 @@ namespace vir::stdx
     {
       constexpr int K = simd_size_v<T, A>;
       using R = simd_mask<T, simd_abi::deduce_t<T, N * K>>;
-      return R([&](auto i) -> bool {
+      return R([&](size_t i) -> bool {
                return x[i / K][i % K];
              });
     }
@@ -1922,7 +1925,7 @@ namespace vir::stdx
       constexpr V
       operator-() const &&
       {
-        return V([&](auto i) {
+        return V([&](size_t i) {
                  return m_k[i] ? static_cast<value_type>(-m_value[i]) : m_value[i];
                });
       }
@@ -1931,7 +1934,7 @@ namespace vir::stdx
         [[nodiscard]] constexpr V
         copy_from(const detail::LoadStorePtr<Up, value_type>* mem, Flags) const &&
         {
-          return V([&](auto i) {
+          return V([&](size_t i) {
                    return m_k[i] ? static_cast<value_type>(mem[i]) : m_value[i];
                  });
         }
@@ -2353,12 +2356,12 @@ namespace vir::stdx
   template <typename T, typename A>
     constexpr simd<T, A>
     min(const simd<T, A>& a, const simd<T, A>& b)
-    { return simd<T, A>([&](auto i) { return std::min(a[i], b[i]); }); }
+    { return simd<T, A>([&](size_t i) { return std::min(a[i], b[i]); }); }
 
   template <typename T, typename A>
     constexpr simd<T, A>
     max(const simd<T, A>& a, const simd<T, A>& b)
-    { return simd<T, A>([&](auto i) { return std::max(a[i], b[i]); }); }
+    { return simd<T, A>([&](size_t i) { return std::max(a[i], b[i]); }); }
 
   template <typename T, typename A>
     constexpr
@@ -2370,71 +2373,71 @@ namespace vir::stdx
     constexpr simd<T, A>
     clamp(const simd<T, A>& v, const simd<T, A>& lo,
         const simd<T, A>& hi)
-    { return simd<T, A>([&](auto i) { return std::clamp(v[i], lo[i], hi[i]); }); }
+    { return simd<T, A>([&](size_t i) { return std::clamp(v[i], lo[i], hi[i]); }); }
 
   // math
 #define SIMD_MATH_1ARG(name, return_temp)                                                          \
   template <typename T, typename A>                                                                \
     constexpr return_temp<T, A>                                                                    \
     name(const simd<detail::FloatingPoint<T>, A>& x) noexcept                                      \
-    { return return_temp<T, A>([&x](auto i) { return std::name(x[i]); }); }
+    { return return_temp<T, A>([&x](size_t i) { return std::name(x[i]); }); }
 
 #define SIMD_MATH_1ARG_FIXED(name, R)                                                              \
   template <typename T, typename A>                                                                \
     constexpr fixed_size_simd<R, simd_size_v<T, A>>                                                \
     name(const simd<detail::FloatingPoint<T>, A>& x) noexcept                                      \
-    { return fixed_size_simd<R, simd_size_v<T, A>>([&x](auto i) { return std::name(x[i]); }); }
+    { return fixed_size_simd<R, simd_size_v<T, A>>([&x](size_t i) { return std::name(x[i]); }); }
 
 #define SIMD_MATH_2ARG(name, return_temp)                                                          \
   template <typename T, typename A>                                                                \
     constexpr return_temp<T, A>                                                                    \
     name(const simd<detail::FloatingPoint<T>, A>& x, const simd<T, A>& y) noexcept                 \
-    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i]); }); }                   \
+    { return return_temp<T, A>([&](size_t i) { return std::name(x[i], y[i]); }); }                 \
                                                                                                    \
   template <typename T, typename A>                                                                \
     constexpr return_temp<T, A>                                                                    \
     name(const simd<detail::FloatingPoint<T>, A>& x,                                               \
          const detail::type_identity_t<simd<T, A>>& y) noexcept                                    \
-    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i]); }); }                   \
+    { return return_temp<T, A>([&](size_t i) { return std::name(x[i], y[i]); }); }                 \
                                                                                                    \
   template <typename T, typename A>                                                                \
     constexpr return_temp<T, A>                                                                    \
     name(const detail::type_identity_t<simd<T, A>>& x,                                             \
          const simd<detail::FloatingPoint<T>, A>& y) noexcept                                      \
-    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i]); }); }
+    { return return_temp<T, A>([&](size_t i) { return std::name(x[i], y[i]); }); }
 
 #define SIMD_MATH_3ARG(name, return_temp)                                                          \
   template <typename T, typename A>                                                                \
     constexpr return_temp<T, A>                                                                    \
     name(const simd<detail::FloatingPoint<T>, A>& x,                                               \
          const simd<T, A>& y, const simd<T, A> &z) noexcept                                        \
-    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }             \
+    { return return_temp<T, A>([&](size_t i) { return std::name(x[i], y[i], z[i]); }); }           \
                                                                                                    \
   template <typename T, typename A>                                                                \
     constexpr return_temp<T, A>                                                                    \
     name(const simd<detail::FloatingPoint<T>, A>& x,                                               \
          const detail::type_identity_t<simd<T, A>>& y,                                             \
          const detail::type_identity_t<simd<T, A>> &z) noexcept                                    \
-    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }             \
+    { return return_temp<T, A>([&](size_t i) { return std::name(x[i], y[i], z[i]); }); }           \
                                                                                                    \
   template <typename T, typename A>                                                                \
     constexpr return_temp<T, A>                                                                    \
     name(const detail::type_identity_t<simd<T, A>>& x,                                             \
          const simd<detail::FloatingPoint<T>, A>& y,                                               \
          const detail::type_identity_t<simd<T, A>> &z) noexcept                                    \
-    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }             \
+    { return return_temp<T, A>([&](size_t i) { return std::name(x[i], y[i], z[i]); }); }           \
                                                                                                    \
   template <typename T, typename A>                                                                \
     constexpr return_temp<T, A>                                                                    \
     name(const detail::type_identity_t<simd<T, A>>& x,                                             \
          const detail::type_identity_t<simd<T, A>>& y,                                             \
          const simd<detail::FloatingPoint<T>, A> &z) noexcept                                      \
-    { return return_temp<T, A>([&](auto i) { return std::name(x[i], y[i], z[i]); }); }
+    { return return_temp<T, A>([&](size_t i) { return std::name(x[i], y[i], z[i]); }); }
 
   template <typename T, typename A, typename U = detail::SignedIntegral<T>>
     constexpr simd<T, A>
     abs(const simd<T, A>& x) noexcept
-    { return simd<T, A>([&x](auto i) { return std::abs(x[i]); }); }
+    { return simd<T, A>([&x](size_t i) { return std::abs(x[i]); }); }
 
   SIMD_MATH_1ARG(abs, simd)
   SIMD_MATH_1ARG(isnan, simd_mask)
@@ -2451,7 +2454,7 @@ namespace vir::stdx
     constexpr simd<T, A>
     remquo(const simd<T, A>& x, const simd<T, A>& y,
            fixed_size_simd<int, simd_size_v<T, A>>* quo) noexcept
-    { return simd<T, A>([&x, &y, quo](auto i) { return std::remquo(x[i], y[i], &(*quo)[i]); }); }
+    { return simd<T, A>([&x, &y, quo](size_t i) { return std::remquo(x[i], y[i], &(*quo)[i]); }); }
 
   SIMD_MATH_1ARG(erf, simd)
   SIMD_MATH_1ARG(erfc, simd)
@@ -2476,31 +2479,31 @@ namespace vir::stdx
   template <typename T, typename A>
     constexpr simd<T, A>
     modf(const simd<detail::FloatingPoint<T>, A>& x, simd<T, A>* iptr) noexcept
-    { return simd<T, A>([&x, iptr](auto i) { return std::modf(x[i], &(*iptr)[i]); }); }
+    { return simd<T, A>([&x, iptr](size_t i) { return std::modf(x[i], &(*iptr)[i]); }); }
 
   template <typename T, typename A>
     constexpr simd<T, A>
     frexp(const simd<detail::FloatingPoint<T>, A>& x,
           fixed_size_simd<int, simd_size_v<T, A>>* exp) noexcept
-    { return simd<T, A>([&x, exp](auto i) { return std::frexp(x[i], &(*exp)[i]); }); }
+    { return simd<T, A>([&x, exp](size_t i) { return std::frexp(x[i], &(*exp)[i]); }); }
 
   template <typename T, typename A>
     constexpr simd<T, A>
     scalbln(const simd<detail::FloatingPoint<T>, A>& x,
             const fixed_size_simd<long int, simd_size_v<T, A>>& exp) noexcept
-    { return simd<T, A>([&x, &exp](auto i) { return std::scalbln(x[i], exp[i]); }); }
+    { return simd<T, A>([&x, &exp](size_t i) { return std::scalbln(x[i], exp[i]); }); }
 
   template <typename T, typename A>
     constexpr simd<T, A>
     scalbn(const simd<detail::FloatingPoint<T>, A>& x,
            const fixed_size_simd<int, simd_size_v<T, A>>& exp) noexcept
-    { return simd<T, A>([&x, &exp](auto i) { return std::scalbn(x[i], exp[i]); }); }
+    { return simd<T, A>([&x, &exp](size_t i) { return std::scalbn(x[i], exp[i]); }); }
 
   template <typename T, typename A>
     constexpr simd<T, A>
     ldexp(const simd<detail::FloatingPoint<T>, A>& x,
           const fixed_size_simd<int, simd_size_v<T, A>>& exp) noexcept
-    { return simd<T, A>([&x, &exp](auto i) { return std::ldexp(x[i], exp[i]); }); }
+    { return simd<T, A>([&x, &exp](size_t i) { return std::ldexp(x[i], exp[i]); }); }
 
   SIMD_MATH_1ARG(sqrt, simd)
 

@@ -35,7 +35,7 @@ namespace vir
 
   template <vir::any_simd T>
     inline constexpr T
-    iota_v<T> = T([](auto i) { return static_cast<typename T::value_type>(i); });
+    iota_v<T> = T([](int i) { return static_cast<typename T::value_type>(i); });
 
   template <typename T, std::size_t N>
     inline constexpr std::array<T, N>

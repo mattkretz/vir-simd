@@ -42,7 +42,7 @@ namespace vir
       if constexpr (M::size() == 1)
         return M(bits[0]);
       else
-        return M([bits](auto i) -> bool { return bits[i]; });
+        return M([bits](size_t i) -> bool { return bits[i]; });
 #endif
     }
 
