@@ -94,6 +94,32 @@ namespace vir
 		       "simdize<T> requires T and its data members to have at least one member");
       };
 
+    template <typename T>
+      struct recursively_vectorizable
+      : std::false_type
+      {};
+
+    template <vectorizable T>
+      struct recursively_vectorizable<T>
+      : std::true_type
+      {};
+
+    template <vir::reflectable_struct T>
+      requires (vir::struct_size_v<T> == 1)
+      struct recursively_vectorizable<T>
+      : recursively_vectorizable<vir::struct_element_t<0, T>>
+      {};
+
+    template <vir::reflectable_struct T>
+      requires (vir::struct_size_v<T> > 1)
+      struct recursively_vectorizable<T>
+      : std::bool_constant<
+	  []<std::size_t... Is>(std::index_sequence<Is...>) {
+	    return (... and recursively_vectorizable<
+			      vir::struct_element_t<Is, T>>::value);
+	  }(std::make_index_sequence<vir::struct_size_v<T>>())>
+      {};
+
     template <typename>
       struct default_simdize_size;
 
@@ -105,7 +131,9 @@ namespace vir
 	static_assert(value > 0);
       };
 
-    template <reflectable_struct Tup>
+    template <typename Tup>
+      requires (not vectorizable<Tup>)
+	and recursively_vectorizable<Tup>::value
       struct default_simdize_size<Tup>
       {
 	static inline constexpr int value
@@ -156,7 +184,7 @@ namespace vir
 
     template <typename T, int N = 0>
       requires requires(const T& tt) {
-	simdize_template_arguments_impl<default_simdize_size_v<T>>(tt);
+	simdize_template_arguments_impl<default_simdize_size<T>::value>(tt);
       }
       struct simdize_template_arguments
       {
@@ -933,13 +961,21 @@ namespace vir
     }
 
   /**
+   * A type T is a vectorizable struct if the struct member types can recursively be reflected and
+   * all leaf types satisfy vectorizable.
+   */
+  template <typename T>
+    concept vectorizable_struct
+      = reflectable_struct<T> and detail::recursively_vectorizable<T>::value;
+
+  /**
    * Meta-function that turns a vectorizable type or a tuple-like (recursively) of vectorizable
    * types into a stdx::simd or std::tuple (recursively) of stdx::simd. If N is non-zero, N
    * determines the resulting SIMD width. Otherwise, of all vectorizable types U the maximum
    * stdx::native_simd<U>::size() determines the resulting SIMD width.
    */
   template <typename T, int N = 0>
-    requires reflectable_struct<T> or vectorizable<T>
+    requires vectorizable_struct<T> or vectorizable<T>
     using simdize = typename detail::simdize_impl<T, N>::type;
 
   template <int N, typename V>
