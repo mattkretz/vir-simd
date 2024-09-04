@@ -33,14 +33,21 @@ endif
 
 std=$(shell env CXX=$(CXX) ./latest_std_flag.sh)
 
-version=$(shell grep '\<VIR_SIMD_VERSION\>' vir/simd_version.h | \
+version:=$(shell grep '\<VIR_SIMD_VERSION\>' vir/simd_version.h | \
 	sed -e 's/.*0x/0x/' -e 's/'\''//g' | \
 	(read v; echo $$((v/0x10000)).$$((v%0x10000/0x100)).$$((v%0x100));))
+
+version_patchlevel:=$(lastword $(subst ., ,$(version)))
+
+version_info=$(shell test $(version_patchlevel) -lt 100 && echo release || \
+	     (test $(version_patchlevel) -lt 190 && echo development || \
+	     (test $(version_patchlevel) -lt 200 && echo alpha $$(($(version_patchlevel)-189)) || \
+	     echo beta $$(($(version_patchlevel)-199)))))
 
 check: check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
 
 debug:
-	@echo "vir::simd_version: $(version)"
+	@echo "vir::simd_version: $(version) ($(version_info))"
 	@echo "build_dir: $(build_dir)"
 	@echo "triplet: $(triplet)"
 	@echo "testflags: $(testflags)"
@@ -80,7 +87,7 @@ testsuite-%: testsuite/$(build_dir)-%/Makefile
 	@cat testsuite/$(build_dir)-$*/.simd.summary && rm testsuite/$(build_dir)-$*/.simd.summary
 
 install:
-	@echo "Installing vir::stdx::simd $(version) to $(includedir)/vir"
+	@echo "Installing vir::stdx::simd $(version) ($(version_info)) to $(includedir)/vir"
 	install -d $(includedir)/vir
 	install -m 644 -t $(includedir)/vir vir/*.h
 

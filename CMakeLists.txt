@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 project(vir-simd CXX)
 
 # Define main library
@@ -37,10 +37,15 @@ install(
   FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   PATTERN "*.cpp" EXCLUDE)
 
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+
 # Define test targets
-add_library(vir-simd-test-stdlib vir/test.cpp)
+add_library(vir-simd-test-stdlib EXCLUDE_FROM_ALL vir/test.cpp)
 target_link_libraries(vir-simd-test-stdlib PRIVATE vir-simd)
 
-add_library(vir-simd-test-fallback vir/test.cpp)
+add_library(vir-simd-test-fallback EXCLUDE_FROM_ALL vir/test.cpp)
 target_link_libraries(vir-simd-test-fallback PRIVATE vir-simd)
 target_compile_definitions(vir-simd-test-fallback PRIVATE VIR_DISABLE_STDX_SIMD)
+
+add_custom_target(check DEPENDS vir-simd-test-stdlib vir-simd-test-fallback)

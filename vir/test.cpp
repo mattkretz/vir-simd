@@ -20,8 +20,6 @@
 #define SIMD_IS_CONSTEXPR_ENOUGH 0
 #endif
 
-static_assert(vir::simd_version == vir::simd_version_t{0,3,100});
-static_assert(vir::simd_version <= vir::simd_version_t{0,3,100});
 static_assert(vir::simd_version >= vir::simd_version_t{0,3,100});
 static_assert(vir::simd_version != vir::simd_version_t{0,3,0});
 static_assert(vir::simd_version >= vir::simd_version_t{0,3,0});
