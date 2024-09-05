@@ -230,6 +230,20 @@ namespace test_struct_reflect
 
 #if VIR_HAVE_SIMDIZE
 
+struct Empty
+{ constexpr static int ignore_me = 0; };
+
+static_assert(std::same_as<vir::simdize<Empty>, Empty>);
+
+static_assert(std::same_as<vir::simdize<void>, void>);
+
+static_assert(std::same_as<vir::simdize<std::tuple<>>, std::tuple<>>);
+
+static_assert(std::same_as<vir::simdize<std::complex<float>>, std::complex<float>>);
+
+static_assert(std::same_as<vir::simdize<std::tuple<std::complex<float>>>,
+			   std::tuple<std::complex<float>>>);
+
 static_assert(std::same_as<vir::simdize<std::tuple<int, double>>,
 			   vir::vectorized_struct<std::tuple<int, double>, V<int>::size()>>);
 

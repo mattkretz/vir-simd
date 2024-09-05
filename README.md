@@ -404,18 +404,23 @@ defines the following types and constants:
     produced. `Abi` is determined from `N` and will be `simd_abi::native<T>` if 
     `N` was omitted.
 
-  - Otherwise, if `T` is a `std::tuple` or aggregate that can be reflected, 
-    then a specialization of `vir::simd_tuple` is produced. If `T` is a 
-    template specialization (without NTTPs), the metafunction tries 
-    vectorization via applying `simdize` to all template arguments. If this 
-    doesn't yield the same data structure layout as member-only vectorization, 
-    then the type behaves similar to a `std::tuple` with additional API to make 
-    the type similar to `stdx::simd` (see below).
+  - If `T` is a `std::tuple` or aggregate that can be reflected, then a 
+    specialization of `vir::simd_tuple` is produced. If `T` is a template 
+    specialization (without NTTPs), the metafunction tries vectorization via 
+    applying `simdize` to all template arguments. If this doesn't yield the 
+    same data structure layout as member-only vectorization, then the type 
+    behaves similar to a `std::tuple` with additional API to make the type 
+    similar to `stdx::simd` (see below).
     This specialization will be derived from `std::tuple` and the tuple 
     elements will either be `vir::simd_tuple` or `stdx::simd` types. 
     `vir::simdize` is applied recursively to the `std::tuple`/aggregate data 
     members.
-    If `N` was omitted, the resulting width of *all* `simd` types in the 
+
+  - Otherwise, `T` cannot be simdized (e.g. void, no data members, 
+    `std::tuple<>`) then no transformation is applied and `simdize<T>` is an 
+    alias for `T`.
+
+  - If `N` was omitted, the resulting width of *all* `simd` types in the 
     resulting type will match the largest `native_simd` width.
 
   Example: `vir::simdize<std::tuple<double, short>>` produces a tuple with the 

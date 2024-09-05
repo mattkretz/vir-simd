@@ -80,19 +80,12 @@ namespace vir
 #endif
 
     template <typename T, int N>
-      struct simdize_impl;
+      struct simdize_impl
+      { using type = T; };
 
     template <vectorizable T, int N>
       struct simdize_impl<T, N>
       { using type = deduced_simd<T, N == 0 ? stdx::native_simd<T>::size() : N>; };
-
-    template <reflectable_struct Tup, int N>
-      requires (vir::struct_size_v<Tup> == 0)
-      struct simdize_impl<Tup, N>
-      {
-	static_assert (vir::struct_size_v<Tup> > 0,
-		       "simdize<T> requires T and its data members to have at least one member");
-      };
 
     template <typename T>
       struct recursively_vectorizable
@@ -289,7 +282,7 @@ namespace vir
     /**
      * Test that make_simd_tuple and simdize_template_arguments produce equivalent results.
      */
-    template <typename T, int N = default_simdize_size_v<T>,
+    template <typename T, int N = default_simdize_size<T>::value,
 	      typename TTup = typename make_simd_tuple<T, N>::type,
 	      typename TS = simdize_template_arguments_t<T>>
       struct is_consistent_struct_vectorization
@@ -316,6 +309,7 @@ namespace vir
   {
     template <reflectable_struct Tup, int N>
       requires (vir::struct_size_v<Tup> > 0 and not vectorizable_struct_template<Tup>)
+	and requires { default_simdize_size<Tup>::value; }
       struct simdize_impl<Tup, N>
       {
 	static_assert(requires { typename simdize_impl<vir::struct_element_t<0, Tup>, N>::type; });
@@ -324,6 +318,7 @@ namespace vir
       };
 
     template <vectorizable_struct_template T, int N>
+      requires requires { default_simdize_size<T>::value; }
       struct simdize_impl<T, N>
       { using type = vectorized_struct<T, N == 0 ? default_simdize_size_v<T> : N>; };
   } // namespace detail
@@ -975,7 +970,6 @@ namespace vir
    * stdx::native_simd<U>::size() determines the resulting SIMD width.
    */
   template <typename T, int N = 0>
-    requires vectorizable_struct<T> or vectorizable<T>
     using simdize = typename detail::simdize_impl<T, N>::type;
 
   template <int N, typename V>
