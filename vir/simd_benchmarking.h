@@ -20,7 +20,7 @@ namespace vir
 #endif
 
   template <typename T>
-    VIR_ALWAYS_INLINE inline void
+    VIR_ALWAYS_INLINE void
     fake_modify_one(T& x)
     {
       if constexpr (std::is_floating_point_v<T>)
@@ -52,12 +52,12 @@ namespace vir
     }
 
   template <typename... Ts>
-    VIR_ALWAYS_INLINE inline void
+    VIR_ALWAYS_INLINE void
     fake_modify(Ts&... more)
     { (fake_modify_one(more), ...); }
 
   template <typename T>
-    VIR_ALWAYS_INLINE inline void
+    VIR_ALWAYS_INLINE void
     fake_read_one(const T& x)
     {
       if constexpr (std::is_floating_point_v<T>)
@@ -90,7 +90,7 @@ namespace vir
 #undef VIR_SIMD_REG
 
   template <typename... Ts>
-    VIR_ALWAYS_INLINE inline void
+    VIR_ALWAYS_INLINE void
     fake_read(const Ts&... more)
     { (fake_read_one(more), ...); }
 

@@ -26,7 +26,7 @@
 
 #ifndef VIR_ALWAYS_INLINE
 #ifdef __GNUC__
-#define VIR_ALWAYS_INLINE [[gnu::always_inline]]
+#define VIR_ALWAYS_INLINE [[gnu::always_inline]] inline
 #define VIR_GNU_COLD [[gnu::cold]]
 #define VIR_GNU_ATTR_COLD __attribute__((cold))
 #else
@@ -38,7 +38,7 @@
 
 namespace vir::detail
 {
-  [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE inline void
+  [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE void
   unreachable()
   {
 #if defined __GNUC__
@@ -50,7 +50,7 @@ namespace vir::detail
 #endif
   }
 
-  [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE inline void
+  [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE void
   trap()
   {
 #if defined __GNUC__
@@ -61,7 +61,7 @@ namespace vir::detail
   }
 
   template <typename... Args>
-    [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE inline void
+    [[noreturn]] VIR_GNU_COLD VIR_ALWAYS_INLINE void
     invoke_ub([[maybe_unused]] const char* msg,
               [[maybe_unused]] const Args&... args)
     {

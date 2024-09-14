@@ -64,7 +64,7 @@ namespace vir
      * Return a with a[i] replaced by b[i] for all i in {Indexes...}.
      */
     template <int... Indexes, typename T>
-      VIR_ALWAYS_INLINE inline T
+      VIR_ALWAYS_INLINE T
       blend(T a, T b)
       {
 	constexpr int N = sizeof(a) / sizeof(a[0]);
