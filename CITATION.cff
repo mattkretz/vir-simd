@@ -15,9 +15,18 @@ authors:
     affiliation: GSI Helmholtz Centre for Heavy Ion Research
     orcid: 'https://orcid.org/0000-0002-0867-243X'
 doi: 10.5281/zenodo.7892320
-version: 0.2.0
-date-released: 2023-05-03
+version: 0.3.200
+date-released: 2024-09-13
 identifiers:
+  - type: doi
+    value: 10.5281/zenodo.13757391
+    description: Version 0.3.200
+  - type: doi
+    value: 10.5281/zenodo.10068785
+    description: Version 0.3.1
+  - type: doi
+    value: 10.5281/zenodo.10055164
+    description: Version 0.3.0
   - type: doi
     value: 10.5281/zenodo.7892320
     description: Version 0.2.0
