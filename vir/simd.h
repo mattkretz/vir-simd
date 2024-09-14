@@ -18,6 +18,8 @@
 
 #include "simd_version.h"
 
+#include <cstdlib> // std::abort
+
 #if __has_include (<experimental/simd>) && !defined VIR_DISABLE_STDX_SIMD && !defined __clang__
 #include <experimental/simd>
 #endif
