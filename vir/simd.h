@@ -99,6 +99,12 @@ namespace vir::detail
 #warning "Invalid value for VIR_CHECK_PRECONDITIONS."
 #endif
 
+#ifdef __GNUC__
+#define VIR_PRETTY_FUNCTION_ __PRETTY_FUNCTION__
+#else
+#define VIR_PRETTY_FUNCTION_ __FUNCSIG__
+#endif
+
 #if VIR_CHECK_PRECONDITIONS < 0
 #define vir_simd_precondition(expr, msg, ...)                                             \
   (void) bool(expr)
@@ -124,7 +130,7 @@ namespace vir::detail
     else if (__builtin_expect(not precondition_result, false))                              \
       vir::detail::invoke_ub(                                                               \
         VIR_SIMD_LOC "precondition failure in '%s': " msg " ('" #expr "' does not hold)\n", \
-        __PRETTY_FUNCTION__ __VA_OPT__(,) __VA_ARGS__);                                     \
+        VIR_PRETTY_FUNCTION_ __VA_OPT__(,) __VA_ARGS__);                                    \
   } while(false)
 #else
 #define vir_simd_precondition(expr, msg, ...)                                               \
@@ -133,7 +139,7 @@ namespace vir::detail
     if (not precondition_result) [[unlikely]]                                               \
       vir::detail::invoke_ub(                                                               \
         VIR_SIMD_LOC "precondition failure in '%s': " msg " ('" #expr "' does not hold)\n", \
-        __PRETTY_FUNCTION__ __VA_OPT__(,) __VA_ARGS__);                                     \
+        VIR_PRETTY_FUNCTION_ __VA_OPT__(,) __VA_ARGS__);                                    \
   } while(false)
 #endif
 
