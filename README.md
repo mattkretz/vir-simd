@@ -1,5 +1,6 @@
 # vir::stdx::simd
 
+[![Conan Center](https://img.shields.io/conan/v/vir-simd)](https://conan.io/center/recipes/vir-simd)
 [![CI](https://github.com/mattkretz/vir-simd/actions/workflows/CI.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/CI.yml)
 [![DOI](https://zenodo.org/badge/536945709.svg)](https://zenodo.org/badge/latestdoi/536945709)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6916/badge)](https://bestpractices.coreinfrastructure.org/projects/6916)
