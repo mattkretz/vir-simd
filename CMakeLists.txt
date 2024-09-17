@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Copyright © 2024      GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+#                       Matthias Kretz <m.kretz@gsi.de>
+# Copyright © 2023      Álvaro Fernández Sánchez
+
 cmake_minimum_required(VERSION 3.5)
 project(vir-simd CXX)
 

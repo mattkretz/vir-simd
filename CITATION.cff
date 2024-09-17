@@ -1,5 +1,8 @@
 # This CITATION.cff file was initially generated with cffinit.
 # Visit https://bit.ly/cffinit to generate yours today!
+#
+# SPDX-FileCopyrightText: 2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+# SPDX-License-Identifier: CC0-1.0
 
 cff-version: 1.2.0
 title: vir-simd
