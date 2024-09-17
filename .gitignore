@@ -1,2 +1,6 @@
+# SPDX-License-Identifier: CC0-1.0
+# SPDX-FileCopyrightText: 2023–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH / Matthias Kretz <m.kretz@gsi.de>
+
 test.S
 testsuite/build-*
+ce.cpp

@@ -1,4 +1,7 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright © 2020–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+#                       Matthias Kretz <m.kretz@gsi.de>
 
 srcdir="$(cd "${0%/*}" && pwd)"
 driver="$srcdir/driver.sh"
