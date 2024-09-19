@@ -4,6 +4,7 @@
 [![CI](https://github.com/mattkretz/vir-simd/actions/workflows/CI.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/CI.yml)
 [![DOI](https://zenodo.org/badge/536945709.svg)](https://zenodo.org/badge/latestdoi/536945709)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6916/badge)](https://bestpractices.coreinfrastructure.org/projects/6916)
+[![REUSE status](https://github.com/mattkretz/vir-simd/actions/workflows/reuse.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/reuse.yml)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8F-yellow)](https://fair-software.eu)
 
 This project aims to provide a fallback std::experimental::simd (Parallelism TS 2)
