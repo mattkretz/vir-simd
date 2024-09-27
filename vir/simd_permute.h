@@ -42,11 +42,17 @@ namespace vir
 
   constexpr int simd_permute_uninit = simd_permute_zero - 1;
 
+#if defined __clang__ and __clang__ <= 13
+#define VIR_CONSTEVAL constexpr
+#else
+#define VIR_CONSTEVAL consteval
+#endif
+
   namespace simd_permutations
   {
     struct DuplicateEven
     {
-      consteval unsigned
+      VIR_CONSTEVAL unsigned
       operator()(unsigned i) const
       { return i & ~1u; }
     };
@@ -55,7 +61,7 @@ namespace vir
 
     struct DuplicateOdd
     {
-      consteval unsigned
+      VIR_CONSTEVAL unsigned
       operator()(unsigned i) const
       { return i | 1u; }
     };
@@ -65,7 +71,7 @@ namespace vir
     template <unsigned N>
       struct SwapNeighbors
       {
-	consteval unsigned
+	VIR_CONSTEVAL unsigned
 	operator()(unsigned i, auto size) const
 	{
 	  static_assert(size % (2 * N) == 0,
@@ -85,7 +91,7 @@ namespace vir
     template <int Position>
       struct Broadcast
       {
-	consteval int
+	VIR_CONSTEVAL int
 	operator()(int) const
 	{ return Position; }
       };
@@ -99,7 +105,7 @@ namespace vir
 
     struct Reverse
     {
-      consteval int
+      VIR_CONSTEVAL int
       operator()(int i) const
       { return -1 - i; }
     };
@@ -112,7 +118,7 @@ namespace vir
 	static constexpr int Offset = O;
 	static constexpr bool is_even_rotation = Offset % 2 == 0;
 
-	consteval int
+	VIR_CONSTEVAL int
 	operator()(int i, auto size) const
 	{ return (i + Offset) % size.value; }
       };
@@ -123,7 +129,7 @@ namespace vir
     template <int Offset>
       struct Shift
       {
-	consteval int
+	VIR_CONSTEVAL int
 	operator()(int i, int size) const
 	{
 	  const int j = i + Offset;
@@ -137,6 +143,8 @@ namespace vir
     template <int Offset>
       inline constexpr Shift<Offset> shift {};
   }
+
+#undef VIR_CONSTEVAL
 
   template <std::size_t N = 0, vir::any_simd_or_mask V,
 	    detail::index_permutation_function<V::size()> F>
