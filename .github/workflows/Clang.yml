@@ -2,7 +2,7 @@
 # Copyright © 2022–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
 #                       Matthias Kretz <m.kretz@gsi.de>
 
-name: CI
+name: Clang CI
 
 on:
   push:
@@ -14,67 +14,15 @@ on:
       - '**.sh'
       - '**Makefile'
       - '**CMakeLists.txt'
+      - '.github/workflows/Clang.yml'
   pull_request:
 
 jobs:
-  gcc:
-    strategy:
-      fail-fast: false
-      matrix:
-        version: [9, 10, 11, 12, 13]
-
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: vir-simd
-
-      - name: Cache test data
-        id: cache-testdata
-        uses: actions/cache@v4
-        with:
-          path: vc-testdata
-          key: testdata-1
-          enableCrossOsArchive: true
-
-      - name: Download test data
-        if: steps.cache-testdata.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: VcDevel/vc-testdata
-          path: vc-testdata
-
-      - name: Install GCC ${{ matrix.version }}
-        run: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt-get update
-          sudo apt-get install -y gcc-${{ matrix.version }} g++-${{ matrix.version }}
-
-      - name: CMake test
-        run: |
-          cmake -S vir-simd -B cmake-build -DCMAKE_BUILD_TYPE:STRING=Release
-          cmake --build cmake-build --target check
-
-      - name: Test installation
-        env:
-          CXX: g++-${{ matrix.version }}
-        run: |
-          cmake -S vir-simd -B cmake-build -DCMAKE_INSTALL_PREFIX:STRING=$HOME/vir-simd-cmake
-          cmake --build cmake-build --target install
-          cd vir-simd && make prefix=$HOME/vir-simd-make install
-          diff -r $HOME/vir-simd-cmake/include $HOME/vir-simd-make/include && echo "cmake and make installations match ✅"
-
-      - name: Run test suite
-        env:
-          CXX: g++-${{ matrix.version }}
-        run: cd vir-simd && make check DRIVEROPTS=-vvf
-
   clang:
     strategy:
       fail-fast: false
       matrix:
-        version: [10, 13, 16, 17]
+        version: [13, 16, 17]
 
     runs-on: ubuntu-22.04
 
@@ -149,6 +97,9 @@ jobs:
           sudo apt-get install -y clang-${{ matrix.version }} libc++-${{ matrix.version }}-dev libc++abi-${{ matrix.version }}-dev
 
       - name: CMake test
+        env:
+          CXX: clang++-${{ matrix.version }}
+          CXXFLAGS: -stdlib=libc++
         run: |
           cmake -S vir-simd -B cmake-build -DCMAKE_BUILD_TYPE:STRING=Release
           cmake --build cmake-build --target check
@@ -158,64 +109,3 @@ jobs:
           CXX: clang++-${{ matrix.version }}
           CXXFLAGS: -stdlib=libc++
         run: cd vir-simd && make check DRIVEROPTS=-vvf
-
-  emscripten:
-    strategy:
-      fail-fast: true
-      matrix:
-        version: [ latest ]
-
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install emscripten ${{ matrix.version }}
-        run: |
-          cd
-          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          ./emsdk install ${{ matrix.version }}
-          ./emsdk activate ${{ matrix.version }}
-
-      - name: Run test suite
-        shell: bash
-        env:
-          CXX: em++
-        run: |
-          source ~/emsdk/emsdk_env.sh
-          make check DRIVEROPTS=-vvf
-
-  msvc:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-2022]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: vir-simd
-
-      - name: Cache test data
-        id: cache-testdata
-        uses: actions/cache@v4
-        with:
-          path: vc-testdata
-          key: testdata-1
-          enableCrossOsArchive: true
-
-      - name: Download test data
-        if: steps.cache-testdata.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: VcDevel/vc-testdata
-          path: vc-testdata
-
-      - name: Configure test
-        run: cmake -S vir-simd -B build -DCMAKE_BUILD_TYPE:STRING=Release
-
-      - name: Compile test
-        run: cmake --build build --config Release --target check
