@@ -9,7 +9,8 @@
 #include "struct_reflect.h"
 #include "constexpr_wrapper.h"
 
-#if VIR_HAVE_STRUCT_REFLECT and VIR_HAVE_CONSTEXPR_WRAPPER
+#if VIR_HAVE_STRUCT_REFLECT and VIR_HAVE_CONSTEXPR_WRAPPER \
+  and (not defined __clang__ or __clang__ > 13)
 #define VIR_HAVE_SIMDIZE 1
 
 #include <tuple>
