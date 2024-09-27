@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright © 2022–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+#                       Matthias Kretz <m.kretz@gsi.de>
+
+name: GCC CI
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - '**.h'
+      - '**.cpp'
+      - '**.cc'
+      - '**.sh'
+      - '**Makefile'
+      - '**CMakeLists.txt'
+      - '.github/workflows/GCC.yml'
+  pull_request:
+
+jobs:
+  gcc:
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [9, 10, 11, 12, 13]
+
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: vir-simd
+
+      - name: Cache test data
+        id: cache-testdata
+        uses: actions/cache@v4
+        with:
+          path: vc-testdata
+          key: testdata-1
+          enableCrossOsArchive: true
+
+      - name: Download test data
+        if: steps.cache-testdata.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: VcDevel/vc-testdata
+          path: vc-testdata
+
+      - name: Install GCC ${{ matrix.version }}
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-${{ matrix.version }} g++-${{ matrix.version }}
+
+      - name: CMake test
+        env:
+          CXX: g++-${{ matrix.version }}
+        run: |
+          cmake -S vir-simd -B cmake-build -DCMAKE_BUILD_TYPE:STRING=Release
+          cmake --build cmake-build --target check
+
+      - name: Test installation
+        env:
+          CXX: g++-${{ matrix.version }}
+        run: |
+          cmake -S vir-simd -B cmake-build -DCMAKE_INSTALL_PREFIX:STRING=$HOME/vir-simd-cmake
+          cmake --build cmake-build --target install
+          cd vir-simd && make prefix=$HOME/vir-simd-make install
+          diff -r $HOME/vir-simd-cmake/include $HOME/vir-simd-make/include && echo "cmake and make installations match ✅"
+
+      - name: Run test suite
+        env:
+          CXX: g++-${{ matrix.version }}
+        run: cd vir-simd && make check DRIVEROPTS=-vvf
