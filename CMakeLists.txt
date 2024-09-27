@@ -21,8 +21,6 @@ set(GCC_WARNINGS ${CLANG_WARNINGS})
 
 if(MSVC)
   set(PROJECT_WARNINGS_CXX ${MSVC_WARNINGS})
-  target_compile_options(
-    vir-simd INTERFACE $<$<COMPILE_LANGUAGE:CXX>:/Zc:preprocessor>)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
   set(PROJECT_WARNINGS_CXX ${CLANG_WARNINGS})
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -55,9 +53,14 @@ add_library(vir-simd-test-fallback EXCLUDE_FROM_ALL vir/test.cpp)
 target_link_libraries(vir-simd-test-fallback PRIVATE vir-simd)
 target_compile_definitions(vir-simd-test-fallback PRIVATE VIR_DISABLE_STDX_SIMD)
 
-add_custom_target(check DEPENDS vir-simd-test-stdlib vir-simd-test-fallback)
+add_library(vir-simd-test-stdlib-cxx20 EXCLUDE_FROM_ALL vir/test.cpp)
+target_link_libraries(vir-simd-test-stdlib-cxx20 PRIVATE vir-simd)
+target_compile_features(vir-simd-test-stdlib-cxx20 PRIVATE cxx_std_20)
 
-if(MSVC)
-  target_compile_options(vir-simd-test-stdlib PRIVATE /std:c++latest)
-  target_compile_options(vir-simd-test-fallback PRIVATE /std:c++latest)
-endif()
+add_library(vir-simd-test-fallback-cxx20 EXCLUDE_FROM_ALL vir/test.cpp)
+target_link_libraries(vir-simd-test-fallback-cxx20 PRIVATE vir-simd)
+target_compile_definitions(vir-simd-test-fallback-cxx20 PRIVATE VIR_DISABLE_STDX_SIMD)
+target_compile_features(vir-simd-test-fallback-cxx20 PRIVATE cxx_std_20)
+
+add_custom_target(check DEPENDS vir-simd-test-stdlib vir-simd-test-fallback
+  vir-simd-test-stdlib-cxx20 vir-simd-test-fallback-cxx20)
