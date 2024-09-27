@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright © 2022–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+#                       Matthias Kretz <m.kretz@gsi.de>
+
+name: MSVC CI
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - '**.h'
+      - '**.cpp'
+      - '**.cc'
+      - '**.sh'
+      - '**Makefile'
+      - '**CMakeLists.txt'
+      - '.github/workflows/MSVC.yml'
+  pull_request:
+
+jobs:
+  msvc:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: vir-simd
+
+      - name: Cache test data
+        id: cache-testdata
+        uses: actions/cache@v4
+        with:
+          path: vc-testdata
+          key: testdata-1
+          enableCrossOsArchive: true
+
+      - name: Download test data
+        if: steps.cache-testdata.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: VcDevel/vc-testdata
+          path: vc-testdata
+
+      - name: Configure test
+        run: cmake -S vir-simd -B build -DCMAKE_BUILD_TYPE:STRING=Release
+
+      - name: Compile test
+        run: cmake --build build --config Release --target check

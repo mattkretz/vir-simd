@@ -1,7 +1,10 @@
 # vir::stdx::simd
 
 [![Conan Center](https://img.shields.io/conan/v/vir-simd)](https://conan.io/center/recipes/vir-simd)
-[![CI](https://github.com/mattkretz/vir-simd/actions/workflows/CI.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/CI.yml)
+[![GCC](https://github.com/mattkretz/vir-simd/actions/workflows/GCC.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/GCC.yml)
+[![Clang](https://github.com/mattkretz/vir-simd/actions/workflows/Clang.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/Clang.yml)
+[![MSVC](https://github.com/mattkretz/vir-simd/actions/workflows/MSVC.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/MSVC.yml)
+[![Emscripten](https://github.com/mattkretz/vir-simd/actions/workflows/Emscripten.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/Emscripten.yml)
 [![DOI](https://zenodo.org/badge/536945709.svg)](https://zenodo.org/badge/latestdoi/536945709)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6916/badge)](https://bestpractices.coreinfrastructure.org/projects/6916)
 [![REUSE status](https://github.com/mattkretz/vir-simd/actions/workflows/reuse.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/reuse.yml)

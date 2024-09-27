@@ -662,9 +662,9 @@ case0:
         std::size_t distance = std::distance(first1, last1);
         constexpr bool assume_matching_size = ExecutionPolicy::_assume_matching_size;
         if constexpr (assume_matching_size)
-          vir_simd_precondition(
-            distance % size == 0, "The explicit assumption, that the range size (%d) is a multiple "
-                                  "of the SIMD width (%d), does not hold.", size);
+          vir_simd_precondition_vaargs(
+            distance % size == 0, "The explicit assumption, that the range size (%zu) is a multiple"
+                                  " of the SIMD width (%d), does not hold.", distance, size());
 
         if (std::is_constant_evaluated())
           {
@@ -892,9 +892,9 @@ case0:
         std::size_t distance = std::distance(first1, last1);
         constexpr bool assume_matching_size = ExecutionPolicy::_assume_matching_size;
         if constexpr (assume_matching_size)
-          vir_simd_precondition(
-            distance % size == 0, "The explicit assumption, that the range size (%d) is a multiple "
-                                  "of the SIMD width (%d), does not hold.", size);
+          vir_simd_precondition_vaargs(
+            distance % size == 0, "The explicit assumption, that the range size (%zu) is a multiple"
+                                  " of the SIMD width (%d), does not hold.", distance, size);
 
         if (std::is_constant_evaluated())
           {
@@ -1034,9 +1034,9 @@ case0:
       std::size_t distance = std::distance(first, last);
         constexpr bool assume_matching_size = ExecutionPolicy::_assume_matching_size;
         if constexpr (assume_matching_size)
-          vir_simd_precondition(
-            distance % size == 0, "The explicit assumption, that the range size (%d) is a multiple "
-                                  "of the SIMD width (%d), does not hold.", size);
+          vir_simd_precondition_vaargs(
+            distance % size == 0, "The explicit assumption, that the range size (%zu) is a multiple"
+                                  " of the SIMD width (%d), does not hold.", distance, size);
 
       if (std::is_constant_evaluated())
         {
