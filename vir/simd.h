@@ -106,8 +106,12 @@ namespace vir::detail
 #endif
 
 #if VIR_CHECK_PRECONDITIONS < 0
-#define vir_simd_precondition(expr, msg, ...)                                             \
+#define vir_simd_precondition(expr, msg)             \
   (void) bool(expr)
+
+#define vir_simd_precondition_vaargs(expr, msg, ...) \
+  (void) bool(expr)
+
 #elif defined __clang__ or __GNUC__ >= 10
 #if (VIR_CHECK_PRECONDITIONS & 1) == 1
 #define VIR_CONSTPROP_PRECONDITION_FAILURE_ACTION __error__
@@ -119,7 +123,7 @@ namespace vir::detail
 #else
 #define VIR_ATTR_NOIPA
 #endif
-#define vir_simd_precondition(expr, msg, ...)                                               \
+#define vir_simd_precondition(expr, msg)                                                    \
   do {                                                                                      \
     const bool precondition_result = bool(expr);                                            \
     if (__builtin_constant_p(precondition_result) and not precondition_result)              \
@@ -130,17 +134,42 @@ namespace vir::detail
     else if (__builtin_expect(not precondition_result, false))                              \
       vir::detail::invoke_ub(                                                               \
         VIR_SIMD_LOC "precondition failure in '%s': " msg " ('" #expr "' does not hold)\n", \
-        VIR_PRETTY_FUNCTION_ __VA_OPT__(,) __VA_ARGS__);                                    \
+        VIR_PRETTY_FUNCTION_);                                                              \
   } while(false)
+
+#define vir_simd_precondition_vaargs(expr, msg, ...)                                        \
+  do {                                                                                      \
+    const bool precondition_result = bool(expr);                                            \
+    if (__builtin_constant_p(precondition_result) and not precondition_result)              \
+      []() __attribute__((__noinline__, __noreturn__, VIR_ATTR_NOIPA                        \
+        VIR_CONSTPROP_PRECONDITION_FAILURE_ACTION("precondition failure."                   \
+        "\n" VIR_SIMD_LOC "note: " msg " (precondition '" #expr "' does not hold)")))       \
+        { vir::detail::trap(); }();                                                         \
+    else if (__builtin_expect(not precondition_result, false))                              \
+      vir::detail::invoke_ub(                                                               \
+        VIR_SIMD_LOC "precondition failure in '%s': " msg " ('" #expr "' does not hold)\n", \
+        VIR_PRETTY_FUNCTION_, __VA_ARGS__);                                                 \
+  } while(false)
+
 #else
-#define vir_simd_precondition(expr, msg, ...)                                               \
+#define vir_simd_precondition(expr, msg)                                                    \
   do {                                                                                      \
     const bool precondition_result = bool(expr);                                            \
     if (not precondition_result) [[unlikely]]                                               \
       vir::detail::invoke_ub(                                                               \
         VIR_SIMD_LOC "precondition failure in '%s': " msg " ('" #expr "' does not hold)\n", \
-        VIR_PRETTY_FUNCTION_ __VA_OPT__(,) __VA_ARGS__);                                    \
+        VIR_PRETTY_FUNCTION_);                                                              \
   } while(false)
+
+#define vir_simd_precondition_vaargs(expr, msg, ...)                                        \
+  do {                                                                                      \
+    const bool precondition_result = bool(expr);                                            \
+    if (not precondition_result) [[unlikely]]                                               \
+      vir::detail::invoke_ub(                                                               \
+        VIR_SIMD_LOC "precondition failure in '%s': " msg " ('" #expr "' does not hold)\n", \
+        VIR_PRETTY_FUNCTION_, __VA_ARGS__);                                                 \
+  } while(false)
+
 #endif
 
 
@@ -654,14 +683,16 @@ namespace vir::stdx
       constexpr reference
       operator[](size_t i)
       {
-        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition_vaargs(i < size(), "Subscript %zu is out of range [0, %zu]",
+                                     i, size() - 1);
         return data;
       }
 
       constexpr value_type
       operator[](size_t i) const
       {
-        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition_vaargs(i < size(), "Subscript %zu is out of range [0, %zu]",
+                                     i, size() - 1);
         return data;
       }
 
@@ -805,14 +836,16 @@ namespace vir::stdx
       constexpr reference
       operator[](size_t i)
       {
-        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition_vaargs(i < size(), "Subscript %zu is out of range [0, %zu]",
+                                     i, size() - 1);
         return data[i];
       }
 
       constexpr value_type
       operator[](size_t i) const
       {
-        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition_vaargs(i < size(), "Subscript %zu is out of range [0, %zu]",
+                                     i, size() - 1);
         return data[i];
       }
 
@@ -1264,14 +1297,16 @@ namespace vir::stdx
       constexpr reference
       operator[](size_t i)
       {
-        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition_vaargs(i < size(), "Subscript %zu is out of range [0, %zu]",
+                                     i, size() - 1);
         return data;
       }
 
       constexpr value_type
       operator[](size_t i) const
       {
-        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition_vaargs(i < size(), "Subscript %zu is out of range [0, %zu]",
+                                     i, size() - 1);
         return data;
       }
 
@@ -1591,14 +1626,16 @@ namespace vir::stdx
       constexpr reference
       operator[](size_t i)
       {
-        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition_vaargs(i < size(), "Subscript %zu is out of range [0, %zu]",
+                                     i, size() - 1);
         return data[i];
       }
 
       constexpr value_type
       operator[](size_t i) const
       {
-        vir_simd_precondition(i < size(), "Subscript %d is out of range [0, %d]", i, size() - 1);
+        vir_simd_precondition_vaargs(i < size(), "Subscript %zu is out of range [0, %zu]",
+                                     i, size() - 1);
         return data[i];
       }
 
