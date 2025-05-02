@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright © 2022–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+# Copyright © 2022–2025 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
 #                       Matthias Kretz <m.kretz@gsi.de>
 
 name: Clang CI
@@ -17,14 +17,20 @@ on:
       - '.github/workflows/Clang.yml'
   pull_request:
 
+env:
+  CXX: clang++
+
 jobs:
   clang:
     strategy:
       fail-fast: false
       matrix:
-        version: [13, 16, 17]
+        version: [14, 16, 17, 20]
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/mattkretz/cplusplus-ci/clang${{ matrix.version}}
 
     steps:
       - uses: actions/checkout@v4
@@ -46,28 +52,22 @@ jobs:
           repository: VcDevel/vc-testdata
           path: vc-testdata
 
-      - name: Install Clang ${{ matrix.version }}
-        run: |
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${{ matrix.version }} main'
-          #sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt-get update
-          sudo apt-get install -y clang-${{ matrix.version }}
-          #sudo apt-get install -y g++-13 clang-${{ matrix.version }}
-          #sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 110 --slave /usr/bin/g++ g++ /usr/bin/g++-13
-
       - name: Run test suite
-        env:
-          CXX: clang++-${{ matrix.version }}
         run: cd vir-simd && make check DRIVEROPTS=-vvf
 
   clang-libcxx:
     strategy:
       fail-fast: false
       matrix:
-        version: [15, 17]
+        version: [15, 17, 20]
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/mattkretz/cplusplus-ci/clang${{ matrix.version}}
+
+    env:
+      CXXFLAGS: -stdlib=libc++
 
     steps:
       - uses: actions/checkout@v4
@@ -89,23 +89,10 @@ jobs:
           repository: VcDevel/vc-testdata
           path: vc-testdata
 
-      - name: Install Clang ${{ matrix.version }}
-        run: |
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${{ matrix.version }} main'
-          sudo apt-get update
-          sudo apt-get install -y clang-${{ matrix.version }} libc++-${{ matrix.version }}-dev libc++abi-${{ matrix.version }}-dev
-
       - name: CMake test
-        env:
-          CXX: clang++-${{ matrix.version }}
-          CXXFLAGS: -stdlib=libc++
         run: |
           cmake -S vir-simd -B cmake-build -DCMAKE_BUILD_TYPE:STRING=Release
           cmake --build cmake-build --target check
 
       - name: Run test suite
-        env:
-          CXX: clang++-${{ matrix.version }}
-          CXXFLAGS: -stdlib=libc++
         run: cd vir-simd && make check DRIVEROPTS=-vvf

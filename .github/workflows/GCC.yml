@@ -17,14 +17,20 @@ on:
       - '.github/workflows/GCC.yml'
   pull_request:
 
+env:
+  CXX: g++
+
 jobs:
   gcc:
     strategy:
       fail-fast: false
       matrix:
-        version: [9, 10, 11, 12, 13]
+        version: [9, 10, 11, 12, 13, 14, 15]
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/mattkretz/cplusplus-ci/gcc${{ matrix.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -46,22 +52,12 @@ jobs:
           repository: VcDevel/vc-testdata
           path: vc-testdata
 
-      - name: Install GCC ${{ matrix.version }}
-        run: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt-get update
-          sudo apt-get install -y gcc-${{ matrix.version }} g++-${{ matrix.version }}
-
       - name: CMake test
-        env:
-          CXX: g++-${{ matrix.version }}
         run: |
           cmake -S vir-simd -B cmake-build -DCMAKE_BUILD_TYPE:STRING=Release
           cmake --build cmake-build --target check
 
       - name: Test installation
-        env:
-          CXX: g++-${{ matrix.version }}
         run: |
           cmake -S vir-simd -B cmake-build -DCMAKE_INSTALL_PREFIX:STRING=$HOME/vir-simd-cmake
           cmake --build cmake-build --target install
@@ -69,6 +65,4 @@ jobs:
           diff -r $HOME/vir-simd-cmake/include $HOME/vir-simd-make/include && echo "cmake and make installations match ✅"
 
       - name: Run test suite
-        env:
-          CXX: g++-${{ matrix.version }}
         run: cd vir-simd && make check DRIVEROPTS=-vvf
