@@ -283,6 +283,32 @@ static_assert(
 		 2, vir::simdize<std::tuple<std::tuple<int, double>, short, std::tuple<float>>>>,
 	       vir::vectorized_struct<std::tuple<float>, V<short>::size()>>);
 
+template <typename T, int N>
+  concept can_simdize = requires { typename vir::simdize<T, N>; }
+			  and not std::is_same_v<vir::simdize<T, N>, T>;
+
+static_assert(can_simdize<int, 4>);
+
+static_assert(can_simdize<int, 1025> == std::is_destructible_v<stdx::fixed_size_simd<int, 1025>>);
+
+static_assert(can_simdize<std::tuple<char, double>, 2>);
+
+static_assert(can_simdize<std::tuple<char, double>, 1234>
+		== (std::is_destructible_v<stdx::fixed_size_simd<char, 1234>>
+		      and std::is_destructible_v<stdx::fixed_size_simd<double, 1234>>));
+
+struct char_double
+{
+  char a;
+  double b;
+};
+
+static_assert(can_simdize<char_double, 2>);
+
+static_assert(can_simdize<char_double, 1234>
+		== (std::is_destructible_v<stdx::fixed_size_simd<char, 1234>>
+		      and std::is_destructible_v<stdx::fixed_size_simd<double, 1234>>));
+
 template <typename T>
 struct PointTpl
 {

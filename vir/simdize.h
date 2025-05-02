@@ -48,10 +48,20 @@ namespace vir
     inline constexpr int simdize_size_v = simdize_size<T>::value;
 
   template <typename T, int N>
-    class simd_tuple;
+    class simd_tuple
+    {
+      simd_tuple() = delete;
+      simd_tuple(const simd_tuple&) = delete;
+      ~simd_tuple() = delete;
+    };
 
   template <typename T, int N>
-    class vectorized_struct;
+    class vectorized_struct
+    {
+      vectorized_struct() = delete;
+      vectorized_struct(const vectorized_struct&) = delete;
+      ~vectorized_struct() = delete;
+    };
 
   namespace detail
   {
@@ -85,6 +95,9 @@ namespace vir
       { using type = T; };
 
     template <vectorizable T, int N>
+      requires requires {
+	typename stdx::simd_abi::deduce_t<T, N == 0 ? stdx::native_simd<T>::size() : N>;
+      }
       struct simdize_impl<T, N>
       { using type = deduced_simd<T, N == 0 ? stdx::native_simd<T>::size() : N>; };
 
@@ -141,49 +154,62 @@ namespace vir
     template <typename Tup>
       inline constexpr int default_simdize_size_v = default_simdize_size<Tup>::value;
 
-    template <reflectable_struct Tup, int N>
+    template <reflectable_struct Tup, int N,
+	      typename = std::make_index_sequence<vir::struct_size_v<Tup>>>
+      struct make_simd_tuple;
+
+    template <reflectable_struct Tup, int N, std::size_t... Is>
       requires (vir::struct_size_v<Tup> > 0 and N > 0)
-      struct make_simd_tuple
+	and ((simdize_impl<vir::struct_element_t<Is, Tup>, N>::type::size() == N) and ...)
+      struct make_simd_tuple<Tup, N, std::index_sequence<Is...>>
       {
-	using type = decltype([]<std::size_t... Is>(std::index_sequence<Is...>)
-				-> std::tuple<typename simdize_impl<
-						vir::struct_element_t<Is, Tup>, N>::type...> {
-		       return {};
-		     }(std::make_index_sequence<vir::struct_size_v<Tup>>()));
+	using type = std::tuple<typename simdize_impl<vir::struct_element_t<Is, Tup>, N>::type...>;
       };
 
     /**
      * Recursively simdize all type template arguments.
      */
     template <std::size_t N, template <typename...> class Tpl, typename... Ts>
+      requires ((simdize_impl<Ts, N>::type::size() == N) and ...)
       Tpl<typename simdize_impl<Ts, N>::type...>
       simdize_template_arguments_impl(const Tpl<Ts...>&);
 
     template <std::size_t N, template <typename, auto...> class Tpl, typename T, auto... X>
       requires(sizeof...(X) > 0)
+	and (simdize_impl<T, N>::type::size() == N)
       Tpl<typename simdize_impl<T, N>::type, X...>
       simdize_template_arguments_impl(const Tpl<T, X...>&);
 
     template <std::size_t N, template <typename, typename, auto...> class Tpl,
 	      typename... Ts, auto... X>
       requires(sizeof...(X) > 0)
+	and ((simdize_impl<Ts, N>::type::size() == N) and ...)
       Tpl<typename simdize_impl<Ts, N>::type..., X...>
       simdize_template_arguments_impl(const Tpl<Ts..., X...>&);
 
     template <std::size_t N, template <typename, typename, typename, auto...> class Tpl,
 	      typename... Ts, auto... X>
       requires(sizeof...(X) > 0)
+	and ((simdize_impl<Ts, N>::type::size() == N) and ...)
       Tpl<typename simdize_impl<Ts, N>::type..., X...>
       simdize_template_arguments_impl(const Tpl<Ts..., X...>&);
 
-    template <typename T, int N = 0>
+    template <typename T, int N>
+      struct simdize_template_arguments;
+
+    template <typename T, int N>
+      requires requires(const T& tt) { simdize_template_arguments_impl<N>(tt); }
+      struct simdize_template_arguments<T, N>
+      { using type = decltype(simdize_template_arguments_impl<N>(std::declval<const T&>())); };
+
+    template <typename T>
       requires requires(const T& tt) {
 	simdize_template_arguments_impl<default_simdize_size<T>::value>(tt);
       }
-      struct simdize_template_arguments
+      struct simdize_template_arguments<T, 0>
       {
-	using type = decltype(simdize_template_arguments_impl<
-				N == 0 ? default_simdize_size_v<T> : N>(std::declval<const T&>()));
+	using type = decltype(simdize_template_arguments_impl<default_simdize_size_v<T>>(
+				std::declval<const T&>()));
       };
 
     template <typename T, int N = 0>
@@ -311,6 +337,7 @@ namespace vir
     template <reflectable_struct Tup, int N>
       requires (vir::struct_size_v<Tup> > 0 and not vectorizable_struct_template<Tup>)
 	and requires { default_simdize_size<Tup>::value; }
+	and std::is_destructible_v<simd_tuple<Tup, N == 0 ? default_simdize_size_v<Tup> : N>>
       struct simdize_impl<Tup, N>
       {
 	static_assert(requires { typename simdize_impl<vir::struct_element_t<0, Tup>, N>::type; });
@@ -320,6 +347,7 @@ namespace vir
 
     template <vectorizable_struct_template T, int N>
       requires requires { default_simdize_size<T>::value; }
+	and std::is_destructible_v<vectorized_struct<T, N == 0 ? default_simdize_size_v<T> : N>>
       struct simdize_impl<T, N>
       { using type = vectorized_struct<T, N == 0 ? default_simdize_size_v<T> : N>; };
   } // namespace detail
@@ -328,6 +356,7 @@ namespace vir
    * stdx::simd-like interface for tuples of vectorized data members of T.
    */
   template <reflectable_struct T, int N>
+    requires requires { typename detail::make_simd_tuple<T, N>::type; }
     class simd_tuple<T, N>
     {
       using tuple_type = typename detail::make_simd_tuple<T, N>::type;
@@ -472,6 +501,7 @@ namespace vir
    * stdx::simd-like interface on top of vectorized types (template argument substitution).
    */
   template <vectorizable_struct_template T, int N>
+    requires requires { typename detail::simdize_template_arguments_t<T, N>; }
     class vectorized_struct<T, N> : public detail::simdize_template_arguments_t<T, N>
     {
       using tuple_type = typename detail::make_simd_tuple<T, N>::type;
