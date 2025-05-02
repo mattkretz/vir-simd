@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: CC0-1.0
-# SPDX-FileCopyrightText: 2023–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH / Matthias Kretz <m.kretz@gsi.de>
+# SPDX-FileCopyrightText: 2023–2025 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH / Matthias Kretz <m.kretz@gsi.de>
 
 name: fair-software
 
@@ -18,7 +18,7 @@ jobs:
           path: howfairis
 
       - name: Install mattkretz/howfairis
-        run: pip install ./howfairis
+        run: pipx install ./howfairis
 
       - name: Measure compliance with fair-software.eu recommendations
         env:
