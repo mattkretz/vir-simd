@@ -13,11 +13,11 @@
 #define VIR_HAVE_SPACESHIP 0
 #endif
 
-//     release >= 0x00
-// development >= 0x64
+//     release >= 0x00 and even
+// development >= 0x00 and odd
 //       alpha >= 0xbe
 //        beta >= 0xc8
-#define VIR_SIMD_VERSION 0x0'04'00
+#define VIR_SIMD_VERSION 0x0'04'01
 
 #define VIR_SIMD_VERSION_MAJOR (VIR_SIMD_VERSION / 0x10000)
 

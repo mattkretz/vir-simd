@@ -571,9 +571,7 @@ static_assert(vir::simd_version >= vir::simd_version_t{0,4,0});
 
 * An increment of the patchlevel is used for bug fixes.
 
-* A value `>= 100` for minor or patchlevel numbers is reserved for development 
-  and alpha/beta releases.
-
+* Odd patchlevel numbers indicate a development (not released) version.
 
 ## Debugging
 
