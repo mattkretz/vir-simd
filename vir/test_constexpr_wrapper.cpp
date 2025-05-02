@@ -94,7 +94,7 @@ template <typename Char, std::size_t N>
 // string constant
 template <strlit chars>
   inline constexpr vir::constexpr_wrapper<chars>
-  operator"" _sc()
+  operator""_sc()
   { return {}; }
 
 struct NeedsAdl

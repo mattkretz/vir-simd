@@ -459,7 +459,7 @@ namespace vir
   namespace literals
   {
     template <char... Chars>
-      constexpr auto operator"" _cw()
+      constexpr auto operator""_cw()
       { return vir::cw<vir::detail::cw_parse<Chars...>()>; }
   }
 
