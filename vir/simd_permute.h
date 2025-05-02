@@ -178,35 +178,41 @@ namespace vir
 	      }
 #endif
 #if VIR_HAVE_WORKING_SHUFFLEVECTOR
-	    using VecType [[gnu::vector_size(sizeof(V))]] = T;
-	    if constexpr (std::is_trivially_copyable_v<V> and std::is_constructible_v<R, VecType>)
+	    if constexpr (std::has_single_bit(sizeof(V)) and std::has_single_bit(sizeof(R)))
 	      {
-		const VecType vec = detail::bit_cast<VecType>(v);
-		const auto idx_perm2 = [&](constexpr_value auto i) -> int {
-		  constexpr int j = [&]() {
-		    if constexpr (detail::index_permutation_function_nosize<F>)
-		      return idx_perm(i);
-		    else
-		      return idx_perm(i, vir::cw<V::size()>);
-		  }();
-		  if constexpr (j == simd_permute_zero)
-		    return V::size();
-		  else if constexpr (j == simd_permute_uninit)
-		    return -1;
-		  else if constexpr (j < 0)
-		    {
-		      static_assert (-j <= int(V::size()));
-		      return int(V::size()) + j;
-		    }
-		  else
-		    {
-		      static_assert (j < int(V::size()));
-		      return j;
-		    }
-		};
-		return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-		  return R(__builtin_shufflevector(vec, VecType{}, (idx_perm2(vir::cw<Is>))...));
-		}(std::make_index_sequence<V::size()>());
+		using VBuiltin [[gnu::vector_size(sizeof(V))]] = T;
+		using RBuiltin [[gnu::vector_size(sizeof(R))]] = T;
+		if constexpr (std::is_trivially_copyable_v<V> and std::is_trivially_copyable_v<R>
+				and sizeof(VBuiltin) == sizeof(V) and sizeof(RBuiltin) == sizeof(R))
+		  {
+		    const VBuiltin vec = detail::bit_cast<VBuiltin>(v);
+		    const auto idx_perm2 = [&](constexpr_value auto i) -> int {
+		      constexpr int j = [&]() {
+			if constexpr (detail::index_permutation_function_nosize<F>)
+			  return idx_perm(i);
+			else
+			  return idx_perm(i, vir::cw<V::size()>);
+		      }();
+		      if constexpr (j == simd_permute_zero)
+			return V::size();
+		      else if constexpr (j == simd_permute_uninit)
+			return -1;
+		      else if constexpr (j < 0)
+			{
+			  static_assert (-j <= int(V::size()));
+			  return int(V::size()) + j;
+			}
+		      else
+			{
+			  static_assert (j < int(V::size()));
+			  return j;
+			}
+		    };
+		    return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+		      return detail::bit_cast<R>(__builtin_shufflevector(
+						   vec, VBuiltin{}, (idx_perm2(vir::cw<Is>))...));
+		    }(std::make_index_sequence<R::size()>());
+		  }
 	      }
 #endif
 	  }
