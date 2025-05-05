@@ -17,12 +17,12 @@ authors:
     email: m.kretz@gsi.de
     affiliation: GSI Helmholtz Centre for Heavy Ion Research
     orcid: 'https://orcid.org/0000-0002-0867-243X'
-doi: 10.5281/zenodo.15340418
+doi: 10.5281/zenodo.15340451
 version: 0.4.2
 date-released: 2024-09-26
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.15340418
+    value: 10.5281/zenodo.15340451
     description: Version 0.4.2
   - type: doi
     value: 10.5281/zenodo.13842247
