@@ -5,7 +5,7 @@
 [![Clang](https://github.com/mattkretz/vir-simd/actions/workflows/Clang.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/Clang.yml)
 [![MSVC](https://github.com/mattkretz/vir-simd/actions/workflows/MSVC.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/MSVC.yml)
 [![Emscripten](https://github.com/mattkretz/vir-simd/actions/workflows/Emscripten.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/Emscripten.yml)
-[![DOI](https://zenodo.org/badge/536945709.svg)](https://zenodo.org/badge/latestdoi/536945709)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7789153.svg)](https://doi.org/10.5281/zenodo.7789153)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6916/badge)](https://bestpractices.coreinfrastructure.org/projects/6916)
 [![REUSE status](https://github.com/mattkretz/vir-simd/actions/workflows/reuse.yml/badge.svg)](https://github.com/mattkretz/vir-simd/actions/workflows/reuse.yml)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu)
