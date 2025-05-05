@@ -17,7 +17,7 @@
 // development >= 0x00 and odd
 //       alpha >= 0xbe
 //        beta >= 0xc8
-#define VIR_SIMD_VERSION 0x0'04'02
+#define VIR_SIMD_VERSION 0x0'04'03
 
 #define VIR_SIMD_VERSION_MAJOR (VIR_SIMD_VERSION / 0x10000)
 
