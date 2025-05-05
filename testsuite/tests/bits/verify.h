@@ -49,6 +49,32 @@ template <class T>
       }
   }
 
+template <typename T>
+  struct better_cast_to_int
+  : std::false_type
+  {};
+
+template <typename T>
+  inline constexpr bool better_cast_to_int_v = better_cast_to_int<T>::value;
+
+template <typename T>
+  struct better_cast_to_int<const T>
+  : better_cast_to_int<T>
+  {};
+
+template <typename T>
+  struct better_cast_to_int<T&>
+  : better_cast_to_int<T>
+  {};
+
+template <> struct better_cast_to_int<char> : std::true_type {};
+template <> struct better_cast_to_int<signed char> : std::true_type {};
+template <> struct better_cast_to_int<unsigned char> : std::true_type {};
+template <> struct better_cast_to_int<wchar_t> : std::true_type {};
+template <> struct better_cast_to_int<char8_t> : std::true_type {};
+template <> struct better_cast_to_int<char16_t> : std::true_type {};
+template <> struct better_cast_to_int<char32_t> : std::true_type {};
+
 class verify
 {
   const bool m_failed = false;
@@ -61,7 +87,10 @@ class verify
     print(const T& x, int) const
     {
       std::stringstream ss;
-      ss << x;
+      if constexpr (better_cast_to_int_v<T>)
+        ss << int(x);
+      else
+        ss << x;
       if constexpr (std::is_floating_point_v<T>)
         ss << "(== " << std::hexfloat << x << ')';
       __builtin_fprintf(stderr, "%s", ss.str().c_str());
