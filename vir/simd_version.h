@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright © 2024      GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+/* Copyright © 2024–2025 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
  *                       Matthias Kretz <m.kretz@gsi.de>
  */
 
@@ -17,7 +17,7 @@
 // development >= 0x00 and odd
 //       alpha >= 0xbe
 //        beta >= 0xc8
-#define VIR_SIMD_VERSION 0x0'04'01
+#define VIR_SIMD_VERSION 0x0'04'02
 
 #define VIR_SIMD_VERSION_MAJOR (VIR_SIMD_VERSION / 0x10000)
 
