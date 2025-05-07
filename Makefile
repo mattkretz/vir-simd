@@ -43,12 +43,22 @@ version:=$(shell grep '\<VIR_SIMD_VERSION\>' vir/simd_version.h | \
 
 version_patchlevel:=$(lastword $(subst ., ,$(version)))
 
-version_info=$(shell test $(version_patchlevel) -lt 100 && echo release || \
-	     (test $(version_patchlevel) -lt 190 && echo development || \
-	     (test $(version_patchlevel) -lt 200 && echo alpha $$(($(version_patchlevel)-189)) || \
-	     echo beta $$(($(version_patchlevel)-199)))))
+version_info=$(shell test $$(($(version_patchlevel)&1)) -eq 1 && echo development || \
+	     (test $(version_patchlevel) -lt 190 && echo release || \
+	     (test $(version_patchlevel) -lt 200 && echo alpha $$(($(version_patchlevel)/2-94)) || \
+	     echo beta $$(($(version_patchlevel)/2-99)))))
 
-check: check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
+cxx_version := $(shell $(CXX) --version | head -n1)
+
+print_compiler_info:
+	@echo "Compiler: $(CXX) $(ICECC_CXX)"
+	@echo "          $(cxx_version)"
+	@echo "vir::simd_version: $(version) ($(version_info))"
+	@echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+
+.PHONY: print_compiler_info
+
+check: print_compiler_info check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
 
 debug:
 	@echo "vir::simd_version: $(version) ($(version_info))"
