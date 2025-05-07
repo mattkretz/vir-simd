@@ -2,6 +2,14 @@
 # Copyright © 2022–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
 #                       Matthias Kretz <m.kretz@gsi.de>
 
+# Tests for vir-simd extensions to std::experimental::simd
+ext_tests = for_each \
+	    transform \
+	    transform_reduce
+
+# Tests for Parallelism TS 2 compliance
+simd_tests = $(filter-out $(ext_tests),$(patsubst testsuite/tests/%.cc,%,$(wildcard testsuite/tests/*.cc)))
+
 build_dir := $(shell which $(CXX))
 tmp := "case $$(readlink -f $(build_dir)) in *icecc) which $${ICECC_CXX:-g++};; *) echo $(build_dir);; esac"
 build_dir := $(shell sh -c $(tmp))
@@ -25,8 +33,8 @@ includedir=$(prefix)/include
 
 srcdir=.
 testdir=testsuite/$(build_dir)-O2
-testdirOs=testsuite/$(build_dir)-Os
-testdirext=testsuite/$(build_dir)-ext
+testdirext=testsuite/$(build_dir)-ext-O2
+testdirextOs=testsuite/$(build_dir)-ext-Os
 sim=
 
 ifneq ($(findstring 86,$(triplet)),)
@@ -36,6 +44,8 @@ else ifneq ($(findstring wasm,$(triplet)),)
 endif
 
 std=$(shell env CXX=$(CXX) ./latest_std_flag.sh)
+
+uses_stdx_simd=$(findstring define VIR_GLIBCXX_STDX_SIMD 1,$(shell $(CXX) $(CXXFLAGS) -x c++ -std=$(std) -o- -dM -E vir/detail.h))
 
 version:=$(shell grep '\<VIR_SIMD_VERSION\>' vir/simd_version.h | \
 	sed -e 's/.*0x/0x/' -e 's/'\''//g' | \
@@ -58,7 +68,13 @@ print_compiler_info:
 
 .PHONY: print_compiler_info
 
-check: print_compiler_info check-extensions check-constexpr_wrapper testsuite-O2 testsuite-Os
+# Always run the testsuite on extensions to stdx::simd.
+check: print_compiler_info check-extensions check-constexpr_wrapper testsuite-ext-O2 testsuite-ext-Os
+
+# If the default of vir-simd is to use the fallback implementation, then run the simd testsuite on it.
+ifeq ($(uses_stdx_simd),)
+check: testsuite-O2
+endif
 
 debug:
 	@echo "vir::simd_version: $(version) ($(version_info))"
@@ -69,28 +85,23 @@ debug:
 	@echo "CXX: $(CXX)"
 	@echo "CXXFLAGS: $(CXXFLAGS)"
 	@echo "std: $(std)"
+	@echo "uses_stdx_simd: $(uses_stdx_simd)"
 
-testsuite/$(build_dir)-%/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
+getflag = -$(subst ext-,,$1)
+disable_stdx_simd_flag = $(if $(findstring ext-,$1),,-DVIR_DISABLE_STDX_SIMD)
+
+testsuite/$(build_dir)-%/:
+	@mkdir -p $(dir $@)
+
+testsuite/$(build_dir)-%/Makefile: testsuite/$(build_dir)-%/ $(srcdir)/testsuite/generate_makefile.sh Makefile
+	$(file >$(dir $@)testsuite_files_simd)
+	$(foreach t,$(if $(findstring ext-,$*),$(ext_tests),$(simd_tests)),$(file >>$(dir $@)testsuite_files_simd,$t.cc))
 	@rm -f $@
 	@echo "Generating simd testsuite ($*) subdirs and Makefiles ..."
-	@$(srcdir)/testsuite/generate_makefile.sh --destination="testsuite/$(build_dir)-$*" --sim="$(sim)" --testflags="$(testflags)" $(CXX) -$* -std=$(std) $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -DVIR_SIMD_TS_DROPIN
+	@cd $(dir $@) && ../generate_makefile.sh --destination=. --sim="$(sim)" --testflags="$(testflags)" $(CXX) -std=$(std) $(CXXFLAGS) $(call getflag,$*) $(call disable_stdx_simd_flag,$*) -DVIR_SIMD_TS_DROPIN
 	@if test -e ../vc-testdata/reference-sincos-dp.dat; then \
 		dir=$$PWD && \
 		cd "testsuite/$(build_dir)-$*" && \
-		ln -sf $$dir/../vc-testdata/*.dat .; \
-	fi
-
-$(testdirext)/Makefile: $(srcdir)/testsuite/generate_makefile.sh Makefile
-	@rm -f $@
-	@echo "Generating simd testsuite subdirs and Makefiles ..."
-	@mkdir -p $(testdirext)
-	@echo for_each.cc > $(testdirext)/testsuite_files_simd
-	@echo transform.cc >> $(testdirext)/testsuite_files_simd
-	@echo transform_reduce.cc >> $(testdirext)/testsuite_files_simd
-	@cd $(testdirext) && ../generate_makefile.sh --destination="." --sim="$(sim)" --testflags="-O2 $(testflags)" $(CXX) -std=$(std) $(CXXFLAGS) -DVIR_SIMD_TS_DROPIN
-	@if test -e ../vc-testdata/reference-sincos-dp.dat; then \
-		dir=$$PWD && \
-		cd "$(testdirext)" && \
 		ln -sf $$dir/../vc-testdata/*.dat .; \
 	fi
 
@@ -126,20 +137,20 @@ check-constexpr_wrapper:
 run-%: $(testdir)/Makefile
 	@$(MAKE) -C "$(testdir)" run-$*
 
-run-Os-%: $(testdirOs)/Makefile
-	@$(MAKE) -C "$(testdirOs)" run-$*
-
-run-ext-%: $(testdirext)/Makefile
+run-ext-O2-%: $(testdirext)/Makefile
 	@$(MAKE) -C "$(testdirext)" run-$*
+
+run-ext-Os-%: $(testdirext)/Makefile
+	@$(MAKE) -C "$(testdirextOs)" run-$*
 
 clean:
 	@rm -rf testsuite/$(build_dir)-*
 
-help: $(testdir)/Makefile $(testdirOs)/Makefile $(testdirext)/Makefile
+help: $(testdir)/Makefile $(testdirext)/Makefile $(testdirextOs)/Makefile
 	@echo "... check"
 	@echo "... testsuite-O2"
-	@echo "... testsuite-Os"
-	@echo "... testsuite-ext"
+	@echo "... testsuite-ext-O2"
+	@echo "... testsuite-ext-Os"
 	@echo "... check-extensions"
 	@echo "... check-extensions-stdlib"
 	@echo "... check-extensions-fallback"
@@ -147,7 +158,7 @@ help: $(testdir)/Makefile $(testdirOs)/Makefile $(testdirext)/Makefile
 	@echo "... clean"
 	@echo "... install (using prefix=$(prefix))"
 	@$(MAKE) -C "$(testdir)" help
-	@$(MAKE) -C "$(testdirOs)" help|sed 's/run-/run-Os-/g'
-	@$(MAKE) -C "$(testdirext)" help|sed 's/run-/run-ext-/g'
+	@$(MAKE) -C "$(testdirext)" help|sed 's/run-/run-ext-O2-/g'
+	@$(MAKE) -C "$(testdirextOs)" help|sed 's/run-/run-ext-Os-/g'
 
 .PHONY: check install check-extensions check-extensions-stdlib check-extensions-fallback clean help testsuite
