@@ -46,6 +46,7 @@ endif
 std=$(shell env CXX=$(CXX) ./latest_std_flag.sh)
 
 uses_stdx_simd=$(findstring define VIR_GLIBCXX_STDX_SIMD 1,$(shell $(CXX) $(CXXFLAGS) -x c++ -std=$(std) -o- -dM -E vir/detail.h))
+stdlib_version=$(shell $(CXX) $(CXXFLAGS) -x c++ -std=$(std) -o- -E stdlibtest.cpp | tail -n1)
 
 version:=$(shell grep '\<VIR_SIMD_VERSION\>' vir/simd_version.h | \
 	sed -e 's/.*0x/0x/' -e 's/'\''//g' | \
@@ -61,10 +62,14 @@ version_info=$(shell test $$(($(version_patchlevel)&1)) -eq 1 && echo developmen
 cxx_version := $(shell $(CXX) --version | head -n1)
 
 print_compiler_info:
-	@echo "Compiler: $(CXX) $(ICECC_CXX)"
-	@echo "          $(cxx_version)"
-	@echo "vir::simd_version: $(version) ($(version_info))"
-	@echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+	@echo "-----------+-----------------------------------------------------------------"
+	@echo "  Compiler | $(CXX) $(ICECC_CXX)"
+	@echo "           | $(cxx_version)"
+	@echo "    stdlib | $(stdlib_version)"
+	@echo "  vir-simd | $(version) ($(version_info)) $(if $(uses_stdx_simd),using stdx::simd from libstdc++,using vir::stdx::simd fallback)"
+	@echo "DRIVEROPTS | $(DRIVEROPTS)"
+	@echo "  CXXFLAGS | -std=$(std) $(CXXFLAGS)"
+	@echo "-----------+-----------------------------------------------------------------"
 
 .PHONY: print_compiler_info
 
@@ -83,6 +88,7 @@ debug:
 	@echo "testflags: $(testflags)"
 	@echo "DRIVEROPTS: $(DRIVEROPTS)"
 	@echo "CXX: $(CXX)"
+	@echo "stdlib: $(stdlib_version)"
 	@echo "CXXFLAGS: $(CXXFLAGS)"
 	@echo "std: $(std)"
 	@echo "uses_stdx_simd: $(uses_stdx_simd)"
