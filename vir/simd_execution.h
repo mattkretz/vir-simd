@@ -1085,7 +1085,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R,
             typename F>
     constexpr void
-    for_each(ExecutionPolicy&& pol, R&& rng, F&& fun)
+    for_each(ExecutionPolicy pol, R&& rng, F&& fun)
     { vir::for_each(pol, std::ranges::begin(rng), std::ranges::end(rng), std::forward<F>(fun)); }
 
   template<detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
@@ -1147,7 +1147,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
             detail::simd_execution_iterator It2, typename T>
     constexpr T
-    transform_reduce(ExecutionPolicy&& policy, It1 first1, It1 last1, It2 first2, T init)
+    transform_reduce(ExecutionPolicy policy, It1 first1, It1 last1, It2 first2, T init)
     {
       return detail::transform_reduce(policy, first1, last1, init, std::plus<>(),
                                       std::multiplies<>(), first2);
@@ -1173,7 +1173,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rng1,
             detail::simd_execution_range Rng2, typename T>
     constexpr T
-    transform_reduce(ExecutionPolicy&& policy, Rng1&& r1, Rng2&& r2, T init)
+    transform_reduce(ExecutionPolicy policy, Rng1&& r1, Rng2&& r2, T init)
     {
       return detail::transform_reduce(policy, std::ranges::begin(r1), std::ranges::end(r1), init,
                                       std::plus<>(), std::multiplies<>(), std::ranges::begin(r2));
@@ -1183,7 +1183,7 @@ case0:
             detail::simd_execution_range Rng2, typename T, typename BinaryReductionOp,
             typename BinaryTransformOp>
     constexpr T
-    transform_reduce(ExecutionPolicy&& policy, Rng1&& r1, Rng2&& r2, T init,
+    transform_reduce(ExecutionPolicy policy, Rng1&& r1, Rng2&& r2, T init,
                  BinaryReductionOp reduce, BinaryTransformOp transform)
     {
       return detail::transform_reduce(policy, std::ranges::begin(r1), std::ranges::end(r1), init,
@@ -1193,7 +1193,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rng,
             typename T, typename BinaryReductionOp, typename UnaryTransformOp>
     constexpr T
-    transform_reduce(ExecutionPolicy&& policy, Rng r, T init, BinaryReductionOp reduce,
+    transform_reduce(ExecutionPolicy policy, Rng r, T init, BinaryReductionOp reduce,
                      UnaryTransformOp transform)
     {
       return detail::transform_reduce(policy, std::ranges::begin(r), std::ranges::end(r), init,
@@ -1202,7 +1202,7 @@ case0:
 
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It>
     constexpr std::iter_value_t<It>
-    reduce(ExecutionPolicy&& policy, It first, It last)
+    reduce(ExecutionPolicy policy, It first, It last)
     {
       return detail::transform_reduce(policy, first, last, std::iter_value_t<It>{},
                                       std::plus<>(), [](auto const& x) { return x; });
@@ -1211,7 +1211,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename T>
     constexpr T
-    reduce(ExecutionPolicy&& policy, It first, It last, T init)
+    reduce(ExecutionPolicy policy, It first, It last, T init)
     {
       return detail::transform_reduce(policy, first, last, init, std::plus<>(),
                                       [](auto const& x) { return x; });
@@ -1220,7 +1220,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename T, typename BinaryReductionOp>
     constexpr T
-    reduce(ExecutionPolicy&& policy, It first, It last, T init, BinaryReductionOp reduce)
+    reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp reduce)
     {
       return detail::transform_reduce(policy, first, last, init, reduce,
                                       [](auto const& x) { return x; });
@@ -1228,7 +1228,7 @@ case0:
 
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg>
     constexpr std::ranges::range_value_t<Rg>
-    reduce(ExecutionPolicy&& policy, Rg&& rg)
+    reduce(ExecutionPolicy policy, Rg&& rg)
     {
       return detail::transform_reduce(policy, std::ranges::begin(rg), std::ranges::end(rg),
                                       std::ranges::range_value_t<Rg>{}, std::plus<>(),
@@ -1238,7 +1238,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg,
             typename T>
     constexpr T
-    reduce(ExecutionPolicy&& policy, Rg&& rg, T init)
+    reduce(ExecutionPolicy policy, Rg&& rg, T init)
     {
       return detail::transform_reduce(policy, std::ranges::begin(rg), std::ranges::end(rg), init,
                                       std::plus<>(), [](auto const& x) { return x; });
@@ -1247,7 +1247,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg,
             typename T, typename BinaryReductionOp>
     constexpr T
-    reduce(ExecutionPolicy&& policy, Rg&& rg, T init, BinaryReductionOp reduce)
+    reduce(ExecutionPolicy policy, Rg&& rg, T init, BinaryReductionOp reduce)
     {
       return detail::transform_reduce(policy, std::ranges::begin(rg), std::ranges::end(rg), init,
                                       reduce, [](auto const& x) { return x; });
@@ -1287,7 +1287,7 @@ case0:
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R,
             typename F>
     constexpr int
-    count_if(ExecutionPolicy&& pol, R&& v, F&& fun)
+    count_if(ExecutionPolicy pol, R&& v, F&& fun)
     { return vir::count_if(pol, std::ranges::begin(v), std::ranges::end(v), std::forward<F>(fun)); }
 }  // namespace vir
 
@@ -1296,7 +1296,7 @@ namespace std
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename F>
     constexpr void
-    for_each(ExecutionPolicy&& pol, It first, It last, F&& fun)
+    for_each(ExecutionPolicy pol, It first, It last, F&& fun)
     { vir::for_each(pol, first, last, std::forward<F>(fun)); }
 
   template<vir::detail::simd_execution_policy ExecutionPolicy,
@@ -1318,7 +1318,7 @@ namespace std
            vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
            typename T>
     constexpr T
-    transform_reduce(ExecutionPolicy&& policy, It1 first1, It1 last1, It2 first2, T init)
+    transform_reduce(ExecutionPolicy policy, It1 first1, It1 last1, It2 first2, T init)
     {
       return vir::detail::transform_reduce(policy, first1, last1, init, std::plus<>(),
                                            std::multiplies<>(), first2);
@@ -1328,7 +1328,7 @@ namespace std
             vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
             typename T, typename BinaryReductionOp, typename BinaryTransformOp>
     constexpr T
-    transform_reduce(ExecutionPolicy&& policy, It1 first1, It1 last1, It2 first2, T init,
+    transform_reduce(ExecutionPolicy policy, It1 first1, It1 last1, It2 first2, T init,
                  BinaryReductionOp reduce, BinaryTransformOp transform)
     {
       return vir::detail::transform_reduce(policy, first1, last1, init, reduce, transform, first2);
@@ -1338,14 +1338,14 @@ namespace std
             vir::detail::simd_execution_iterator It, typename T, typename BinaryReductionOp,
             typename UnaryTransformOp>
     constexpr T
-    transform_reduce(ExecutionPolicy&& policy, It first, It last, T init, BinaryReductionOp reduce,
+    transform_reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp reduce,
                      UnaryTransformOp transform)
     { return vir::detail::transform_reduce(policy, first, last, init, reduce, transform); }
 
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It>
     constexpr std::iter_value_t<It>
-    reduce(ExecutionPolicy&& policy, It first, It last)
+    reduce(ExecutionPolicy policy, It first, It last)
     {
       return vir::detail::transform_reduce(policy, first, last, std::iter_value_t<It>{},
                                            std::plus<>(), [](auto const& x) { return x; });
@@ -1354,7 +1354,7 @@ namespace std
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename T>
     constexpr T
-    reduce(ExecutionPolicy&& policy, It first, It last, T init)
+    reduce(ExecutionPolicy policy, It first, It last, T init)
     {
       return vir::detail::transform_reduce(policy, first, last, init, std::plus<>(),
                                            [](auto const& x) { return x; });
@@ -1363,7 +1363,7 @@ namespace std
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename T, typename BinaryReductionOp>
     constexpr T
-    reduce(ExecutionPolicy&& policy, It first, It last, T init, BinaryReductionOp reduce)
+    reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp reduce)
     {
       return vir::detail::transform_reduce(policy, first, last, init, reduce,
                                            [](auto const& x) { return x; });
@@ -1372,7 +1372,7 @@ namespace std
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename F>
     constexpr int
-    count_if(ExecutionPolicy&& pol, It first, It last, F&& fun)
+    count_if(ExecutionPolicy pol, It first, It last, F&& fun)
     { return vir::count_if(pol, first, last, std::forward<F>(fun)); }
 }
 #endif // no Clang < 17
