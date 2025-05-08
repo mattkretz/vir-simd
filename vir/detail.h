@@ -9,6 +9,12 @@
 #include "simd.h"
 #include "constexpr_wrapper.h"
 #include <type_traits>
+#if __has_include (<bit>) && __cplusplus >= 202002L
+#include <bit> // for bit_cast
+#define VIR_HAVE_STD_BIT_CAST 1
+#else
+#define VIR_HAVE_STD_BIT_CAST 0
+#endif
 
 #if defined _GLIBCXX_EXPERIMENTAL_SIMD_H && defined __cpp_lib_experimental_parallel_simd
 #define VIR_GLIBCXX_STDX_SIMD 1
@@ -228,7 +234,7 @@ namespace vir::detail
     bit_cast(const From& x)
     {
       static_assert(sizeof(To) == sizeof(From));
-#ifdef __cpp_lib_bit_cast
+#if VIR_HAVE_STD_BIT_CAST
       return std::bit_cast<To>(x);
 #elif VIR_HAVE_BUILTIN_BIT_CAST
       return __builtin_bit_cast(To, x);
