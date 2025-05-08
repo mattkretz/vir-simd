@@ -16,6 +16,16 @@
 #define VIR_GLIBCXX_STDX_SIMD 0
 #endif
 
+// needs -std=gnu++17 => __STRICT_ANSI__
+// However, Clang with libstdc++ is never constexpr enabled
+#if VIR_GLIBCXX_STDX_SIMD && (defined __STRICT_ANSI__ || defined __clang__)
+#define VIR_SIMD_CONSTEXPR_SIMD const
+#define VIR_SIMD_HAVE_CONSTEXPR_API 0
+#else // GCC with libstdc++ and GNU extensions or vir::stdx::simd fallback
+#define VIR_SIMD_CONSTEXPR_SIMD constexpr
+#define VIR_SIMD_HAVE_CONSTEXPR_API 1
+#endif
+
 #if defined __GNUC__ and not defined __clang__
 #define VIR_LAMBDA_ALWAYS_INLINE __attribute__((__always_inline__))
 #else

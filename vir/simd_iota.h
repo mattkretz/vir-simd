@@ -7,6 +7,7 @@
 #define VIR_SIMD_IOTA_H_
 
 #include "simd.h"
+#include "detail.h"
 #include "simd_concepts.h"
 #if VIR_HAVE_SIMD_CONCEPTS
 #define VIR_HAVE_SIMD_IOTA 1
@@ -34,7 +35,7 @@ namespace vir
     iota_v<T> = T();
 
   template <vir::any_simd T>
-    inline constexpr T
+    inline VIR_SIMD_CONSTEXPR_SIMD T
     iota_v<T> = T([](int i) { return static_cast<typename T::value_type>(i); });
 
   template <typename T, std::size_t N>

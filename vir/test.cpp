@@ -14,7 +14,7 @@
 #include <complex>
 
 // GCC 11.4, 12.4, 13.2, 14.1, ...
-#if !defined __cpp_lib_experimental_parallel_simd || __GLIBCXX__ >= 20230528
+#if VIR_SIMD_HAVE_CONSTEXPR_API and (!VIR_GLIBCXX_STDX_SIMD || __GLIBCXX__ >= 20230528)
 #define SIMD_IS_CONSTEXPR_ENOUGH 1
 #else
 #define SIMD_IS_CONSTEXPR_ENOUGH 0
@@ -81,8 +81,10 @@ static_assert(vir::iota_v<int[4]>[2] == 2);
 static_assert(vir::iota_v<int[4]>[3] == 3);
 static_assert(vir::iota_v<std::array<int, 5>> == std::array<int, 5>{0, 1, 2, 3, 4});
 // simd
+#if VIR_SIMD_HAVE_CONSTEXPR_API
 static_assert(vir::iota_v<V<int>>[0] == 0);
 static_assert(all_equal(vir::iota_v<V<short>>, V<short>([](short i) { return i; })));
+#endif
 #endif // VIR_HAVE_SIMD_IOTA
 
 #if VIR_HAVE_SIMD_CVT
@@ -90,12 +92,14 @@ namespace
 {
   using vir::cvt;
   // simd:
+#if VIR_SIMD_HAVE_CONSTEXPR_API
   static_assert(all_equal(cvt(RV<int, float>(2)) * V<float>(1), V<float>(2)));
   static_assert(all_equal(cvt(10 * RV<float, int>(cvt(V<int>(2)))), V<int>(20)));
   static_assert(all_equal([](auto x) -> RV<float, int> {
 		  auto y = cvt(x);
 		  return y;
 		}(V<int>(1)), 1.f));
+#endif
   // simd_mask:
   static_assert(std::same_as<decltype(cvt(RV<int, float>(2) == 2) == (V<float>(1) == 1.f)),
 			     typename V<float>::mask_type>);
@@ -104,7 +108,7 @@ namespace
 }
 #endif // VIR_HAVE_SIMD_CVT
 
-#if VIR_HAVE_SIMD_PERMUTE and VIR_HAVE_SIMD_IOTA
+#if VIR_HAVE_SIMD_PERMUTE and VIR_HAVE_SIMD_IOTA and VIR_SIMD_HAVE_CONSTEXPR_API
 static_assert(
   all_equal(vir::simd_permute(make_simd(0, 1, 2, 3), vir::simd_permutations::duplicate_even),
 	    make_simd(0, 0, 2, 2)));

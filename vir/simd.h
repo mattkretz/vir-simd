@@ -20,7 +20,8 @@
 
 #include <cstdlib> // std::abort
 
-#if __has_include (<experimental/simd>) && !defined VIR_DISABLE_STDX_SIMD && !defined __clang__
+#if __has_include (<experimental/simd>) && !defined VIR_DISABLE_STDX_SIMD \
+      && (!defined __clang_major__ || !defined __GNUC__ || __GLIBCXX__ >= 20230525)
 #include <experimental/simd>
 #endif
 
