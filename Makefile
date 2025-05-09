@@ -30,6 +30,7 @@ endif
 CXXFLAGS+=-I$(PWD)
 prefix=/usr/local
 includedir=$(prefix)/include
+mandir=$(prefix)/share/man
 
 srcdir=.
 testdir=testsuite/$(build_dir)-O2
@@ -72,6 +73,20 @@ print_compiler_info:
 	@echo "-----------+-----------------------------------------------------------------"
 
 .PHONY: print_compiler_info
+
+docs/man/man3vir/simdize.h.3vir docs/html/index.html: Doxyfile vir/*.h docs/cppreference.xml Makefile
+	@sed -i 's/^PROJECT_NUMBER *= ".*"/PROJECT_NUMBER = "$(version)"/' $<
+	@rm -rf docs/html docs/man docs/latex
+	@doxygen
+	cd docs/man/man3vir && \
+		for i in *'_ T, N _.3vir'; do mv "$$i" "$${i%_ T, N _.3vir}.3vir"; done && \
+		for i in vir_detail_*; do mv "$$i" "vir::detail::$${i#vir_detail_}"; done && \
+		for i in vir_execution_*; do mv "$$i" "vir::execution::$${i#vir_execution_}"; done && \
+		for i in vir_*; do mv "$$i" "vir::$${i#vir_}"; done
+
+docs: docs/html/index.html
+
+.PHONY: docs
 
 # Always run the testsuite on extensions to stdx::simd.
 check: print_compiler_info check-extensions check-constexpr_wrapper testsuite-ext-O2 testsuite-ext-Os
@@ -122,6 +137,12 @@ install:
 	install -d $(includedir)/vir
 	install -m 644 -t $(includedir)/vir vir/*.h
 
+install-man: docs/man/man3vir/simdize.h.3vir
+	@echo "Installing vir::stdx::simd $(version) ($(version_info)) man pages to $(mandir)"
+	install -d $(mandir)/man3vir
+	install -m 644 -t $(mandir)/man3vir docs/man/man3vir/vir::*.3vir
+	install -m 644 -t $(mandir)/man3vir docs/man/man3vir/*.h.3vir
+
 check-extensions: check-extensions-stdlib check-extensions-fallback
 
 check-extensions-stdlib:
@@ -161,8 +182,10 @@ help: $(testdir)/Makefile $(testdirext)/Makefile $(testdirextOs)/Makefile
 	@echo "... check-extensions-stdlib"
 	@echo "... check-extensions-fallback"
 	@echo "... check-constexpr_wrapper"
+	@echo "... docs"
 	@echo "... clean"
 	@echo "... install (using prefix=$(prefix))"
+	@echo "... install-man (using prefix=$(prefix))"
 	@$(MAKE) -C "$(testdir)" help
 	@$(MAKE) -C "$(testdirext)" help|sed 's/run-/run-ext-O2-/g'
 	@$(MAKE) -C "$(testdirextOs)" help|sed 's/run-/run-ext-Os-/g'

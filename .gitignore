@@ -4,3 +4,7 @@
 test.S
 testsuite/build-*
 ce.cpp
+docs/man
+docs/html
+docs/latex
+docs/vir-simd.xml

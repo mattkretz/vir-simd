@@ -6,12 +6,17 @@
 #ifndef VIR_SIMD_EXECUTION_H_
 #define VIR_SIMD_EXECUTION_H_
 
+/** \file vir/simd_execution.h
+ * \brief SIMD execution policy for standard algorithms.
+ */
+
 #include "simd_concepts.h"
 #include "simd_cvt.h"
 #include "simdize.h"
 
 #if VIR_HAVE_SIMD_CONCEPTS and VIR_HAVE_SIMDIZE and VIR_HAVE_SIMD_CVT and VIR_HAVE_CONSTEXPR_WRAPPER
-#if not defined __clang_major__ or not defined _GLIBCXX_RELEASE or __clang_major__ >= 17 or _GLIBCXX_RELEASE < 13
+#if DOXYGEN or not defined __clang_major__ or not defined _GLIBCXX_RELEASE \
+    or __clang_major__ >= 17 or _GLIBCXX_RELEASE < 13
 #define VIR_HAVE_SIMD_EXECUTION 1
 
 #include <ranges>
@@ -20,6 +25,7 @@
 
 namespace vir
 {
+  /// \internal
   namespace detail
   {
     using namespace vir::literals;
@@ -388,22 +394,33 @@ case0:
       : std::false_type
       {};
 
+    /// Satisfied for valid specializations of vir::execution::simd_policy.
     template <typename T>
       concept simd_execution_policy = is_simd_policy<std::remove_cvref_t<T>>::value;
 
+    /** \brief Modelled if std::ranges::contiguous_range is modelled and the value-type of \p Rng
+     * can be transformed via vir::simdize.
+     */
     template <typename Rng>
       concept simd_execution_range = std::ranges::contiguous_range<Rng> and requires {
         typename vir::simdize<std::ranges::range_value_t<Rng>>;
       };
 
+    /** \brief Modelled if std::contiguous_iterator is modelled and the value-type of \p It can be
+     * transformed via vir::simdize.
+     */
     template <typename It>
       concept simd_execution_iterator = std::contiguous_iterator<It> and requires {
         typename vir::simdize<std::iter_value_t<It>>;
       };
   } // namespace detail
 
+  /**
+   * Equivalent to the `std::execution` namespace.
+   */
   namespace execution
   {
+    /// Type of the \ref vir::execution::simd execution policy.
     template <typename... Options>
       struct simd_policy
       {
@@ -423,21 +440,53 @@ case0:
           = (0 + ... + detail::simd_policy_size_value<Options>::value);
 
         // The following three are mutually exclusive:
+
+        /**
+         * Unconditionally iterate using smaller chunks, until the main iteration can load (and
+         * store) chunks from/to aligned addresses. This can be more efficient if the range is
+         * large, avoiding cache-line splits. (e.g. with AVX-512, unaligned iteration leads to
+         * cache-line splits on every iteration; with AVX on every second iteration)
+         */
         static constexpr simd_policy<Options..., detail::simd_policy_prefer_aligned_t>
         prefer_aligned() requires(not _prefers_aligned and not _auto_prologue
                                     and not _assume_matching_size)
         { return {}; }
 
+        /**
+         * \warning still testing its viability, may be removed
+         *
+         * Determine from run-time information (i.e. add a branch) whether a prologue for alignment
+         * of the main chunked iteration might be more efficient.
+         */
         static constexpr simd_policy<Options..., detail::simd_policy_auto_prologue_t>
         auto_prologue() requires(not _prefers_aligned and not _auto_prologue
                                    and not _assume_matching_size)
         { return {}; }
 
+        /**
+         * Add a precondition to the algorithm, that the given range size is a multiple of the SIMD
+         * width (but not the SIMD width multiplied by the above unroll factor). This modifier is
+         * only valid without prologue (the following two modifiers). The algorithm consequently
+         * does not implement an epilogue and all given callables are called with a single simd type
+         * (same width and ABI tag). This can reduce code size significantly.
+         */
         static constexpr simd_policy<Options..., detail::simd_policy_assume_matching_size_t>
         assume_matching_size() requires(not _prefers_aligned and not _auto_prologue
                                           and not _assume_matching_size)
         { return {}; }
 
+        /**
+         * Iterate over the range in chunks of `simd::size() * M` instead of just `simd::size()`.
+         * The algorithm will execute `M` loads (or stores) together before/after calling the
+         * user-supplied function(s). The user-supplied function may be called with `M` `simd`
+         * objects instead of one `simd` object. Note that prologue and epilogue will typically
+         * still call the user-supplied function with a single `simd` object.
+         *
+         * Algorithms like `std::count_if` require a return value from the user-supplied function
+         * and therefore still call the function with a single `simd` (to avoid the need for
+         * returning an `array` or `tuple` of `simd_mask`). Such algorithms will still make use of
+         * unrolling inside their implementation.
+         */
         template <int N>
           static constexpr simd_policy<Options..., detail::simd_policy_unroll_by_t<N>>
           unroll_by() requires(_unroll_by == 0)
@@ -446,6 +495,10 @@ case0:
             return {};
           }
 
+        /**
+         * Start with chunking the range into parts of `N` elements, calling the user-supplied
+         * function(s) with objects of type `resize_simd_t<N, simd<T>>`. 
+         */
         template <int N>
           static constexpr simd_policy<Options..., detail::simd_policy_size_t<N>>
           prefer_size() requires(_size == 0)
@@ -455,6 +508,23 @@ case0:
           }
       };
 
+    /**
+     * \brief SIMD execution policy.
+     *
+     * When this execution policy is used in an algorithm, callables passed to the algorithm are
+     * invoked with multiple elements from the input range(s) packed into one or more `simd`
+     * arguments.
+     *
+     * Examples:
+     * ```
+       vir::transform(vir::execution::simd.prefer_aligned(), input_rg, output_rg,
+         [](auto v) {
+           return v + v;
+         });
+
+       vir::for_each(vir::execution::simd.unroll_by<3>(), rg, [](auto& v) { v += v; });
+     * ```
+     */
     inline constexpr simd_policy<> simd {};
   } // namespace execution
 
@@ -538,7 +608,7 @@ case0:
         }
       };
 
-    /**
+    /** \internal
      * Given an iterator type \p It, generate corresponding simd type for the given \p size (can be
      * 0 for default).
      */
@@ -763,7 +833,7 @@ case0:
           return acc1;
       }
 
-    /**
+    /** \internal
      * Epilogue (recursion) given a simd<scalar> accumulator (\p acc1) and vector accumulator
      * (\p acc).
      */
@@ -815,7 +885,7 @@ case0:
           unreachable();
       }
 
-    /**
+    /** \internal
      * Epilogue (recursion) given only a simd<scalar> accumulator (\p acc1).
      */
     template <std::size_t size, typename A1, typename It1, typename... It2>
@@ -863,7 +933,7 @@ case0:
           unreachable();
       }
 
-    /**
+    /** \internal
      * Generic simd transform_reduce, that works for any number of input ranges.
      */
     template <simd_execution_policy ExecutionPolicy, simd_execution_iterator It1, typename T,
@@ -1018,10 +1088,29 @@ case0:
       }
   } // namespace detail
 
+  /**
+   * \defgroup vir_for_each Algorithm: for-each
+   *
+   * \brief Iterate over the given range (iterator overload).
+   *
+   * std::for_each except that `fun` is called with multiple values out of the input range via
+   * `simd` arguments.
+   *
+   * \param pol   Needs to be vir::execution::simd or one of the derived types returned from its
+   *              modifiers. (\ref vir::detail::simd_execution_policy)
+   * \param first, last Iterator pair modelling vir::detail::simd_execution_iterator.
+   * \param rng   Input ranges modelling vir::detail::simd_execution_range.
+   * \param fun   Callable to be invoked per chunk of input elements. If the function parameter of
+   *              `fun` is declared as an lvalue reference, the `for_each` implementation assumes it
+   *              needs to write back the argument after `fun` returns.
+   *
+   * @{
+   */
+  /// Iterate over the given range (iterator overload).
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename F>
     constexpr void
-    for_each(ExecutionPolicy, It first, It last, F&& fun)
+    for_each([[maybe_unused]] ExecutionPolicy pol, It first, It last, F&& fun)
     {
       using T = std::iter_value_t<It>;
       using V = vir::simdize<T, ExecutionPolicy::_size>;
@@ -1082,18 +1171,52 @@ case0:
         }
     }
 
+  /// Iterate over the given range (range overload).
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R,
             typename F>
     constexpr void
     for_each(ExecutionPolicy pol, R&& rng, F&& fun)
     { vir::for_each(pol, std::ranges::begin(rng), std::ranges::end(rng), std::forward<F>(fun)); }
 
+  /**@}*/
+
+  /**
+   * \defgroup vir_transform Algorithm: transform
+   *
+   * \brief Applies the given callable to the elements of the given input range, and stores the
+   * result in an output range.
+   *
+   * These functions are drop-in replacements for std::transform. The only difference is that \p
+   * unary_op / \p binary_op are called with multiple values out of the input range via `simd`
+   * arguments. The callable needs to return a `simd` of the value-type of the output range.
+   *
+   * The `zip_view` overload looks through the `zip_view`, effectively turning this into a transform
+   * with arbitrary number of input ranges.
+   *
+   * \return Output iterator to the element that follows the last element transformed.
+   *
+   * \param pol     Needs to be vir::execution::simd or one of the derived types returned from its
+   *                modifiers. (\ref vir::detail::simd_execution_policy)
+   * \param first1, last1 Iterator pair modelling vir::detail::simd_execution_iterator.
+   * \param first2  Begin iterator modelling vir::detail::simd_execution_iterator.
+   *                std::distance `(first1, last1)` determines the size of this range.
+   * \param r1, r2  Input ranges modelling vir::detail::simd_execution_range.
+   * \param rs      Input range where each input to std::ranges::views::zip (`Rs...`) models
+   *                vir::detail::simd_execution_range.
+   * \param d_first   Output iterator modelling vir::detail::simd_execution_iterator.
+   * \param d_rng     Output range modelling vir::detail::simd_execution_range.
+   * \param unary_op, binary_op  Callable to be invoked per chunk of input elements.
+   *
+   * @{
+   */
+  /// Unary transform (iterator overload)
   template<detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
            detail::simd_execution_iterator OutIt, typename UnaryOperation>
     constexpr OutIt
     transform(ExecutionPolicy pol, It1 first1, It1 last1, OutIt d_first, UnaryOperation unary_op)
     { return detail::transform(pol, first1, last1, d_first, unary_op); }
 
+  /// Binary transform (iterator overload)
   template<detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
            detail::simd_execution_iterator It2, detail::simd_execution_iterator OutIt,
            typename BinaryOperation>
@@ -1102,33 +1225,36 @@ case0:
               BinaryOperation binary_op)
     { return detail::transform(pol, first1, last1, d_first, binary_op, first2); }
 
+  /// Unary transform (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R1,
             detail::simd_execution_range R2, typename UnaryOperation>
     constexpr auto
-    transform(ExecutionPolicy pol, R1&& rng1, R2& d_rng, UnaryOperation unary_op)
+    transform(ExecutionPolicy pol, R1&& r1, R2& d_rng, UnaryOperation unary_op)
     {
-      return detail::transform(pol, std::ranges::begin(rng1), std::ranges::end(rng1),
+      return detail::transform(pol, std::ranges::begin(r1), std::ranges::end(r1),
                                std::ranges::begin(d_rng), unary_op);
     }
 
+  /// Binary transform (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R1,
             detail::simd_execution_range R2, detail::simd_execution_range R3,
             typename BinaryOperation>
     constexpr auto
-    transform(ExecutionPolicy pol, R1&& rng1, R2&& rng2, R3& d_rng, BinaryOperation binary_op)
+    transform(ExecutionPolicy pol, R1&& r1, R2&& r2, R3& d_rng, BinaryOperation binary_op)
     {
-      return detail::transform(pol, std::ranges::begin(rng1), std::ranges::end(rng1),
-                               std::ranges::begin(d_rng), binary_op, std::ranges::begin(rng2));
+      return detail::transform(pol, std::ranges::begin(r1), std::ranges::end(r1),
+                               std::ranges::begin(d_rng), binary_op, std::ranges::begin(r2));
     }
 
 #if __cpp_lib_ranges_zip >= 202110L
+  /// Many-input transform (zipped range overload)
   template <detail::simd_execution_range... Rs>
     constexpr auto
-    transform(detail::simd_execution_policy auto pol, const std::ranges::zip_view<Rs...>& rg,
+    transform(detail::simd_execution_policy auto pol, const std::ranges::zip_view<Rs...>& rs,
               detail::simd_execution_range auto&& d_rg, auto op)
     {
-      const auto size = std::ranges::size(rg);
-      const auto it = std::ranges::begin(rg);
+      const auto size = std::ranges::size(rs);
+      const auto it = std::ranges::begin(rs);
       const auto first0 = std::addressof(std::get<0>(*it));
       return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
         return detail::transform(
@@ -1144,6 +1270,68 @@ case0:
     }
 #endif
 
+  /**@}*/
+
+  /**
+   * \defgroup vir_transform_reduce Algorithm: transform_reduce
+   *
+   * \brief
+   * Applies \p transform_op to corresponding input elements and reduces the results along with the
+   * initial value \p init over \p reduce_op.
+   *
+   * These functions are drop-in replacements for std::transform_reduce. The only difference is that
+   * \p reduce_op and \p transform_op are called with `simd<U, Abi>` arguments instead of `U` (where
+   * `U` is the value-type of the corresponding input range).
+   *
+   * - If no \p reduce_op is given, std::plus is used.
+   * - If no \p transform_op is given, std::multiplies is used.
+   *
+   * \param policy  Needs to be vir::execution::simd or one of the derived types returned from its
+   *                modifiers. (\ref vir::detail::simd_execution_policy)
+   * \param first1, last1 Iterator pair modelling vir::detail::simd_execution_iterator.
+   * \param first2  Begin iterator modelling vir::detail::simd_execution_iterator.
+   *                std::distance `(first1, last1)` determines the size of this range.
+   * \param r1, r2  Input ranges modelling vir::detail::simd_execution_range.
+   * \param init    The initial value determines the aggregation type and its value is included in
+   *                the reduction.
+   * \param reduce_op    A binary operation that will be applied in unspecified order to the results
+   *                     of \p transform_op, the results of other \p reduce_op and \p init.
+   * \param transform_op A unary or binary operation that will be applied to each element of the
+   *                     input range(s). The return type must be acceptable as input to reduce.
+   *
+   * \return The result of the reduction over all transformed inputs.
+   *
+   * #### Example
+   * ```
+   * std::array<int> x = {1, 2, 3, 4, 2, 4, 3, 2};
+   * std::array<int> y = {2, 3, 2, 1, 4, 1, 4, 0};
+   * // inner product:
+   * int result = vir::transform_reduce(vir::execution::simd, x, y, 0,
+   *                [](auto a, auto b) {
+   *                  std::cout << "reduce(" << a << ',' << b << ") -> " << a + b << '\n';
+   *                  return a + b;
+   *                },
+   *                [](auto a, auto b) {
+   *                  std::cout << "transform(" << a << ',' << b << ") -> " << a * b << '\n';
+   *                  return a * b;
+   *                });
+   * assert(result == 42);
+   * ```
+   * A possible output (with suitably defined `operator<<` overloads) of the above example could be:
+   * ```
+   * transform([1,2,3,4],[2,3,2,1]) -> [2,6,6,4]
+   * transform([2,4,3,2],[4,1,4,0]) -> [8,4,12,0]
+   * reduce([2,6,6,4],[8,4,12,0]) -> [10,10,18,4]
+   * reduce([10,10],[18,4]) -> [28,14]
+   * reduce([28],[14]) -> [42]
+   * reduce([42],[0]) -> [42]
+   * ```
+   *
+   * Note that the final call to `reduce` adds the `init` value.
+   *
+   * @{
+   */
+  /// Inner product (iterator overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
             detail::simd_execution_iterator It2, typename T>
     constexpr T
@@ -1153,6 +1341,7 @@ case0:
                                       std::multiplies<>(), first2);
     }
 
+  /// As above but with user-provided transform and reduce operations (iterator overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It1,
             detail::simd_execution_iterator It2, typename T, typename BinaryReductionOp,
             typename BinaryTransformOp>
@@ -1163,6 +1352,7 @@ case0:
       return detail::transform_reduce(policy, first1, last1, init, reduce_op, transform_op, first2);
     }
 
+  /// Transform one input range with subsequent reduction (iterator overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename T, typename BinaryReductionOp, typename UnaryTransformOp>
     constexpr T
@@ -1170,6 +1360,7 @@ case0:
                      BinaryReductionOp reduce_op, UnaryTransformOp transform_op)
     { return detail::transform_reduce(policy, first1, last1, init, reduce_op, transform_op); }
 
+  /// Inner product (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rng1,
             detail::simd_execution_range Rng2, typename T>
     constexpr T
@@ -1179,27 +1370,49 @@ case0:
                                       std::plus<>(), std::multiplies<>(), std::ranges::begin(r2));
     }
 
+  /// As above but with user-provided transform and reduce operations (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rng1,
             detail::simd_execution_range Rng2, typename T, typename BinaryReductionOp,
             typename BinaryTransformOp>
     constexpr T
     transform_reduce(ExecutionPolicy policy, Rng1&& r1, Rng2&& r2, T init,
-                 BinaryReductionOp reduce, BinaryTransformOp transform)
+                 BinaryReductionOp reduce_op, BinaryTransformOp transform_op)
     {
       return detail::transform_reduce(policy, std::ranges::begin(r1), std::ranges::end(r1), init,
-                                      reduce, transform, std::ranges::begin(r2));
+                                      reduce_op, transform_op, std::ranges::begin(r2));
     }
 
+  /// Transform one input range with subsequent reduction (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rng,
             typename T, typename BinaryReductionOp, typename UnaryTransformOp>
     constexpr T
-    transform_reduce(ExecutionPolicy policy, Rng r, T init, BinaryReductionOp reduce,
-                     UnaryTransformOp transform)
+    transform_reduce(ExecutionPolicy policy, Rng&& r1, T init, BinaryReductionOp reduce_op,
+                     UnaryTransformOp transform_op)
     {
-      return detail::transform_reduce(policy, std::ranges::begin(r), std::ranges::end(r), init,
-                                      reduce, transform);
+      return detail::transform_reduce(policy, std::ranges::begin(r1), std::ranges::end(r1), init,
+                                      reduce_op, transform_op);
     }
 
+  /**@}*/
+
+  /**
+   * \defgroup vir_reduce Algorithm: reduce
+   *
+   * \brief Reduces the range along with the initial value \p init over \p op.
+   *
+   * \param policy  Needs to be vir::execution::simd or one of the derived types returned from its
+   *                modifiers. (\ref vir::detail::simd_execution_policy)
+   * \param first, last  Iterator pair modelling vir::detail::simd_execution_iterator.
+   * \param rg      Input ranges modelling vir::detail::simd_execution_range.
+   * \param op      Callable to be invoked with two `simd` objects of input elements or intermediate
+   *                results.
+   *
+   * \return
+   * The generalized sum of \p init (if given) and the elements of the input range over \p op /
+   * std::plus.
+   * @{
+   */
+  /// Sum the given range (iterator overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It>
     constexpr std::iter_value_t<It>
     reduce(ExecutionPolicy policy, It first, It last)
@@ -1208,6 +1421,7 @@ case0:
                                       std::plus<>(), [](auto const& x) { return x; });
     }
 
+  /// Sum the given range with initial value \p init (iterator overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename T>
     constexpr T
@@ -1217,15 +1431,17 @@ case0:
                                       [](auto const& x) { return x; });
     }
 
+  /// Reduce the given range with initial value \p init over \p op (iterator overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename T, typename BinaryReductionOp>
     constexpr T
-    reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp reduce)
+    reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp op)
     {
-      return detail::transform_reduce(policy, first, last, init, reduce,
+      return detail::transform_reduce(policy, first, last, init, op,
                                       [](auto const& x) { return x; });
     }
 
+  /// Sum the given range (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg>
     constexpr std::ranges::range_value_t<Rg>
     reduce(ExecutionPolicy policy, Rg&& rg)
@@ -1235,6 +1451,7 @@ case0:
                                       [](auto const& x) { return x; });
     }
 
+  /// Sum the given range with initial value \p init (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg,
             typename T>
     constexpr T
@@ -1244,19 +1461,39 @@ case0:
                                       std::plus<>(), [](auto const& x) { return x; });
     }
 
+  /// Reduce the given range with initial value \p init over \p op (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range Rg,
             typename T, typename BinaryReductionOp>
     constexpr T
-    reduce(ExecutionPolicy policy, Rg&& rg, T init, BinaryReductionOp reduce)
+    reduce(ExecutionPolicy policy, Rg&& rg, T init, BinaryReductionOp op)
     {
       return detail::transform_reduce(policy, std::ranges::begin(rg), std::ranges::end(rg), init,
-                                      reduce, [](auto const& x) { return x; });
+                                      op, [](auto const& x) { return x; });
     }
 
+  /**@}*/
+
+  /**
+   * \defgroup vir_count_if Algorithm: count_if
+   *
+   * \brief Reduces the range along with the initial value \p init over \p op.
+   *
+   * \param pol     Needs to be vir::execution::simd or one of the derived types returned from its
+   *                modifiers. (\ref vir::detail::simd_execution_policy)
+   * \param first, last  Iterator pair modelling vir::detail::simd_execution_iterator.
+   * \param rg      Input ranges modelling vir::detail::simd_execution_range.
+   * \param pred    Callable that is invoked with multiple input elements in a `simd` object,
+   *                returning a `simd_mask` indicating the elements to be counted.
+   *
+   * \return
+   * The number of `true` values in all `simd_mask` objects returned from invocations of `pred`.
+   * @{
+   */
+  /// Count the elements in the input range matching \p pred (iterator overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_iterator It,
             typename F>
     constexpr int
-    count_if(ExecutionPolicy pol, It first, It last, F&& fun)
+    count_if(ExecutionPolicy pol, It first, It last, F&& pred)
     {
       using T = std::iter_value_t<It>;
       using TV = vir::simdize<T, ExecutionPolicy::_size>;
@@ -1266,39 +1503,52 @@ case0:
       vir::for_each(pol, first, last, [&](auto... x) VIR_LAMBDA_ALWAYS_INLINE {
 #if __cpp_lib_experimental_parallel_simd >= 201803
         if (std::is_constant_evaluated())
-          count += (popcount(fun(x)) + ...);
+          count += (popcount(pred(x)) + ...);
         else
 #endif
           if constexpr (sizeof...(x) == 1)
           {
             if constexpr ((x.size(), ...) == countv.size())
-              ++where(vir::cvt(fun(x...)), countv);
+              ++where(vir::cvt(pred(x...)), countv);
             else
-              count += popcount(fun(x...));
+              count += popcount(pred(x...));
           }
         else
           {
-            ((++where(vir::cvt(fun(x)), countv)), ...);
+            ((++where(vir::cvt(pred(x)), countv)), ...);
           }
       });
       return count + reduce(countv);
     }
 
+  /// Count the elements in the input range matching \p pred (range overload)
   template <detail::simd_execution_policy ExecutionPolicy, detail::simd_execution_range R,
             typename F>
     constexpr int
-    count_if(ExecutionPolicy pol, R&& v, F&& fun)
-    { return vir::count_if(pol, std::ranges::begin(v), std::ranges::end(v), std::forward<F>(fun)); }
+    count_if(ExecutionPolicy pol, R&& rg, F&& pred)
+    {
+      return vir::count_if(pol, std::ranges::begin(rg), std::ranges::end(rg),
+                           std::forward<F>(pred));
+    }
+
+  /**@}*/
 }  // namespace vir
 
+/// \internal
 namespace std
 {
+  /** \brief Overloads std::for_each for vir::execution::simd.
+   * \ingroup vir_for_each
+   */
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename F>
     constexpr void
     for_each(ExecutionPolicy pol, It first, It last, F&& fun)
     { vir::for_each(pol, first, last, std::forward<F>(fun)); }
 
+  /** \brief Overloads std::transform for vir::execution::simd.
+   * \ingroup vir_transform
+   */
   template<vir::detail::simd_execution_policy ExecutionPolicy,
            vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator OutIt,
            typename UnaryOperation>
@@ -1306,6 +1556,9 @@ namespace std
     transform(ExecutionPolicy pol, It1 first1, It1 last1, OutIt d_first, UnaryOperation unary_op)
     { return vir::detail::transform(pol, first1, last1, d_first, unary_op); }
 
+  /** \brief Overloads std::transform for vir::execution::simd.
+   * \ingroup vir_transform
+   */
   template<vir::detail::simd_execution_policy ExecutionPolicy,
            vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
            vir::detail::simd_execution_iterator OutIt, typename BinaryOperation>
@@ -1314,6 +1567,10 @@ namespace std
               BinaryOperation binary_op)
     { return vir::detail::transform(pol, first1, last1, d_first, binary_op, first2); }
 
+
+  /** \brief Overloads std::transform_reduce for vir::execution::simd.
+   * \ingroup vir_transform_reduce
+   */
   template <vir::detail::simd_execution_policy ExecutionPolicy,
            vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
            typename T>
@@ -1324,24 +1581,34 @@ namespace std
                                            std::multiplies<>(), first2);
     }
 
+  /** \brief Overloads std::transform_reduce for vir::execution::simd.
+   * \ingroup vir_transform_reduce
+   */
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It1, vir::detail::simd_execution_iterator It2,
             typename T, typename BinaryReductionOp, typename BinaryTransformOp>
     constexpr T
     transform_reduce(ExecutionPolicy policy, It1 first1, It1 last1, It2 first2, T init,
-                 BinaryReductionOp reduce, BinaryTransformOp transform)
+                 BinaryReductionOp reduce_op, BinaryTransformOp transform_op)
     {
-      return vir::detail::transform_reduce(policy, first1, last1, init, reduce, transform, first2);
+      return vir::detail::transform_reduce(policy, first1, last1, init, reduce_op, transform_op,
+                                           first2);
     }
 
+  /** \brief Overloads std::transform_reduce for vir::execution::simd.
+   * \ingroup vir_transform_reduce
+   */
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename T, typename BinaryReductionOp,
             typename UnaryTransformOp>
     constexpr T
-    transform_reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp reduce,
-                     UnaryTransformOp transform)
-    { return vir::detail::transform_reduce(policy, first, last, init, reduce, transform); }
+    transform_reduce(ExecutionPolicy policy, It first1, It last1, T init,
+                     BinaryReductionOp reduce_op, UnaryTransformOp transform_op)
+    { return vir::detail::transform_reduce(policy, first1, last1, init, reduce_op, transform_op); }
 
+  /** \brief Overloads std::reduce for vir::execution::simd.
+   * \ingroup vir_reduce
+   */
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It>
     constexpr std::iter_value_t<It>
@@ -1351,6 +1618,9 @@ namespace std
                                            std::plus<>(), [](auto const& x) { return x; });
     }
 
+  /** \brief Overloads std::reduce for vir::execution::simd.
+   * \ingroup vir_reduce
+   */
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename T>
     constexpr T
@@ -1360,15 +1630,21 @@ namespace std
                                            [](auto const& x) { return x; });
     }
 
+  /** \brief Overloads std::reduce for vir::execution::simd.
+   * \ingroup vir_reduce
+   */
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename T, typename BinaryReductionOp>
     constexpr T
-    reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp reduce)
+    reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp op)
     {
-      return vir::detail::transform_reduce(policy, first, last, init, reduce,
+      return vir::detail::transform_reduce(policy, first, last, init, op,
                                            [](auto const& x) { return x; });
     }
 
+  /** \brief Overloads std::count_if for vir::execution::simd.
+   * \ingroup vir_count_if
+   */
   template <vir::detail::simd_execution_policy ExecutionPolicy,
             vir::detail::simd_execution_iterator It, typename F>
     constexpr int

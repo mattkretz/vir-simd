@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<!--
+SPDX-License-Identifier: CC0-1.0
+Copyright © 2025      GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
+                      Matthias Kretz <m.kretz@gsi.de>
+-->
+<tagfile>
+  <compound kind="concept">
+    <name>std::contiguous_iterator</name>
+    <filename>iterator/contiguous_iterator</filename>
+  </compound>
+  <compound kind="concept">
+    <name>std::ranges::contiguous_range</name>
+    <filename>ranges/contiguous_range</filename>
+  </compound>
+  <compound kind="namespace">
+    <name>std</name>
+    <filename>standard_library</filename>
+    <member kind="function"><name>for_each</name><anchorfile>algorithm/for_each</anchorfile></member>
+    <member kind="function"><name>transform</name><anchorfile>algorithm/transform</anchorfile></member>
+    <member kind="function"><name>transform_reduce</name><anchorfile>algorithm/transform_reduce</anchorfile></member>
+    <member kind="function"><name>reduce</name><anchorfile>algorithm/reduce</anchorfile></member>
+    <member kind="function"><name>count_if</name><anchorfile>algorithm/count_if</anchorfile></member>
+    <member kind="function"><name>plus</name><anchorfile>utility/functional/plus</anchorfile></member>
+    <member kind="function"><name>multiplies</name><anchorfile>utility/functional/multiplies</anchorfile></member>
+    <member kind="function"><name>distance</name><anchorfile>iterator/distance</anchorfile></member>
+  </compound>
+  <compound kind="namespace">
+    <name>std::ranges</name>
+    <filename>ranges</filename>
+    <member kind="function"><name>zip_view</name><anchorfile>ranges/zip_view</anchorfile></member>
+  </compound>
+  <compound kind="namespace">
+    <name>std::ranges::views</name>
+    <filename>ranges</filename>
+    <member kind="function"><name>zip</name><anchorfile>ranges/zip_view</anchorfile></member>
+  </compound>
+</tagfile>

@@ -6,11 +6,15 @@
 #ifndef VIR_SIMD_SIMDIZE_H_
 #define VIR_SIMD_SIMDIZE_H_
 
+/** \file vir/simdize.h
+ * \brief Provides a type transformation for turning scalar user-defined types into a simd types.
+ */
+
 #include "struct_reflect.h"
 #include "constexpr_wrapper.h"
 
 #if VIR_HAVE_STRUCT_REFLECT and VIR_HAVE_CONSTEXPR_WRAPPER \
-  and (not defined __clang_major__ or __clang_major__ > 14)
+  and (defined DOXYGEN or not defined __clang_major__ or __clang_major__ > 14)
 #define VIR_HAVE_SIMDIZE 1
 
 #include <tuple>
@@ -31,6 +35,7 @@ namespace vir
   template <typename T>
     struct simdize_size
     : vir::constexpr_wrapper<[]() -> int {
+#ifndef DOXYGEN
 	if constexpr (stdx::is_simd_v<T>)
 	  return T::size();
 	else if constexpr (reflectable_struct<T> and []<std::size_t... Is>(
@@ -41,9 +46,11 @@ namespace vir
 	  return simdize_size<vir::struct_element_t<0, T>>::value;
 	else
 	  return 0;
+#endif
       }()>
     {};
 
+  /// Inline variable for the simdize_size trait.
   template <typename T>
     inline constexpr int simdize_size_v = simdize_size<T>::value;
 
@@ -71,7 +78,7 @@ namespace vir
 				stdx::element_aligned);
 
 #if VIR_HAVE_WORKING_SHUFFLEVECTOR
-    /**
+    /** \internal
      * Return a with a[i] replaced by b[i] for all i in {Indexes...}.
      */
     template <int... Indexes, typename T>
@@ -166,7 +173,7 @@ namespace vir
 	using type = std::tuple<typename simdize_impl<vir::struct_element_t<Is, Tup>, N>::type...>;
       };
 
-    /**
+    /** \internal
      * Recursively simdize all type template arguments.
      */
     template <std::size_t N, template <typename...> class Tpl, typename... Ts>
@@ -215,7 +222,7 @@ namespace vir
     template <typename T, int N = 0>
       using simdize_template_arguments_t = typename simdize_template_arguments<T, N>::type;
 
-    /**
+    /** \internal
      * flat_member_count: count data members in T recursively.
      * IOW, count all non-reflectable data members. If a data member can be reflected, count its
      * members instead.
@@ -240,7 +247,7 @@ namespace vir
 	}(std::make_integer_sequence<int, vir::struct_size_v<T>>());
       };
 
-    /**
+    /** \internal
      * Determine the type of the I-th non-reflectable data member.
      */
     template <int I, typename T>
@@ -265,7 +272,7 @@ namespace vir
       struct flat_element<I, T>
       { using type = flat_element_t<I, struct_element_t<0, T>>; };
 
-    /**
+    /** \internal
      * Return the value of the I-th non-reflectable data member.
      */
     template <int I, int Offset = 0, vir::reflectable_struct T>
@@ -298,7 +305,7 @@ namespace vir
       test_all_of(std::index_sequence<Is...>)
       { return {}; }
 
-    /**
+    /** \internal
      * Conjunction of Trait::value<I> for I in {Is...}.
      */
     template <typename Trait, std::size_t... Is>
@@ -306,7 +313,7 @@ namespace vir
       test_all_of(std::index_sequence<Is...>)
       { return {}; }
 
-    /**
+    /** \internal
      * Test that make_simd_tuple and simdize_template_arguments produce equivalent results.
      */
     template <typename T, int N = default_simdize_size<T>::value,
@@ -321,8 +328,8 @@ namespace vir
   }
 
   /**
-   * A type T is a vectorizable struct template if all of its data-members can be vectorized via
-   * template argument simdization.
+   * \brief A type \p T is a vectorizable struct template if all of its data members can be
+   * vectorized via template argument simdization.
    */
   template <typename T>
     concept vectorizable_struct_template
@@ -353,7 +360,9 @@ namespace vir
   } // namespace detail
 
   /**
-   * stdx::simd-like interface for tuples of vectorized data members of T.
+   * \brief `simd`-like interface for tuples of vectorized data members of \p T.
+   *
+   * \warning Do not use this class template directly, use \ref simdize instead.
    */
   template <reflectable_struct T, int N>
     requires requires { typename detail::make_simd_tuple<T, N>::type; }
@@ -366,9 +375,13 @@ namespace vir
       static constexpr auto tuple_size_idx_seq = std::make_index_sequence<vir::struct_size_v<T>>();
 
     public:
+      /// The element type of this `simd`-like type.
       using value_type = T;
+
+      /// The associated `simd_mask` type.
       using mask_type = typename std::tuple_element_t<0, tuple_type>::mask_type;
 
+      /// The number of elements (of \ref value_type) contained in objects of this type.
       static constexpr auto size = vir::cw<N>;
 
       template <typename U = T>
@@ -995,6 +1008,8 @@ namespace vir
       = reflectable_struct<T> and detail::recursively_vectorizable<T>::value;
 
   /**
+   * \brief Apply a type transformation to a scalar type to produce a data-parallel type.
+   *
    * Meta-function that turns a vectorizable type or a tuple-like (recursively) of vectorizable
    * types into a stdx::simd or std::tuple (recursively) of stdx::simd. If N is non-zero, N
    * determines the resulting SIMD width. Otherwise, of all vectorizable types U the maximum
