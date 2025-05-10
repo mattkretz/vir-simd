@@ -186,31 +186,33 @@ namespace vir
 				and sizeof(VBuiltin) == sizeof(V) and sizeof(RBuiltin) == sizeof(R))
 		  {
 		    const VBuiltin vec = detail::bit_cast<VBuiltin>(v);
-		    const auto idx_perm2 = [&](constexpr_value auto i) -> int {
-		      constexpr int j = [&]() {
-			if constexpr (detail::index_permutation_function_nosize<F>)
-			  return idx_perm(i);
-			else
-			  return idx_perm(i, vir::cw<V::size()>);
-		      }();
+		    constexpr auto idx_perm2 = [=](constexpr_value auto i) {
+		      if constexpr (detail::index_permutation_function_nosize<F>)
+			return vir::cw<idx_perm(i)>;
+		      else
+			return vir::cw<idx_perm(i, vir::cw<V::size()>)>;
+		    };
+		    constexpr auto adj_idx = [](constexpr_value auto i) {
+		      constexpr int j = i;
 		      if constexpr (j == simd_permute_zero)
-			return V::size();
+			return vir::cw<V::size()>;
 		      else if constexpr (j == simd_permute_uninit)
-			return -1;
+			return vir::cw<-1>;
 		      else if constexpr (j < 0)
 			{
 			  static_assert (-j <= int(V::size()));
-			  return int(V::size()) + j;
+			  return vir::cw<int(V::size()) + j>;
 			}
 		      else
 			{
 			  static_assert (j < int(V::size()));
-			  return j;
+			  return vir::cw<j>;
 			}
 		    };
 		    return [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-		      return detail::bit_cast<R>(__builtin_shufflevector(
-						   vec, VBuiltin{}, (idx_perm2(vir::cw<Is>))...));
+		      return detail::bit_cast<R>(
+			       __builtin_shufflevector(vec, VBuiltin{},
+						       adj_idx(idx_perm2(vir::cw<Is>)).value...));
 		    }(std::make_index_sequence<R::size()>());
 		  }
 	      }
