@@ -10,7 +10,7 @@
 #include "constexpr_wrapper.h"
 
 #if VIR_HAVE_STRUCT_REFLECT and VIR_HAVE_CONSTEXPR_WRAPPER \
-  and (not defined __clang_major__ or __clang_major__ > 13)
+  and (not defined __clang_major__ or __clang_major__ > 14)
 #define VIR_HAVE_SIMDIZE 1
 
 #include <tuple>
