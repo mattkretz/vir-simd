@@ -8,6 +8,10 @@
 #ifndef VIR_SIMD_PERMUTE_H_
 #define VIR_SIMD_PERMUTE_H_
 
+/** \file vir/simd_permute.h
+ * \brief Permutation functions for the Parallelism TS 2 simd types.
+ */
+
 #include "simd_concepts.h"
 
 #if VIR_HAVE_SIMD_CONCEPTS
@@ -44,8 +48,10 @@ namespace vir
 	= index_permutation_function_size<F, Size> or index_permutation_function_nosize<F>;
   }
 
+  /// Constant that requests a zero value instead of one of the input values.
   constexpr int simd_permute_zero = std::numeric_limits<int>::max();
 
+  /// Constant that allows an arbitrary value instead of one of the input values.
   constexpr int simd_permute_uninit = simd_permute_zero - 1;
 
 #if defined __clang__ and __clang__ <= 13
@@ -54,6 +60,7 @@ namespace vir
 #define VIR_CONSTEVAL consteval
 #endif
 
+  /// Predefined permutations.
   namespace simd_permutations
   {
     struct DuplicateEven
@@ -63,6 +70,7 @@ namespace vir
       { return i & ~1u; }
     };
 
+    /// Copies even elements into odd elements.
     inline constexpr DuplicateEven duplicate_even {};
 
     struct DuplicateOdd
@@ -72,6 +80,7 @@ namespace vir
       { return i | 1u; }
     };
 
+    /// Copies odd elements into even elements.
     inline constexpr DuplicateOdd duplicate_odd {};
 
     template <unsigned N>
@@ -91,6 +100,11 @@ namespace vir
 	}
       };
 
+    /** \brief Swaps \p N neighboring elements.
+     *
+     * \tparam N  For `N == 1` swaps actual neighbors. Otherwise consider `N` elements to be one
+     *            entity to be swapped with the corresponding `N` neighboring elements.
+     */
     template <unsigned N = 1u>
       inline constexpr SwapNeighbors<N> swap_neighbors {};
 
@@ -102,11 +116,14 @@ namespace vir
 	{ return Position; }
       };
 
+    /// Copy element at index \p Position into all elements.
     template <int Position>
       inline constexpr Broadcast<Position> broadcast {};
 
+    /// Copy the first element into all elements.
     inline constexpr Broadcast<0> broadcast_first {};
 
+    /// Copy the last element into all elements.
     inline constexpr Broadcast<-1> broadcast_last {};
 
     struct Reverse
@@ -116,6 +133,7 @@ namespace vir
       { return -1 - i; }
     };
 
+    /// Reverse the elements.
     inline constexpr Reverse reverse {};
 
     template <int O>
@@ -129,6 +147,7 @@ namespace vir
 	{ return (i + Offset) % size.value; }
       };
 
+    /// Rotate the elements by \p Offset.
     template <int Offset>
       inline constexpr Rotate<Offset> rotate {};
 
@@ -146,12 +165,15 @@ namespace vir
 	}
       };
 
+    /// Shift the elements by \p Offset.
     template <int Offset>
       inline constexpr Shift<Offset> shift {};
   }
 
 #undef VIR_CONSTEVAL
 
+  /** \brief Permute the elements of \p v using the index permutation function \p idx_perm.
+   */
   template <std::size_t N = 0, vir::any_simd_or_mask V,
 	    detail::index_permutation_function<V::size()> F>
     VIR_ALWAYS_INLINE constexpr stdx::resize_simd_t<N == 0 ? V::size() : N, V>
@@ -253,6 +275,7 @@ namespace vir
 	     });
     }
 
+  /// Overload for scalar inputs.
   template <std::size_t N = 0, vir::vectorizable T, detail::index_permutation_function<1> F>
     VIR_ALWAYS_INLINE constexpr
     std::conditional_t<N <= 1, T, stdx::resize_simd_t<N == 0 ? 1 : N, stdx::simd<T>>>
@@ -284,6 +307,7 @@ namespace vir
 	return simd_permute<N>(stdx::simd<T, stdx::simd_abi::scalar>(v), idx_perm);
     }
 
+  /// Concatenate `a, more...`, shift by \p Offset, and return the first `V::size()` elements.
   template <int Offset, vir::any_simd_or_mask V>
     VIR_ALWAYS_INLINE constexpr V
     simd_shift_in(V const& a, std::convertible_to<V> auto const&... more) noexcept

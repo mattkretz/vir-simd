@@ -57,6 +57,8 @@
 #endif
 
 
+/** \internal
+ */
 namespace vir::meta
 {
   template <typename T>
@@ -160,6 +162,8 @@ namespace vir::meta
       using as_unsigned_t = typename as_unsigned<T>::type;
 }
 
+/** \internal
+ */
 namespace vir::detail
 {
   template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>

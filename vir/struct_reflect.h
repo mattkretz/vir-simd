@@ -6,7 +6,12 @@
 #ifndef VIR_STRUCT_SIZE_H_
 #define VIR_STRUCT_SIZE_H_
 
-#if defined __cpp_structured_bindings && defined __cpp_concepts && __cpp_concepts >= 201907
+/** \file vir/struct_reflect.h
+ * \brief Tools for data member reflection of aggregates.
+ */
+
+#if defined DOXYGEN \
+    or (defined __cpp_structured_bindings && defined __cpp_concepts && __cpp_concepts >= 201907)
 #define VIR_HAVE_STRUCT_REFLECT 1
 #include <utility>
 #include <tuple>
@@ -14,6 +19,7 @@
 
 namespace vir
 {
+  /// \internal \brief Implementation details.
   namespace detail
   {
     using std::remove_cvref_t;
@@ -389,15 +395,21 @@ namespace vir
   }  // namespace detail
 
   /**
-   * Satisfied if \p T can be used with the following functions and types.
+   * \brief Satisfied if \p T can be used with the following functions and types.
+   *
+   * \see vir::struct_size_v, vir::struct_get, vir::struct_element_t
+   * \see vir::to_tuple, vir::to_tuple_ref, vir::as_tuple, vir::as_tuple_t
+   * \see vir::to_pair, vir::to_pair_ref, vir::as_pair, vir::as_pair_t
    */
   template <typename T>
     concept reflectable_struct = detail::has_tuple_size<std::remove_cvref_t<T>>
 				   or detail::aggregate_without_tuple_size<std::remove_cvref_t<T>>;
 
   /**
-   * The value of struct_size_v is the number of non-static data members of the type \p T.
-   * More precisely, struct_size_v is the number of elements in the identifier-list of a
+   * \brief The number of non-static data members of \p T.
+   *
+   * The value of `struct_size_v` is the number of non-static data members of the type \p T.
+   * More precisely, `struct_size_v` is the number of elements in the identifier-list of a
    * structured binding declaration.
    *
    * \tparam T An aggregate type or a type specializing `std::tuple_size` that can be
@@ -419,7 +431,7 @@ namespace vir
     constexpr inline std::size_t struct_size_v<T> = std::tuple_size_v<T>;
 
   /**
-   * Returns a cv-qualified reference to the \p N -th non-static data member in \p obj.
+   * \brief Returns a cv-qualified reference to the \p N -th non-static data member in \p obj.
    */
   template <std::size_t N, reflectable_struct T>
     requires (N < struct_size_v<std::remove_cvref_t<T>>)
@@ -437,7 +449,7 @@ namespace vir
     };
 
   /**
-   * `struct_element_t` is an alias for the type of the \p N -th non-static data member of
+   * \brief `struct_element_t<N, T>` is an alias for the type of the \p N -th non-static data member of
    * \p T.
    */
   template <std::size_t N, reflectable_struct T>
@@ -445,7 +457,7 @@ namespace vir
       = std::remove_reference_t<decltype(struct_get<N>(std::declval<T &>()))>;
 
   /**
-   * Returns a std::tuple with a copy of all the non-static data members of \p obj.
+   * \brief Returns a std::tuple with a copy of all the non-static data members of \p obj.
    */
   template <reflectable_struct T>
     constexpr auto
@@ -456,7 +468,7 @@ namespace vir
     }
 
   /**
-   * Returns a std::tuple of lvalue references to all the non-static data members of \p obj.
+   * \brief Returns a std::tuple of lvalue references to all the non-static data members of \p obj.
    */
   template <reflectable_struct T>
     constexpr auto
@@ -467,7 +479,7 @@ namespace vir
     }
 
   /**
-   * Defines the member type \p type to a std::tuple specialization matching the non-static
+   * \brief Defines the member type \p type to a std::tuple specialization matching the non-static
    * data members of \p T.
    */
   template <reflectable_struct T>
@@ -478,13 +490,13 @@ namespace vir
     {};
 
   /**
-   * Alias for a std::tuple specialization matching the non-static data members of \p T.
+   * \brief Alias for a std::tuple specialization matching the non-static data members of \p T.
    */
   template <typename T>
     using as_tuple_t = typename as_tuple<T>::type;
 
   /**
-   * Returns a std::pair with a copy of all the non-static data members of \p obj.
+   * \brief Returns a std::pair with a copy of all the non-static data members of \p obj.
    */
   template <typename T>
     requires(struct_size_v<std::remove_cvref_t<T>> == 2)
@@ -493,7 +505,7 @@ namespace vir
     { return detail::struct_get<2>().to_pair(std::forward<T>(obj)); }
 
   /**
-   * Returns a std::pair of lvalue references to all the non-static data members of \p obj.
+   * \brief Returns a std::pair of lvalue references to all the non-static data members of \p obj.
    */
   template <typename T>
     requires(struct_size_v<std::remove_cvref_t<T>> == 2)
@@ -502,7 +514,7 @@ namespace vir
     { return detail::struct_get<2>().to_pair_ref(std::forward<T>(obj)); }
 
   /**
-   * Defines the member type \p type to a std::pair specialization matching the non-static
+   * \brief Defines the member type \p type to a std::pair specialization matching the non-static
    * data members of \p T.
    */
   template <typename T>
@@ -512,7 +524,7 @@ namespace vir
     {};
 
   /**
-   * Alias for a std::pair specialization matching the non-static data members of \p T.
+   * \brief Alias for a std::pair specialization matching the non-static data members of \p T.
    */
   template <typename T>
     using as_pair_t = typename as_pair<T>::type;
