@@ -1,0 +1,10 @@
+var searchData=
+[
+  ['reduce_0',['reduce',['../group__vir__reduce.html',1,'Algorithm: reduce'],['https://en.cppreference.com/w/cpp/algorithm/reduce.html',1,'std::reduce()'],['../group__vir__reduce.html#gae13f6db1d38dd5fcefd45d3f9363b83c',1,'vir::reduce(ExecutionPolicy policy, It first, It last)'],['../group__vir__reduce.html#gaa5233765269556328509996a66bb247a',1,'vir::reduce(ExecutionPolicy policy, It first, It last, T init)'],['../group__vir__reduce.html#ga1f7d3e02d88a5441a1ee363c0f4f0cc1',1,'vir::reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp op)'],['../group__vir__reduce.html#ga4bb671038547705ed9db4937c293bc6f',1,'vir::reduce(ExecutionPolicy policy, Rg &amp;&amp;rg)'],['../group__vir__reduce.html#gacc5d702e33eeb3eef5542a390ee84598',1,'vir::reduce(ExecutionPolicy policy, Rg &amp;&amp;rg, T init)'],['../group__vir__reduce.html#ga9dfd5d058b947a1a49c77cc42c9ce43e',1,'vir::reduce(ExecutionPolicy policy, Rg &amp;&amp;rg, T init, BinaryReductionOp op)'],['../group__vir__reduce.html#ga6d1572cab8bb02dc8854ac1d018b8842',1,'std::reduce(ExecutionPolicy policy, It first, It last)'],['../group__vir__reduce.html#gafc55abed2204b168539f02f16444b590',1,'std::reduce(ExecutionPolicy policy, It first, It last, T init)'],['../group__vir__reduce.html#ga7bd9783f053f1e57d39779ab29d2b1fa',1,'std::reduce(ExecutionPolicy policy, It first, It last, T init, BinaryReductionOp op)']]],
+  ['reflectable_5fstruct_1',['reflectable_struct',['../conceptvir_1_1reflectable__struct.html',1,'vir']]],
+  ['report_2',['Report',['../md_CONTRIBUTING.html#autotoc_md12',1,'Before Submitting a Bug Report'],['../md_CONTRIBUTING.html#autotoc_md13',1,'How Do I Submit a Good Bug Report?']]],
+  ['reporting_20bugs_3',['Reporting Bugs',['../md_CONTRIBUTING.html#autotoc_md11',1,'']]],
+  ['responsibilities_4',['Our Responsibilities',['../md_CODE__OF__CONDUCT.html#autotoc_md3',1,'']]],
+  ['reverse_5',['reverse',['../namespacevir_1_1simd__permutations.html#a1467669ebde9c7d3bf25fc243cd09d78',1,'vir::simd_permutations']]],
+  ['rotate_6',['rotate',['../namespacevir_1_1simd__permutations.html#afbc110b32c8808fd333b22e8c66ea8bc',1,'vir::simd_permutations']]]
+];
