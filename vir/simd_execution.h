@@ -745,11 +745,14 @@ case0:
                 result.copy_to(std::to_address(d_first), stdx::element_aligned);
               }
 
-            for (; first1 < last1; advance(1, first1, d_first, first2...))
+            if constexpr (!assume_matching_size)
               {
-                const vir::simdize<OutT, 1>& result
-                  = simdized_load_and_invoke(op, 1_cw, first1, first2...);
-                result.copy_to(std::to_address(d_first), stdx::element_aligned);
+                for (; first1 < last1; advance(1, first1, d_first, first2...))
+                  {
+                    const vir::simdize<OutT, 1>& result
+                      = simdized_load_and_invoke(op, 1_cw, first1, first2...);
+                    result.copy_to(std::to_address(d_first), stdx::element_aligned);
+                  }
               }
           }
         else
@@ -762,11 +765,14 @@ case0:
             // store execution ports (a factor of 2 throughput difference with AVX-512 vectors).
             constexpr prologue<OutV, ExecutionPolicy> p;
             constexpr auto flags = p.flags;
-            p(distance, d_first, [&] (auto max_elements, auto to_process) {
-              simd_transform_prologue<vir::simdize<OutT, 1>, T1, std::iter_value_t<It2>...>(
-                op, std::to_address(d_first), to_process, max_elements, std::to_address(first1),
-                std::to_address(first2)...);
-            }, first1, d_first, first2...);
+            if constexpr (!assume_matching_size)
+              {
+                p(distance, d_first, [&] (auto max_elements, auto to_process) {
+                  simd_transform_prologue<vir::simdize<OutT, 1>, T1, std::iter_value_t<It2>...>(
+                    op, std::to_address(d_first), to_process, max_elements, std::to_address(first1),
+                    std::to_address(first2)...);
+                }, first1, d_first, first2...);
+              }
 
             if constexpr (ExecutionPolicy::_unroll_by > 1)
               {
