@@ -18,6 +18,7 @@
 #define VIR_HAVE_SIMD_PERMUTE 1
 
 #include "simd.h"
+#include "detail.h"
 #include "constexpr_wrapper.h"
 #include <bit>
 
