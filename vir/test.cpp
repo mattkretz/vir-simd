@@ -462,6 +462,7 @@ namespace test_simdize
   static_assert(vir::vectorizable_struct<T>);
 }
 
+#if VIR_SIMD_HAVE_CONSTEXPR_API
 static_assert([] {
   vir::simdize<Point> p1 = Point{1.f, 1.f, 1.f};
   vir::simdize<Point> p2 {V<float>([](short i) { return i; }),
@@ -493,6 +494,7 @@ static_assert([] {
   }
   return true;
 }());
+#endif
 
 struct Line
 {
@@ -507,6 +509,7 @@ static_assert(std::same_as<vir::as_tuple_t<Line>,
 static_assert(std::same_as<vir::simdize<Line>,
 			   vir::simd_tuple<Line, V<float>::size()>>);
 
+#if VIR_SIMD_HAVE_CONSTEXPR_API
 #if VIR_HAVE_SIMD_IOTA
 constexpr vir::simdize<Point> point{vir::iota_v<V<float>>, 2.f, 3.f};
 static_assert(point[0].x == 0.f);
@@ -547,6 +550,7 @@ static_assert([] {
   v.copy_to(data.begin());
   return data == std::array<Point, 5> {Point{1, 1, 0}, {1, 2, 0}, {1, 3, 0}, {0, 0, 0}, {0, 0, 0}};
 }());
+#endif // VIR_SIMD_HAVE_CONSTEXPR_API
 
 #endif  // VIR_HAVE_SIMDIZE
 #endif  // VIR_HAVE_STRUCT_REFLECT
@@ -578,6 +582,7 @@ namespace algorithms_tests
   static_assert(vir::execution::simd._auto_prologue == false);
   static_assert(vir::execution::simd.auto_prologue()._auto_prologue == true);
   static_assert(vir::execution::simd.prefer_size<4>().auto_prologue()._auto_prologue == true);
+#if VIR_SIMD_HAVE_CONSTEXPR_API
   static_assert([] {
     std::array input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
     vir::for_each(vir::execution::simd, input, [](auto& v) {
@@ -628,6 +633,7 @@ namespace algorithms_tests
     int r = std::transform_reduce(vir::execution::simd, a1.begin(), a1.end(), a2.begin(), 0);
     return r == 2470;
   }());
+#endif // VIR_SIMD_HAVE_CONSTEXPR_API
 }
 #endif  // VIR_HAVE_SIMD_EXECUTION
 
