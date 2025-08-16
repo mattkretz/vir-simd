@@ -148,10 +148,14 @@ check-extensions: check-extensions-stdlib check-extensions-fallback
 check-extensions-stdlib:
 	@echo "$(std): test extensions ($(CXXFLAGS))"
 	@$(CXX) -O2 -std=$(std) -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o test.S
+	@echo "gnu++17: test extensions ($(CXXFLAGS))"
+	@$(CXX) -O2 -std=gnu++17 -Wall -Wextra $(CXXFLAGS) -S vir/test.cpp -o test17.S
 
 check-extensions-fallback:
 	@echo "$(std): test extensions ($(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD)"
 	@$(CXX) -O2 -std=$(std) -Wall -Wextra $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -S vir/test.cpp -o test.S
+	@echo "gnu++17: test extensions ($(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD)"
+	@$(CXX) -O2 -std=gnu++17 -Wall -Wextra $(CXXFLAGS) -DVIR_DISABLE_STDX_SIMD -S vir/test.cpp -o test17.S
 
 check-constexpr_wrapper:
 	@echo "gnu++2a: test constexpr_wrapper ($(CXXFLAGS))"

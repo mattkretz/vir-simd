@@ -101,10 +101,17 @@ namespace
 		}(V<int>(1)), 1.f));
 #endif
   // simd_mask:
-  static_assert(std::same_as<decltype(cvt(RV<int, float>(2) == 2) == (V<float>(1) == 1.f)),
-			     typename V<float>::mask_type>);
+  static_assert(std::is_same_v<decltype(cvt(RV<int, float>(2) == 2) == (V<float>(1) == 1.f)),
+			       typename V<float>::mask_type>);
   // arithmetic:
   static_assert(float(cvt(1)) == 1.f);
+
+  static_assert(std::is_convertible_v<cvt<V<float>>, RV<int, float>>);
+  static_assert(std::is_convertible_v<cvt<V<char>>, RV<int, char>>);
+  static_assert(not std::is_convertible_v<cvt<V<float>>, int>);
+  static_assert(std::is_convertible_v<cvt<float>, int>);
+  static_assert(std::is_convertible_v<cvt<int>, V<double>>);
+  static_assert(std::is_convertible_v<cvt<V<float>::mask_type>, RV<short, float>::mask_type>);
 }
 #endif // VIR_HAVE_SIMD_CVT
 
