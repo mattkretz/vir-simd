@@ -12,6 +12,7 @@
 
 #if defined DOXYGEN \
     or (defined __cpp_structured_bindings && defined __cpp_concepts && __cpp_concepts >= 201907)
+#if !__cpp_lib_tuple_like || !defined __clang__ || __clang_major__ != 17
 #define VIR_HAVE_STRUCT_REFLECT 1
 #include <utility>
 #include <tuple>
@@ -531,6 +532,7 @@ namespace vir
 
 }  // namespace vir
 
+#endif // work around broken Clang
 #endif // structured bindings & concepts
 #endif // VIR_STRUCT_SIZE_H_
 
