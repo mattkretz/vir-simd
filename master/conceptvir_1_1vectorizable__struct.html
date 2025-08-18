@@ -105,7 +105,7 @@ $(function(){initNavTree('conceptvir_1_1vectorizable__struct.html',''); initResi
 <h2 class="groupheader">Concept definition</h2>
 <div class="fragment"><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</div>
 <div class="line"><span class="keyword">concept </span><a class="code hl_concept" href="conceptvir_1_1vectorizable__struct.html">vir::vectorizable_struct</a> =  <a class="code hl_concept" href="conceptvir_1_1reflectable__struct.html">reflectable_struct&lt;T&gt;</a> and detail::recursively_vectorizable&lt;T&gt;::value</div>
-<div class="ttc" id="aconceptvir_1_1reflectable__struct_html"><div class="ttname"><a href="conceptvir_1_1reflectable__struct.html">vir::reflectable_struct</a></div><div class="ttdoc">Satisfied if T can be used with the following functions and types.</div><div class="ttdef"><b>Definition</b> struct_reflect.h:405</div></div>
+<div class="ttc" id="aconceptvir_1_1reflectable__struct_html"><div class="ttname"><a href="conceptvir_1_1reflectable__struct.html">vir::reflectable_struct</a></div><div class="ttdoc">Satisfied if T can be used with the following functions and types.</div><div class="ttdef"><b>Definition</b> struct_reflect.h:406</div></div>
 <div class="ttc" id="aconceptvir_1_1vectorizable__struct_html"><div class="ttname"><a href="conceptvir_1_1vectorizable__struct.html">vir::vectorizable_struct</a></div><div class="ttdef"><b>Definition</b> simdize.h:1008</div></div>
 </div><!-- fragment --><a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>A type T is a vectorizable struct if the struct member types can recursively be reflected and all leaf types satisfy vectorizable. </p>
