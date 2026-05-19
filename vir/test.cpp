@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception */
 /* Copyright © 2023–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
  *                       Matthias Kretz <m.kretz@gsi.de>
  */
@@ -209,7 +209,7 @@ namespace test_struct_reflect
   static_assert(vir::reflectable_struct<std::array<int, 0>>);
   static_assert(vir::reflectable_struct<std::array<int, 2>>);
   static_assert(vir::reflectable_struct<std::pair<int, short>>);
-  static_assert(not vir::reflectable_struct<std::complex<float>>);
+  static_assert(vir::reflectable_struct<std::complex<float>>);
 
   template <typename T>
     struct A
@@ -248,10 +248,14 @@ static_assert(std::same_as<vir::simdize<void>, void>);
 
 static_assert(std::same_as<vir::simdize<std::tuple<>>, std::tuple<>>);
 
-static_assert(std::same_as<vir::simdize<std::complex<float>>, std::complex<float>>);
+static_assert(std::same_as<vir::simdize<std::complex<float>>,
+			   vir::vectorized_struct<std::complex<float>, V<float>::size()>>);
+
+static_assert(std::is_base_of_v<std::complex<V<float>>, vir::simdize<std::complex<float>>>);
 
 static_assert(std::same_as<vir::simdize<std::tuple<std::complex<float>>>,
-			   std::tuple<std::complex<float>>>);
+			   vir::vectorized_struct<std::tuple<std::complex<float>>,
+						  V<float>::size()>>);
 
 static_assert(std::same_as<vir::simdize<std::tuple<int, double>>,
 			   vir::vectorized_struct<std::tuple<int, double>, V<int>::size()>>);
@@ -388,12 +392,10 @@ static_assert(vir::simdize_size_v<vir::simdize<Point>> == stdx::native_simd<floa
 static_assert(std::same_as<typename vir::simdize<Point>::mask_type,
 			   typename V<float>::mask_type>);
 
-static_assert(not vir::vectorizable_struct<std::complex<float>>);
-static_assert(not vir::vectorizable_struct<std::tuple<std::complex<float>>>);
-static_assert(not vir::vectorizable_struct<std::tuple<std::complex<float>,
-							       std::complex<double>>>);
-static_assert(not vir::vectorizable_struct<std::tuple<int, float, double,
-							       std::complex<double>>>);
+static_assert(vir::vectorizable_struct<std::complex<float>>);
+static_assert(vir::vectorizable_struct<std::tuple<std::complex<float>>>);
+static_assert(vir::vectorizable_struct<std::tuple<std::complex<float>, std::complex<double>>>);
+static_assert(vir::vectorizable_struct<std::tuple<int, float, double, std::complex<double>>>);
 
 void f(typename vir::detail::simdize_template_arguments<Point, 0>::type);
 static_assert(vir::vectorizable_struct_template<Point>);

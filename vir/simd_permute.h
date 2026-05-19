@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception */
 /* Copyright © 2023–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
  *                       Matthias Kretz <m.kretz@gsi.de>
  */
@@ -185,7 +185,7 @@ namespace vir
 
 #if defined __GNUC__
       if (not std::is_constant_evaluated())
-	if constexpr (std::has_single_bit(sizeof(V)) and V::size() <= stdx::native_simd<T>::size())
+	if constexpr (std::has_single_bit(sizeof(V)))// and V::size() <= stdx::native_simd<T>::size())
 	  {
 #if defined __AVX2__
 	    using v4df [[gnu::vector_size(32)]] = double;
@@ -329,6 +329,100 @@ namespace vir
 	       else
 		 return a[w + j];
       });
+    }
+
+  template <vir::any_simd_or_mask V0, std::same_as<V0>... Vs>
+    VIR_ALWAYS_INLINE constexpr stdx::resize_simd_t<V0::size() * (1 + sizeof...(Vs)), V0>
+    simd_interleave(V0 const& v0, Vs const&... vs) noexcept
+    {
+      using T = typename V0::value_type;
+      constexpr unsigned Bytes = sizeof(T) * std::bit_ceil(unsigned(V0::size()));
+      using VBuiltin [[gnu::vector_size(Bytes)]] = T;
+      if constexpr (V0::size() == 4 and sizeof...(Vs) == 1 and std::is_trivially_copyable_v<V0>)
+	{
+	   return [](VBuiltin r0, VBuiltin r1) {
+#if defined __SSE__ and defined __GNUC__
+	     return stdx::concat(V0(__builtin_ia32_unpcklps (r0, r1)),
+				 V0(__builtin_ia32_unpckhps (r0, r1)));
+#else
+	     return stdx::concat(
+		      std::bit_cast<V0>(__builtin_shufflevector(r0, r1, 0, 4, 1, 5)),
+		      std::bit_cast<V0>(__builtin_shufflevector(r0, r1, 2, 6, 3, 7)));
+#endif
+	   }(std::bit_cast<VBuiltin>(v0), std::bit_cast<VBuiltin>(vs)...);
+	}
+#if defined __SSE__ and defined __GNUC__
+      else if constexpr (std::is_floating_point_v<T> and sizeof(T) == sizeof(float)
+			   and V0::size() == 4 and sizeof...(Vs) == 3)
+	 {
+	   return [](VBuiltin r0, VBuiltin r1, VBuiltin r2, VBuiltin r3) {
+	     VBuiltin t0 = __builtin_ia32_unpcklps(r0, r1);
+	     VBuiltin t1 = __builtin_ia32_unpcklps(r2, r3);
+	     VBuiltin t2 = __builtin_ia32_unpckhps(r0, r1);
+	     VBuiltin t3 = __builtin_ia32_unpckhps(r2, r3);
+	     return stdx::concat(std::bit_cast<V0>(__builtin_ia32_movlhps(t0, t1)),
+				 std::bit_cast<V0>(__builtin_ia32_movhlps(t1, t0)),
+				 std::bit_cast<V0>(__builtin_ia32_movlhps(t2, t3)),
+				 std::bit_cast<V0>(__builtin_ia32_movhlps(t3, t2)));
+	   }(std::bit_cast<VBuiltin>(v0), std::bit_cast<VBuiltin>(vs)...);
+	 }
+#endif
+#if defined __SSE2__ and defined __GNUC__ and __has_builtin(__builtin_ia32_punpckldq128)
+      else if constexpr (std::is_integral_v<T> and sizeof(T) == sizeof(int)
+			   and V0::size() == 4 and sizeof...(Vs) == 3)
+	 {
+	   using VInt [[gnu::vector_size(16)]] = int;
+	   return [](VInt r0, VInt r1, VInt r2, VInt r3) {
+	     VInt t0 = __builtin_ia32_punpckldq128(r0, r2);
+	     VInt t1 = __builtin_ia32_punpckldq128(r1, r3);
+	     VInt t2 = __builtin_ia32_punpckhdq128(r0, r2);
+	     VInt t3 = __builtin_ia32_punpckhdq128(r1, r3);
+	     return stdx::concat(std::bit_cast<V0>(__builtin_ia32_punpckldq128(t0, t1)),
+				 std::bit_cast<V0>(__builtin_ia32_punpckhdq128(t0, t1)),
+				 std::bit_cast<V0>(__builtin_ia32_punpckldq128(t2, t3)),
+				 std::bit_cast<V0>(__builtin_ia32_punpckhdq128(t2, t3)));
+	   }(std::bit_cast<VInt>(v0), std::bit_cast<VInt>(vs)...);
+	 }
+#endif
+      else if constexpr (std::is_floating_point_v<T> and sizeof(T) == sizeof(double)
+			   and V0::size() == 4 and sizeof...(Vs) == 3)
+	 {
+#if defined __AVX__ and defined __GNUC__
+	   return [](VBuiltin a, VBuiltin b, VBuiltin c, VBuiltin d) {
+	     VBuiltin t0 = __builtin_ia32_unpcklpd256(a, b); // a0 b0 a2 b2
+	     VBuiltin t1 = __builtin_ia32_unpcklpd256(c, d); // c0 d0 c2 d2
+	     VBuiltin t2 = __builtin_ia32_unpckhpd256(a, b); // a1 b1 a3 b3
+	     VBuiltin t3 = __builtin_ia32_unpckhpd256(c, d); // c1 d1 c3 d3
+	     return stdx::concat(std::bit_cast<V0>(__builtin_ia32_vperm2f128_pd256(t0, t1, 0x20)),
+				 std::bit_cast<V0>(__builtin_ia32_vperm2f128_pd256(t2, t3, 0x20)),
+				 std::bit_cast<V0>(__builtin_ia32_vperm2f128_pd256(t0, t1, 0x31)),
+				 std::bit_cast<V0>(__builtin_ia32_vperm2f128_pd256(t3, t2, 0x31)));
+	   }(std::bit_cast<VBuiltin>(v0), std::bit_cast<VBuiltin>(vs)...);
+#elif defined __SSE2__ and defined __GNUC__ and __has_builtin(__builtin_ia32_unpcklpd)
+	   using v2df [[gnu::vector_size(16)]] = double;
+	   using v4df = v2df[2];
+	   return [](auto a0, auto b0, auto c0, auto d0) {
+	     v4df a, b, c, d;
+	     std::memcpy(&a, &a0, sizeof(v4df));
+	     std::memcpy(&b, &b0, sizeof(v4df));
+	     std::memcpy(&c, &c0, sizeof(v4df));
+	     std::memcpy(&d, &d0, sizeof(v4df));
+	     stdx::fixed_size_simd<T, 16> ret;
+	     v2df tmp[8] = {
+	       __builtin_ia32_unpcklpd(a[0], b[0]), __builtin_ia32_unpcklpd(c[0], d[0]),
+	       __builtin_ia32_unpckhpd(a[0], b[0]), __builtin_ia32_unpckhpd(c[0], d[0]),
+	       __builtin_ia32_unpcklpd(a[1], b[1]), __builtin_ia32_unpcklpd(c[1], d[1]),
+	       __builtin_ia32_unpckhpd(a[1], b[1]), __builtin_ia32_unpckhpd(c[1], d[1])
+	     };
+	     std::memcpy(&detail::internal_data_hack(ret, 0), tmp, sizeof(tmp));
+	     return ret;
+	   }(detail::internal_data_hack(v0, 0), detail::internal_data_hack(vs, 0)...);
+#endif
+	 }
+      return simd_permute(stdx::concat(v0, vs...), [](int i) {
+	       constexpr int N = 1 + sizeof...(vs);
+	       return (i % N) * V0::size() + (i / N);
+	     });
     }
 }
 
