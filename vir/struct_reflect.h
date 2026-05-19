@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception */
 /* Copyright © 2018–2024 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH
  *                       Matthias Kretz <m.kretz@gsi.de>
  */
@@ -27,6 +27,19 @@ namespace vir
     using std::size_t;
 
     // struct_size implementation
+#if __cpp_structured_bindings >= 202411L
+
+    template <typename T>
+      requires requires { T{}; }
+      consteval size_t
+      struct_size()
+      {
+	[[maybe_unused]] auto [...pack] = T{};
+	return sizeof...(pack);
+      }
+
+#else
+
     template <typename Struct>
       struct anything_but_base_of
       {
@@ -116,6 +129,8 @@ namespace vir
 	      return struct_size<T, N + 1, Hi, right_index>();
 	  }
       }
+
+#endif
 
     // struct_get implementation
     template <size_t Total>
