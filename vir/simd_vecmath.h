@@ -47,6 +47,14 @@
  * Sign of zero, infinities, NaNs and denormals are handled the same as by the
  * scalar routines. Define VIR_DISABLE_SIMD_VECMATH to keep the underlying
  * implementation, which has none of the above caveats.
+ *
+ * For what the standard intends here, see P1928R15 section 6.1: "The intent is
+ * to avoid errno altogether, while still supporting floating-point exceptions
+ * (possibly depending on compiler flags)", noted as needing more work and not
+ * yet reflected in the wording. Dropping errno is therefore the direction of
+ * travel; the exception flags are where a vector math library falls short of
+ * it. No accuracy bound is specified either way, so the ULP figures above are
+ * glibc's own documentation rather than anything guaranteed.
  */
 
 // __GLIBC__ only exists once a libc header has been seen, so pull it in first
