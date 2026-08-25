@@ -48,6 +48,15 @@
  * scalar routines. Define VIR_DISABLE_SIMD_VECMATH to keep the underlying
  * implementation, which has none of the above caveats.
  *
+ * On C++26. std::simd specifies these functions in namespace std::simd
+ * ([simd.math]) and implementations are expected to vectorize them, which makes
+ * this header unnecessary there. It is scoped to the <experimental/simd>
+ * backend by the VIR_HAVE_STD_SIMD condition above, and its overloads are
+ * constrained to stdx::simd, so it never interposes on std::simd. Should
+ * vir::stdx ever be backed by std::simd, this header has to be revisited: the
+ * routing below would then be shadowing the standard library's own vectorized
+ * math rather than filling a gap in it.
+ *
  * For what the standard intends here, see P1928R15 section 6.1: "The intent is
  * to avoid errno altogether, while still supporting floating-point exceptions
  * (possibly depending on compiler flags)", noted as needing more work and not
