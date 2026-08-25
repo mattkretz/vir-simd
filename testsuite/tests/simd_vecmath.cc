@@ -13,30 +13,30 @@
 
 /* Coverage for vir/simd_vecmath.h
  *
- * Every function the header defines is checked against the scalar routine, for
- * every element type and ABI the harness iterates. Which of the two code paths
- * a given simd takes is decided by its width, so running the extended widths
- * (1 to 32) covers both: the vector math library for the widths libmvec has,
- * and the forward to the underlying implementation for everything else.
- *
- * The overloads live in vir::stdx, so they have to be named. An unqualified
- * call would land on the underlying implementation through argument-dependent
- * lookup and test nothing.
+ * Everything here is inside VIR_HAVE_SIMD_VECMATH. Where the header is inert
+ * -- another architecture, another libc, a glibc too old, vir's own simd, or
+ * the opt-out -- vir::vecmath does not exist and there is nothing of this
+ * header's to test. Testing the underlying implementation instead would only
+ * measure how well libstdc++ reduces arguments, which it does badly enough to
+ * fail (its vector cos returns inf for finite_max).
  */
+#ifdef VIR_HAVE_SIMD_VECMATH
+
+/* Which functions actually reach the vector math library depends on the glibc
+ * that declared them, so the tolerance has to follow the same split rather
+ * than the simd's width alone.
+ */
+#ifdef VIR_HAVE_SIMD_VECMATH_EXTENDED
+constexpr bool extended_routed = true;
+#else
+constexpr bool extended_routed = false;
+#endif
+
 #define VECMATH_TESTER(name_)                                                                      \
-  make_tester("vir::stdx::" #name_,                                                                \
-	      [](auto... xs) { return vir::stdx::name_(xs...); },                                  \
+  make_tester("vir::vecmath::" #name_,                                                             \
+	      [](auto... xs) { return vir::vecmath::name_(xs...); },                               \
 	      [](auto... xs) { return std::name_(xs...); }, __FILE__, __LINE__)
 
-/* Width sweep
- *
- * Which of the two paths a simd takes, and how many chunks the vector math
- * library is called with, is decided entirely by its width. The harness only
- * instantiates the scalar and the native ABI unless the expensive tests are
- * enabled, and its ULP helper does not currently work with fixed_size ABIs on
- * top of libstdc++'s simd, so sweep the widths here instead, with a lane-wise
- * comparison that needs nothing from the harness.
- */
 template <typename T>
   int
   ulp_distance(T a, T b)
@@ -62,22 +62,28 @@ template <typename T>
     return d > U(far) ? far : int(d);
   }
 
+/* Width sweep
+ *
+ * Which path a simd takes, and how many chunks the vector math library is
+ * called with, is decided entirely by its width. The harness instantiates only
+ * the scalar and the native ABI unless the expensive tests are enabled, and
+ * its ULP helper does not work with fixed_size ABIs on top of libstdc++'s
+ * simd, so the widths are swept here, lane by lane, with nothing from the
+ * harness involved.
+ */
 template <typename T, int Width, typename FSimd, typename FScalar>
   void
-  test_one_width(const char* name, FSimd&& fsimd, FScalar&& fscalar,
+  test_one_width(const char* name, bool routed, FSimd&& fsimd, FScalar&& fscalar,
 		 std::initializer_list<T> inputs)
   {
     using V = vir::stdx::fixed_size_simd<T, Width>;
-    /* 4 ULP is what libmvec documents. On the fallback path the answer comes
-     * from the underlying implementation, which is not the scalar routine
-     * either: libstdc++ carries its own sin and cos, good to 1 ULP rather than
-     * correctly rounded.
+    /* 4 ULP is what libmvec documents. Where the call is not routed the answer
+     * comes from the underlying implementation, which is not the scalar
+     * routine either: libstdc++ carries its own sin and cos, good to 1 ULP.
      */
-#ifdef VIR_HAVE_SIMD_VECMATH
-    constexpr int allowed = vir::vecmath_detail::use_vecmath<T, typename V::abi_type> ? 4 : 1;
-#else
-    constexpr int allowed = 1;
-#endif
+    const int allowed
+      = (routed and vir::vecmath_detail::use_vecmath<T, typename V::abi_type>) ? 4 : 1;
+
     alignas(vir::stdx::memory_alignment_v<V>) T lane[Width];
     auto it = inputs.begin();
     for (int i = 0; i < Width; ++i, ++it)
@@ -101,16 +107,6 @@ template <typename T, int Width, typename FSimd, typename FScalar>
       }
   }
 
-#define SWEEP_1(name_, values_)                                                                    \
-  (test_one_width<T, Widths>(#name_, [](auto v) { return vir::stdx::name_(v); },                   \
-			     [](T v) { return std::name_(v); }, values_), ...)
-
-#define SWEEP_2(name_, second_, values_)                                                           \
-  (test_one_width<T, Widths>(#name_,                                                               \
-			     [](auto v) { return vir::stdx::name_(v, T(second_)); },               \
-			     [](T v) { return std::name_(v, T(second_)); }, values_), ...)
-
-#ifdef VIR_HAVE_SIMD_VECMATH
 /* How wide a chunk is decides how many calls into the vector math library a
  * simd costs. Narrowing it keeps every result correct, so no value comparison
  * can notice; assert the selection directly instead.
@@ -139,15 +135,21 @@ template <typename T, int Width>
 		      "a width the native register divides has to use the native chunk");
       }
   }
-#endif
+
+#define SWEEP_1(name_, routed_, values_)                                                           \
+  (test_one_width<T, Widths>(#name_, routed_, [](auto v) { return vir::vecmath::name_(v); },       \
+			     [](T v) { return std::name_(v); }, values_), ...)
+
+#define SWEEP_2(name_, routed_, second_, values_)                                                  \
+  (test_one_width<T, Widths>(#name_, routed_,                                                      \
+			     [](auto v) { return vir::vecmath::name_(v, T(second_)); },            \
+			     [](T v) { return std::name_(v, T(second_)); }, values_), ...)
 
 template <typename T, int... Widths>
   void
   sweep_widths()
   {
-#ifdef VIR_HAVE_SIMD_VECMATH
     (check_chunk_width<T, Widths>(), ...);
-#endif
 
     // a spread of values, cycled to fill each width, inside the domain of each group
     const std::initializer_list<T> general
@@ -159,150 +161,151 @@ template <typename T, int... Widths>
     const std::initializer_list<T> above_one
       = {T(1), T(1.5), T(2), T(3), T(10), T(1.25), T(5), T(100)};
 
-    SWEEP_1(sin, general); SWEEP_1(cos, general); SWEEP_1(tan, general);
-    SWEEP_1(atan, general); SWEEP_1(sinh, general); SWEEP_1(cosh, general);
-    SWEEP_1(tanh, general); SWEEP_1(asinh, general); SWEEP_1(cbrt, general);
-    SWEEP_1(erf, general); SWEEP_1(erfc, general); SWEEP_1(exp, general);
-    SWEEP_1(exp2, general); SWEEP_1(expm1, general);
-    SWEEP_1(asin, unit); SWEEP_1(acos, unit); SWEEP_1(atanh, unit);
-    SWEEP_1(acosh, above_one);
-    SWEEP_1(log, positive); SWEEP_1(log2, positive); SWEEP_1(log10, positive);
-    SWEEP_1(log1p, positive);
-    SWEEP_2(pow, 2.5, positive); SWEEP_2(atan2, 2, general);
+    constexpr bool base = true;             // sin cos exp log pow, since glibc 2.22
+    constexpr bool ext = extended_routed;   // the rest, since glibc 2.35
+
+    SWEEP_1(sin, base, general);      SWEEP_1(cos, base, general);
+    SWEEP_1(exp, base, general);      SWEEP_1(log, base, positive);
+    SWEEP_2(pow, base, 2.5, positive);
+
+    SWEEP_1(tan, ext, general);       SWEEP_1(atan, ext, general);
+    SWEEP_1(sinh, ext, general);      SWEEP_1(cosh, ext, general);
+    SWEEP_1(tanh, ext, general);      SWEEP_1(asinh, ext, general);
+    SWEEP_1(cbrt, ext, general);      SWEEP_1(erf, ext, general);
+    SWEEP_1(erfc, ext, general);      SWEEP_1(exp2, ext, general);
+    SWEEP_1(expm1, ext, general);     SWEEP_1(asin, ext, unit);
+    SWEEP_1(acos, ext, unit);         SWEEP_1(atanh, ext, unit);
+    SWEEP_1(acosh, ext, above_one);   SWEEP_1(log2, ext, positive);
+    SWEEP_1(log10, ext, positive);    SWEEP_1(log1p, ext, positive);
+    SWEEP_2(atan2, ext, 2, general);
   }
 
 #undef SWEEP_1
 #undef SWEEP_2
+#endif // VIR_HAVE_SIMD_VECMATH
 
 template <typename V>
   void
   test()
   {
+#ifdef VIR_HAVE_SIMD_VECMATH
     using T = typename V::value_type;
     using Abi = typename V::abi_type;
 
-#ifdef VIR_HAVE_SIMD_VECMATH
+    /* test_values reaches vir::detail::bit_cast through the harness's ULP
+     * helper, which does not accept fixed_size ABIs on top of libstdc++'s
+     * simd. Those widths are covered by the sweep instead.
+     */
+    constexpr bool harness_usable
+      = !std::is_same_v<Abi, vir::stdx::simd_abi::fixed_size<V::size()>>;
+
     constexpr bool vecmath = vir::vecmath_detail::use_vecmath<T, Abi>;
-#else
-    constexpr bool vecmath = false;
-#endif
 
-    /* libmvec is accurate to 4 ULP. Where these overloads forward instead, the
-     * result has to be exactly what calling the underlying implementation
-     * would have given, so demand that.
-     */
-    vir::test::setFuzzyness<float>(vecmath ? 4 : 1);
-    vir::test::setFuzzyness<double>(vecmath ? 4 : 1);
-    vir::test::setFuzzyness<long double>(1);
+    if constexpr (harness_usable)
+      {
+	constexpr T inf = vir::infinity_v<T>;
+	constexpr T nan = vir::quiet_NaN_v<T>;
+	constexpr T denorm_min = vir::denorm_min_v<T>;
+	constexpr T norm_min = vir::norm_min_v<T>;
+	constexpr T max = vir::finite_max_v<T>;
 
-    // ... and it does not reproduce the scalar routines' exception flags
-    FloatExceptCompare::ignore = vecmath;
+	const std::initializer_list<T> edge_values
+	  = {+0., -0., 1., -1., 0.5, -0.5, 2., -2., inf, -inf, nan,
+	     denorm_min, -denorm_min, norm_min, norm_min / 3, max, -max};
 
-    constexpr T inf = vir::infinity_v<T>;
-    constexpr T nan = vir::quiet_NaN_v<T>;
-    constexpr T denorm_min = vir::denorm_min_v<T>;
-    constexpr T norm_min = vir::norm_min_v<T>;
-    constexpr T max = vir::finite_max_v<T>;
+	// libmvec does not reproduce the scalar routines' exception flags
+	FloatExceptCompare::ignore = vecmath;
 
-    // values every function has to survive, whatever its domain
-    const std::initializer_list<T> edge_values
-      = {+0., -0., 1., -1., 0.5, -0.5, 2., -2., inf, -inf, nan,
-	 denorm_min, -denorm_min, norm_min, norm_min / 3, max, -max};
+	// the functions glibc has had since 2.22
+	vir::test::setFuzzyness<float>(vecmath ? 4 : 1);
+	vir::test::setFuzzyness<double>(vecmath ? 4 : 1);
+	vir::test::setFuzzyness<long double>(1);
 
-    // unrestricted domain
-    test_values<V>(edge_values, {5000},
-		   VECMATH_TESTER(sin), VECMATH_TESTER(cos), VECMATH_TESTER(tan),
-		   VECMATH_TESTER(atan), VECMATH_TESTER(erf), VECMATH_TESTER(erfc));
+	test_values<V>(edge_values, {5000},
+		       VECMATH_TESTER(sin), VECMATH_TESTER(cos), VECMATH_TESTER(exp));
+	test_values<V>({norm_min, denorm_min, 0.5, 1., 2., max, inf, nan}, {5000, denorm_min, max},
+		       VECMATH_TESTER(log));
 
-    test_values<V>(edge_values, {5000},
-		   VECMATH_TESTER(sinh), VECMATH_TESTER(cosh), VECMATH_TESTER(tanh),
-		   VECMATH_TESTER(asinh), VECMATH_TESTER(cbrt));
+	// and the ones it grew in 2.35
+	const bool ext = vecmath and extended_routed;
+	FloatExceptCompare::ignore = ext;
+	vir::test::setFuzzyness<float>(ext ? 4 : 1);
+	vir::test::setFuzzyness<double>(ext ? 4 : 1);
 
-    test_values<V>(edge_values, {5000},
-		   VECMATH_TESTER(exp), VECMATH_TESTER(exp2), VECMATH_TESTER(expm1));
+	test_values<V>(edge_values, {5000},
+		       VECMATH_TESTER(tan), VECMATH_TESTER(atan),
+		       VECMATH_TESTER(erf), VECMATH_TESTER(erfc));
+	test_values<V>(edge_values, {5000},
+		       VECMATH_TESTER(sinh), VECMATH_TESTER(cosh), VECMATH_TESTER(tanh),
+		       VECMATH_TESTER(asinh), VECMATH_TESTER(cbrt));
+	test_values<V>(edge_values, {5000},
+		       VECMATH_TESTER(exp2), VECMATH_TESTER(expm1));
+	test_values<V>({-1., -0.5, +0., -0., 0.5, 1., denorm_min, nan}, {5000, T(-1), T(1)},
+		       VECMATH_TESTER(asin), VECMATH_TESTER(acos), VECMATH_TESTER(atanh));
+	test_values<V>({1., 1.5, 2., max, inf, nan}, {5000, T(1), max},
+		       VECMATH_TESTER(acosh));
+	test_values<V>({norm_min, denorm_min, 0.5, 1., 2., max, inf, nan}, {5000, denorm_min, max},
+		       VECMATH_TESTER(log2), VECMATH_TESTER(log10));
+	test_values<V>({-1., -0.5, +0., -0., 0.5, 1., max, inf, nan}, {5000, T(-1), max},
+		       VECMATH_TESTER(log1p));
+	test_values_2arg<V>({+0., -0., 0.5, 1., 2., 3., inf, -inf, nan, norm_min, max},
+			    {5000}, VECMATH_TESTER(atan2));
 
-    /* Domain-restricted functions get inputs inside their domain, so that the
-     * comparison exercises the computation rather than agreeing on NaN. The
-     * edge list above already covered the out-of-domain answers.
-     */
-    test_values<V>({-1., -0.5, +0., -0., 0.5, 1., denorm_min, nan},
-		   {5000, T(-1), T(1)},
-		   VECMATH_TESTER(asin), VECMATH_TESTER(acos), VECMATH_TESTER(atanh));
+	FloatExceptCompare::ignore = vecmath;
+	vir::test::setFuzzyness<float>(vecmath ? 4 : 1);
+	vir::test::setFuzzyness<double>(vecmath ? 4 : 1);
+	test_values_2arg<V>({+0., -0., 0.5, 1., 2., 3., -2., inf, -inf, nan, norm_min},
+			    {2000, T(0), T(10)}, VECMATH_TESTER(pow));
 
-    test_values<V>({1., 1.5, 2., max, inf, nan}, {5000, T(1), max},
-		   VECMATH_TESTER(acosh));
+	FloatExceptCompare::ignore = false;
+	vir::test::setFuzzyness<float>(0);
+	vir::test::setFuzzyness<double>(0);
+      }
 
-    test_values<V>({norm_min, denorm_min, 0.5, 1., 2., max, inf, nan}, {5000, denorm_min, max},
-		   VECMATH_TESTER(log), VECMATH_TESTER(log2), VECMATH_TESTER(log10));
-
-    test_values<V>({-1., -0.5, +0., -0., 0.5, 1., max, inf, nan}, {5000, T(-1), max},
-		   VECMATH_TESTER(log1p));
-
-    // two-argument functions
-    test_values_2arg<V>({+0., -0., 0.5, 1., 2., 3., inf, -inf, nan, norm_min, max},
-			{5000}, VECMATH_TESTER(atan2));
-
-    test_values_2arg<V>({+0., -0., 0.5, 1., 2., 3., -2., inf, -inf, nan, norm_min},
-			{2000, T(0), T(10)}, VECMATH_TESTER(pow));
-
-    FloatExceptCompare::ignore = false;
-    vir::test::setFuzzyness<float>(0);
-    vir::test::setFuzzyness<double>(0);
-
-    /* The two-argument overloads must keep accepting a scalar on either side.
-     * Deducing both parameters instead of only the first compiles fine and
-     * silently takes these four spellings away from every caller.
-     */
-    {
-      /* Both sides have to reach the vector math library at run time. Left to
-       * itself the compiler folds one of the two spellings with the scalar
-       * routine, and the comparison then measures libmvec's 4 ULP rather than
-       * whether the two spellings agree.
-       */
-      const V x = make_value_unknown(V([](auto i) { return T(1) + T(i) * T(0.25); }));
-      const V two = make_value_unknown(V(T(2)));
-      const T two_scalar = make_value_unknown(T(2));
-
-      COMPARE(vir::stdx::pow(x, two_scalar), vir::stdx::pow(x, two));
-      COMPARE(vir::stdx::pow(two_scalar, x), vir::stdx::pow(two, x));
-      COMPARE(vir::stdx::atan2(x, two_scalar), vir::stdx::atan2(x, two));
-      COMPARE(vir::stdx::atan2(two_scalar, x), vir::stdx::atan2(two, x));
-
-      // an argument that merely converts to the element type has to work too
-      COMPARE(vir::stdx::pow(x, make_value_unknown(2)), vir::stdx::pow(x, two));
-      COMPARE(vir::stdx::pow(make_value_unknown(2), x), vir::stdx::pow(two, x));
-    }
-
-    /* Names the header does not define must keep every overload the underlying
-     * implementation gives them. A declaration in vir::stdx hides the lot, so
-     * this is what says hypot was left alone.
-     */
-    {
-      const V x = V(T(3));
-      const V y = V(T(4));
-
-      COMPARE(vir::stdx::hypot(x, y), V(T(5)));
-      VERIFY(all_of(vir::stdx::hypot(x, y, V(T(0))) == V(T(5))));
-      COMPARE(vir::stdx::sqrt(V(T(4))), V(T(2)));
-      COMPARE(vir::stdx::abs(V(T(-2))), V(T(2)));
-      COMPARE(vir::stdx::fabs(V(T(-2))), V(T(2)));
-    }
-
-    /* Every width that decides chunking, once per element type. Hung off the
-     * scalar ABI so the sweep runs once rather than once per instantiated ABI.
-     */
+    // every width that decides chunking, once per element type
     if constexpr (std::is_same_v<Abi, vir::stdx::simd_abi::scalar>
 		    and (sizeof(T) == 4 or sizeof(T) == 8))
       sweep_widths<T, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 15, 16, 17, 20, 31, 32>();
 
-    /* Taking a function's address forces the out-of-line copy that the ISA
-     * discriminator in the signature exists to keep apart. It also pins the
-     * signature: the discriminator has to be a defaulted parameter, or naming
-     * the function with two explicit arguments stops working.
+    /* The two-argument overloads must accept a scalar on either side. Deducing
+     * both parameters instead of only the first compiles fine and silently
+     * takes these spellings away from every caller. The exponent is not a
+     * whole number on purpose: with 2 the vector and scalar results agree bit
+     * for bit, which makes the comparison vacuous.
      */
     {
+      const V x = make_value_unknown(V([](auto i) { return T(1) + T(i) * T(0.25); }));
+      const V e = make_value_unknown(V(T(2.5)));
+      const T e_scalar = make_value_unknown(T(2.5));
+
+      COMPARE(vir::vecmath::pow(x, e_scalar), vir::vecmath::pow(x, e));
+      COMPARE(vir::vecmath::pow(e_scalar, x), vir::vecmath::pow(e, x));
+      COMPARE(vir::vecmath::atan2(x, e_scalar), vir::vecmath::atan2(x, e));
+      COMPARE(vir::vecmath::atan2(e_scalar, x), vir::vecmath::atan2(e, x));
+
+      // an argument that merely converts to the element type has to work too
+      COMPARE(vir::vecmath::pow(x, make_value_unknown(2)), vir::vecmath::pow(x, V(T(2))));
+      COMPARE(vir::vecmath::pow(make_value_unknown(2), x), vir::vecmath::pow(V(T(2)), x));
+    }
+
+    /* These live in their own namespace now, so vir::stdx keeps every overload
+     * it had. That is the whole point of not declaring them there.
+     */
+    {
+      COMPARE(vir::stdx::hypot(V(T(3)), V(T(4))), V(T(5)));
+      VERIFY(all_of(vir::stdx::hypot(V(T(3)), V(T(4)), V(T(0))) == V(T(5))));
+      COMPARE(vir::stdx::sqrt(V(T(4))), V(T(2)));
+      COMPARE(vir::stdx::abs(V(T(-2))), V(T(2)));
+      COMPARE(vir::stdx::fabs(V(T(-2))), V(T(2)));
+      COMPARE(vir::stdx::pow(V(T(2)), T(3)), V(T(8)));      // the scalar-broadcast form
+      COMPARE(vir::stdx::pow(T(2), V(T(3))), V(T(8)));      // and the reversed one
+    }
+
+    // taking an address forces the out-of-line copy the ISA tag keeps apart
+    {
       using Fn = V (*)(const V&);
-      const Fn f = &vir::stdx::sin<T, Abi>;
+      const Fn f = &vir::vecmath::sin<T, Abi>;
       COMPARE(f(V(T(0))), V(T(0)));
     }
+#endif // VIR_HAVE_SIMD_VECMATH
   }

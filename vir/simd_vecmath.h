@@ -20,8 +20,11 @@
  * kernel calling sin, exp or sinh slower than the scalar one it replaced.
  *
  * A vector math library computes a whole register worth of results per call.
- * This header routes the functions glibc's libmvec provides to it, and leaves
- * everything else to the underlying simd implementation.
+ * This header offers the functions glibc's libmvec provides as
+ * vir::vecmath::sinh(x) and so on, and leaves everything else to the
+ * underlying simd implementation. Call them qualified: an unqualified sinh(x)
+ * resolves to the underlying implementation through argument-dependent
+ * lookup, and no using-declaration changes that.
  *
  * The calls go to the vector entry points directly, using the x86-64 vector
  * function ABI names, so no compiler flags and no auto-vectorization are
@@ -51,8 +54,9 @@
 #include <features.h>
 #endif
 
-#if defined __x86_64__ && defined __GLIBC__ && defined VIR_HAVE_STD_SIMD \
-      && !defined VIR_DISABLE_SIMD_VECMATH
+// __ILP32__ excludes x32, where __x86_64__ is defined but the ABI is not this one
+#if defined __x86_64__ && !defined __ILP32__ && defined __GLIBC__ \
+      && defined VIR_HAVE_STD_SIMD && !defined VIR_DISABLE_SIMD_VECMATH
 #ifdef __GLIBC_PREREQ
 
 #if __GLIBC_PREREQ(2, 22)
@@ -141,6 +145,22 @@ namespace vir::vecmath_detail
 #  define VIR_VECMATH_ISA256 d
 #else
 #  define VIR_VECMATH_ISA256 c
+#endif
+
+/* The chunk callers below are always_inline, so normally no out-of-line copy
+ * exists, but -fkeep-inline-functions or taking an address emits one, and its
+ * body differs per instruction set exactly as the public overloads' does. An
+ * inline namespace named after the ISA keeps those symbols apart without
+ * touching how they are called.
+ */
+#if defined __AVX512F__
+#  define VIR_VECMATH_ISA_NS isa_avx512
+#elif defined __AVX2__
+#  define VIR_VECMATH_ISA_NS isa_avx2
+#elif defined __AVX__
+#  define VIR_VECMATH_ISA_NS isa_avx
+#else
+#  define VIR_VECMATH_ISA_NS isa_sse2
 #endif
 
 #define VIR_VECMATH_CAT_(a, b) a##b
@@ -235,21 +255,25 @@ namespace vir::vecmath_detail
 #  define VIR_VECMATH_CALL_2_256(name)
 #endif
 
+/* The chunk callers carry the tag as well: they are always_inline too, but
+ * -fkeep-inline-functions or taking an address emits them, and the body
+ * differs per ISA exactly as the public overloads' does.
+ */
 #define VIR_VECMATH_CALL_1(name)                                                                   \
-  namespace vir::vecmath_detail {                                                                  \
+  namespace vir::vecmath_detail { inline namespace VIR_VECMATH_ISA_NS {                            \
     VIR_ALWAYS_INLINE v2d call_##name (v2d x) { return _ZGVbN2v_##name(x); }                       \
     VIR_ALWAYS_INLINE v4f call_##name (v4f x) { return _ZGVbN4v_##name##f(x); }                    \
     VIR_VECMATH_CALL_1_256(name)                                                                   \
     VIR_VECMATH_CALL_1_512(name)                                                                   \
-  }
+  } }
 
 #define VIR_VECMATH_CALL_2(name)                                                                   \
-  namespace vir::vecmath_detail {                                                                  \
+  namespace vir::vecmath_detail { inline namespace VIR_VECMATH_ISA_NS {                            \
     VIR_ALWAYS_INLINE v2d call_##name (v2d x, v2d y) { return _ZGVbN2vv_##name(x, y); }            \
     VIR_ALWAYS_INLINE v4f call_##name (v4f x, v4f y) { return _ZGVbN4vv_##name##f(x, y); }         \
     VIR_VECMATH_CALL_2_256(name)                                                                   \
     VIR_VECMATH_CALL_2_512(name)                                                                   \
-  }
+  } }
 
 namespace vir::vecmath_detail
 {
@@ -384,20 +408,20 @@ namespace vir::vecmath_detail
 #define VIR_VECMATH_FN_1(name)                                                                     \
   VIR_VECMATH_DECL_1(name)                                                                         \
   VIR_VECMATH_CALL_1(name)                                                                         \
-  namespace vir::stdx {                                                                            \
-    template <typename T, typename Abi, typename = vir::vecmath_detail::odr_tag>                   \
+  namespace vir::vecmath {                                                                         \
+    template <typename T, typename Abi, typename = vecmath_detail::odr_tag>                        \
       VIR_ALWAYS_INLINE                                                                            \
-      std::enable_if_t<vir::vecmath_detail::use_vecmath<T, Abi>, simd<T, Abi>>                     \
-      name (const simd<T, Abi>& x)                                                                 \
+      std::enable_if_t<vecmath_detail::use_vecmath<T, Abi>, stdx::simd<T, Abi>>                    \
+      name (const stdx::simd<T, Abi>& x)                                                           \
       {                                                                                            \
-        return vir::vecmath_detail::apply(                                                         \
-                 x, [](auto v) { return vir::vecmath_detail::call_##name(v); });                   \
+        return vecmath_detail::apply(                                                              \
+                 x, [](auto v) { return vecmath_detail::call_##name(v); });                        \
       }                                                                                            \
                                                                                                    \
-    template <typename T, typename Abi, typename = vir::vecmath_detail::odr_tag>                   \
+    template <typename T, typename Abi, typename = vecmath_detail::odr_tag>                        \
       VIR_ALWAYS_INLINE                                                                            \
-      std::enable_if_t<vir::vecmath_detail::use_fallback<T, Abi>, simd<T, Abi>>                    \
-      name (const simd<T, Abi>& x)                                                                 \
+      std::enable_if_t<vecmath_detail::use_fallback<T, Abi>, stdx::simd<T, Abi>>                   \
+      name (const stdx::simd<T, Abi>& x)                                                           \
       { return std::experimental::parallelism_v2::name(x); }                                       \
   }
 
@@ -412,36 +436,68 @@ namespace vir::vecmath_detail
 #define VIR_VECMATH_FN_2(name)                                                                     \
   VIR_VECMATH_DECL_2(name)                                                                         \
   VIR_VECMATH_CALL_2(name)                                                                         \
-  namespace vir::stdx {                                                                            \
-    template <typename T, typename Abi, typename = vir::vecmath_detail::odr_tag>                   \
+  namespace vir::vecmath {                                                                         \
+    template <typename T, typename Abi, typename = vecmath_detail::odr_tag>                        \
       VIR_ALWAYS_INLINE                                                                            \
-      std::enable_if_t<vir::vecmath_detail::use_vecmath<T, Abi>, simd<T, Abi>>                     \
-      name (const simd<T, Abi>& x,                                                                 \
-            const vir::vecmath_detail::nondeduced_t<simd<T, Abi>>& y)                              \
+      std::enable_if_t<vecmath_detail::use_vecmath<T, Abi>, stdx::simd<T, Abi>>                    \
+      name (const stdx::simd<T, Abi>& x,                                                           \
+            const vecmath_detail::nondeduced_t<stdx::simd<T, Abi>>& y)                             \
       {                                                                                            \
-        return vir::vecmath_detail::apply(                                                         \
-                 x, y, [](auto a, auto b) { return vir::vecmath_detail::call_##name(a, b); });     \
+        return vecmath_detail::apply(                                                              \
+                 x, y, [](auto a, auto b) { return vecmath_detail::call_##name(a, b); });          \
       }                                                                                            \
                                                                                                    \
-    template <typename T, typename Abi, typename = vir::vecmath_detail::odr_tag>                   \
+    template <typename T, typename Abi, typename = vecmath_detail::odr_tag>                        \
       VIR_ALWAYS_INLINE                                                                            \
-      std::enable_if_t<vir::vecmath_detail::use_fallback<T, Abi>, simd<T, Abi>>                    \
-      name (const simd<T, Abi>& x,                                                                 \
-            const vir::vecmath_detail::nondeduced_t<simd<T, Abi>>& y)                              \
+      std::enable_if_t<vecmath_detail::use_fallback<T, Abi>, stdx::simd<T, Abi>>                   \
+      name (const stdx::simd<T, Abi>& x,                                                           \
+            const vecmath_detail::nondeduced_t<stdx::simd<T, Abi>>& y)                             \
       { return std::experimental::parallelism_v2::name(x, y); }                                    \
                                                                                                    \
     template <typename U, typename T, typename Abi,                                                \
               typename = std::enable_if_t<                                                         \
-                           vir::vecmath_detail::is_convertible_first<U, T, Abi>>>                  \
-      VIR_ALWAYS_INLINE simd<T, Abi>                                                               \
-      name (U&& x, const simd<T, Abi>& y)                                                          \
+                           vecmath_detail::is_convertible_first<U, T, Abi>>>                       \
+      VIR_ALWAYS_INLINE stdx::simd<T, Abi>                                                         \
+      name (U&& x, const stdx::simd<T, Abi>& y)                                                    \
       {                                                                                            \
-        /* Qualified: an unqualified call would let argument-dependent lookup                      \
-         * add the underlying overload, which deduces both parameters and so                       \
-         * wins partial ordering, quietly sending this spelling down the slow                       \
-         * path. */                                                                                \
-        return vir::stdx::name(simd<T, Abi>(static_cast<U&&>(x)), y);                              \
+        /* Qualified, so that argument-dependent lookup cannot add the                             \
+         * underlying overload, which deduces both parameters and would                            \
+         * therefore win partial ordering. */                                                      \
+        return vir::vecmath::name(stdx::simd<T, Abi>(static_cast<U&&>(x)), y);                     \
       }                                                                                            \
+  }
+
+/* Functions the vector math library on this system does not have
+ *
+ * They still get a vir::vecmath overload, forwarding to the underlying
+ * implementation. Whether a function is routed is this header's business, not
+ * the caller's: code calling vir::vecmath::sinh should compile against any
+ * glibc and simply be faster on the ones that can.
+ */
+#define VIR_VECMATH_FN_1_FORWARD(name)                                                             \
+  namespace vir::vecmath {                                                                         \
+    template <typename T, typename Abi, typename = vecmath_detail::odr_tag>                        \
+      VIR_ALWAYS_INLINE                                                                            \
+      std::enable_if_t<std::is_floating_point_v<T>, stdx::simd<T, Abi>>                            \
+      name (const stdx::simd<T, Abi>& x)                                                           \
+      { return std::experimental::parallelism_v2::name(x); }                                       \
+  }
+
+#define VIR_VECMATH_FN_2_FORWARD(name)                                                             \
+  namespace vir::vecmath {                                                                         \
+    template <typename T, typename Abi, typename = vecmath_detail::odr_tag>                        \
+      VIR_ALWAYS_INLINE                                                                            \
+      std::enable_if_t<std::is_floating_point_v<T>, stdx::simd<T, Abi>>                            \
+      name (const stdx::simd<T, Abi>& x,                                                           \
+            const vecmath_detail::nondeduced_t<stdx::simd<T, Abi>>& y)                             \
+      { return std::experimental::parallelism_v2::name(x, y); }                                    \
+                                                                                                   \
+    template <typename U, typename T, typename Abi,                                                \
+              typename = std::enable_if_t<                                                         \
+                           vecmath_detail::is_convertible_first<U, T, Abi>>>                       \
+      VIR_ALWAYS_INLINE stdx::simd<T, Abi>                                                         \
+      name (U&& x, const stdx::simd<T, Abi>& y)                                                    \
+      { return vir::vecmath::name(stdx::simd<T, Abi>(static_cast<U&&>(x)), y); }                   \
   }
 
 // available since glibc 2.22
@@ -471,6 +527,26 @@ VIR_VECMATH_FN_1(cbrt)
 VIR_VECMATH_FN_1(erf)
 VIR_VECMATH_FN_1(erfc)
 VIR_VECMATH_FN_2(atan2)
+#else
+VIR_VECMATH_FN_1_FORWARD(tan)
+VIR_VECMATH_FN_1_FORWARD(asin)
+VIR_VECMATH_FN_1_FORWARD(acos)
+VIR_VECMATH_FN_1_FORWARD(atan)
+VIR_VECMATH_FN_1_FORWARD(sinh)
+VIR_VECMATH_FN_1_FORWARD(cosh)
+VIR_VECMATH_FN_1_FORWARD(tanh)
+VIR_VECMATH_FN_1_FORWARD(asinh)
+VIR_VECMATH_FN_1_FORWARD(acosh)
+VIR_VECMATH_FN_1_FORWARD(atanh)
+VIR_VECMATH_FN_1_FORWARD(exp2)
+VIR_VECMATH_FN_1_FORWARD(expm1)
+VIR_VECMATH_FN_1_FORWARD(log2)
+VIR_VECMATH_FN_1_FORWARD(log10)
+VIR_VECMATH_FN_1_FORWARD(log1p)
+VIR_VECMATH_FN_1_FORWARD(cbrt)
+VIR_VECMATH_FN_1_FORWARD(erf)
+VIR_VECMATH_FN_1_FORWARD(erfc)
+VIR_VECMATH_FN_2_FORWARD(atan2)
 #endif
 
 /* Deliberately not routed here:
