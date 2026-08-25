@@ -38,14 +38,20 @@ template <typename V>
     /* Unqualified, through the using-directive above. If vir::vecmath's
      * overloads were visible here too, every one of these would be ambiguous.
      */
+    /* Only names both backends provide: vir's own simd implementation, used
+     * where <experimental/simd> is absent, has no exp, exp2, expm1, cbrt or
+     * fabs, and this file is compiled in that configuration too.
+     */
     VERIFY(all_of(sinh(x) == vir::stdx::sinh(x))) << "unqualified sinh";
     VERIFY(all_of(cosh(x) == vir::stdx::cosh(x))) << "unqualified cosh";
+    VERIFY(all_of(tanh(x) == vir::stdx::tanh(x))) << "unqualified tanh";
     VERIFY(all_of(sin(x) == vir::stdx::sin(x))) << "unqualified sin";
     VERIFY(all_of(cos(x) == vir::stdx::cos(x))) << "unqualified cos";
-    VERIFY(all_of(exp(x) == vir::stdx::exp(x))) << "unqualified exp";
+    VERIFY(all_of(tan(x) == vir::stdx::tan(x))) << "unqualified tan";
     VERIFY(all_of(log(x) == vir::stdx::log(x))) << "unqualified log";
+    VERIFY(all_of(log2(x) == vir::stdx::log2(x))) << "unqualified log2";
     VERIFY(all_of(atan(x) == vir::stdx::atan(x))) << "unqualified atan";
-    VERIFY(all_of(cbrt(x) == vir::stdx::cbrt(x))) << "unqualified cbrt";
+    VERIFY(all_of(erf(x) == vir::stdx::erf(x))) << "unqualified erf";
 
     /* The two-argument overload set. libstdc++ generates two overloads per
      * function, the first with a second parameter excluded from deduction,
@@ -69,7 +75,6 @@ template <typename V>
     VERIFY(all_of(hypot(V(T(3)), V(T(4)), V(T(0))) == V(T(5)))) << "hypot, three arguments";
     COMPARE(sqrt(V(T(4))), V(T(2)));
     COMPARE(abs(V(T(-2))), V(T(2)));
-    COMPARE(fabs(V(T(-2))), V(T(2)));
 
     /* And the values are the underlying implementation's, not a vector math
      * library's: identical, not merely close. Anything routed through
@@ -79,6 +84,6 @@ template <typename V>
       {
         const T xi = T(x[i]);
         COMPARE(T(vir::stdx::sinh(x)[i]), std::sinh(xi)) << "lane " << i;
-        COMPARE(T(vir::stdx::exp(x)[i]), std::exp(xi)) << "lane " << i;
+        COMPARE(T(vir::stdx::tanh(x)[i]), std::tanh(xi)) << "lane " << i;
       }
   }
