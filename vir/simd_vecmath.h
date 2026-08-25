@@ -25,13 +25,34 @@
  *
  * The calls go to the vector entry points directly, using the x86-64 vector
  * function ABI names, so no compiler flags and no auto-vectorization are
- * involved. Note that libmvec neither sets errno nor raises floating point
- * exceptions, and documents a maximum error of 4 ULP where the scalar routines
- * stay below 1 ULP.
+ * involved.
+ *
+ * What this costs. libmvec is built for -ffast-math callers, and glibc's own
+ * test suite exercises it with errno and exception checking switched off, so
+ * both become unspecified here:
+ *
+ *  - errno may be set where the scalar routine leaves it alone, and left alone
+ *    where the scalar routine sets it,
+ *  - the exception flags may gain FE_INEXACT on exact results, may miss flags
+ *    the scalar routine raises, and may raise a different one (atanh(1) reports
+ *    FE_INVALID rather than only FE_DIVBYZERO),
+ *  - flags and errno are per call, not per lane, so one lane hitting a pole
+ *    leaves them set for the whole vector,
+ *  - results are accurate to 4 ULP where the scalar routines stay below 1, so
+ *    they are not bit-wise identical to a scalar evaluation.
+ *
+ * Sign of zero, infinities, NaNs and denormals are handled the same as by the
+ * scalar routines. Define VIR_DISABLE_SIMD_VECMATH to keep the underlying
+ * implementation, which has none of the above caveats.
  */
 
-#if defined __x86_64__ && defined __GLIBC__ && defined VIR_HAVE_STD_SIMD
+// __GLIBC__ only exists once a libc header has been seen, so pull it in first
+#if __has_include(<features.h>)
 #include <features.h>
+#endif
+
+#if defined __x86_64__ && defined __GLIBC__ && defined VIR_HAVE_STD_SIMD \
+      && !defined VIR_DISABLE_SIMD_VECMATH
 #ifdef __GLIBC_PREREQ
 
 #if __GLIBC_PREREQ(2, 22)
@@ -110,6 +131,11 @@ namespace vir::vecmath_detail
  * c is AVX, d is AVX2, e is AVX-512. A 256-bit call therefore has two spellings
  * and the right one is the one matching what this translation unit is built
  * for, while the lane count follows the register being passed.
+ *
+ * The c (AVX) entry points are the one class glibc does not resolve through an
+ * ifunc: they are wrappers that split the argument and call the SSE2 routine
+ * twice. They are still far ahead of one scalar call per lane, but a target
+ * without AVX2 should not expect a true 256-bit routine.
  */
 #if defined __AVX2__
 #  define VIR_VECMATH_ISA256 d
@@ -227,6 +253,49 @@ namespace vir::vecmath_detail
 
 namespace vir::vecmath_detail
 {
+  /* Discriminator for the emitted symbol
+   *
+   * These functions are always_inline, so at -O1 and above no out-of-line copy
+   * is emitted at all. At -O0, or when the address of one is taken, a weak
+   * symbol appears, and two translation units built for different instruction
+   * sets would otherwise agree on its name while disagreeing on its body: the
+   * linker keeps one, and the other TU ends up calling a libmvec entry point
+   * its target may not be able to execute. Naming the ISA in the signature
+   * keeps those symbols apart. libstdc++ solves the same problem the same way,
+   * see __odr_helper in <experimental/bits/simd.h>.
+   */
+  template <int Isa>
+    struct isa_tag {};
+
+#if defined __AVX512F__
+  using odr_tag = isa_tag<3>;
+#elif defined __AVX2__
+  using odr_tag = isa_tag<2>;
+#elif defined __AVX__
+  using odr_tag = isa_tag<1>;
+#else
+  using odr_tag = isa_tag<0>;
+#endif
+
+  /* Keeps a parameter out of template argument deduction
+   *
+   * The second argument of a two-argument function must not take part in
+   * deduction, so that pow(x, 2.0) converts the scalar to a simd instead of
+   * failing to deduce. This mirrors _Extra_argument_type in libstdc++.
+   */
+  template <typename T>
+    struct nondeduced { using type = T; };
+
+  template <typename T>
+    using nondeduced_t = typename nondeduced<T>::type;
+
+  //! true for a first argument that is not a simd but converts to one
+  template <typename U, typename T, typename Abi>
+    inline constexpr bool is_convertible_first
+      = std::is_floating_point_v<T>
+          && !std::is_same_v<std::decay_t<U>, stdx::simd<T, Abi>>
+          && std::is_convertible_v<U, stdx::simd<T, Abi>>;
+
   //! true if the math functions below hand this simd to the vector math library
   template <typename T, typename Abi>
     inline constexpr bool use_vecmath
@@ -316,7 +385,7 @@ namespace vir::vecmath_detail
   VIR_VECMATH_DECL_1(name)                                                                         \
   VIR_VECMATH_CALL_1(name)                                                                         \
   namespace vir::stdx {                                                                            \
-    template <typename T, typename Abi>                                                            \
+    template <typename T, typename Abi, typename = vir::vecmath_detail::odr_tag>                   \
       VIR_ALWAYS_INLINE                                                                            \
       std::enable_if_t<vir::vecmath_detail::use_vecmath<T, Abi>, simd<T, Abi>>                     \
       name (const simd<T, Abi>& x)                                                                 \
@@ -325,31 +394,48 @@ namespace vir::vecmath_detail
                  x, [](auto v) { return vir::vecmath_detail::call_##name(v); });                   \
       }                                                                                            \
                                                                                                    \
-    template <typename T, typename Abi>                                                            \
+    template <typename T, typename Abi, typename = vir::vecmath_detail::odr_tag>                   \
       VIR_ALWAYS_INLINE                                                                            \
       std::enable_if_t<vir::vecmath_detail::use_fallback<T, Abi>, simd<T, Abi>>                    \
       name (const simd<T, Abi>& x)                                                                 \
       { return std::experimental::parallelism_v2::name(x); }                                       \
   }
 
+/* Two-argument functions
+ *
+ * The shape follows libstdc++'s _GLIBCXX_SIMD_MATH_CALL2_ exactly, because
+ * these overloads hide it: a first form whose second parameter is excluded
+ * from deduction, so that pow(x, 2.0) broadcasts the scalar, and a reversed
+ * form for pow(2.0, x). Deducing both parameters instead would compile, and
+ * would silently take those two spellings away from every caller.
+ */
 #define VIR_VECMATH_FN_2(name)                                                                     \
   VIR_VECMATH_DECL_2(name)                                                                         \
   VIR_VECMATH_CALL_2(name)                                                                         \
   namespace vir::stdx {                                                                            \
-    template <typename T, typename Abi>                                                            \
+    template <typename T, typename Abi, typename = vir::vecmath_detail::odr_tag>                   \
       VIR_ALWAYS_INLINE                                                                            \
       std::enable_if_t<vir::vecmath_detail::use_vecmath<T, Abi>, simd<T, Abi>>                     \
-      name (const simd<T, Abi>& x, const simd<T, Abi>& y)                                          \
+      name (const simd<T, Abi>& x,                                                                 \
+            const vir::vecmath_detail::nondeduced_t<simd<T, Abi>>& y)                              \
       {                                                                                            \
         return vir::vecmath_detail::apply(                                                         \
                  x, y, [](auto a, auto b) { return vir::vecmath_detail::call_##name(a, b); });     \
       }                                                                                            \
                                                                                                    \
-    template <typename T, typename Abi>                                                            \
-      VIR_ALWAYS_INLINE                                                                             \
+    template <typename T, typename Abi, typename = vir::vecmath_detail::odr_tag>                   \
+      VIR_ALWAYS_INLINE                                                                            \
       std::enable_if_t<vir::vecmath_detail::use_fallback<T, Abi>, simd<T, Abi>>                    \
-      name (const simd<T, Abi>& x, const simd<T, Abi>& y)                                          \
+      name (const simd<T, Abi>& x,                                                                 \
+            const vir::vecmath_detail::nondeduced_t<simd<T, Abi>>& y)                              \
       { return std::experimental::parallelism_v2::name(x, y); }                                    \
+                                                                                                   \
+    template <typename U, typename T, typename Abi,                                                \
+              typename = std::enable_if_t<                                                         \
+                           vir::vecmath_detail::is_convertible_first<U, T, Abi>>>                  \
+      VIR_ALWAYS_INLINE simd<T, Abi>                                                               \
+      name (U&& x, const simd<T, Abi>& y)                                                          \
+      { return name(simd<T, Abi>(static_cast<U&&>(x)), y); }                                       \
   }
 
 // available since glibc 2.22
