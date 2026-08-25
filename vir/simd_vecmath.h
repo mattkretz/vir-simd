@@ -435,7 +435,13 @@ namespace vir::vecmath_detail
                            vir::vecmath_detail::is_convertible_first<U, T, Abi>>>                  \
       VIR_ALWAYS_INLINE simd<T, Abi>                                                               \
       name (U&& x, const simd<T, Abi>& y)                                                          \
-      { return name(simd<T, Abi>(static_cast<U&&>(x)), y); }                                       \
+      {                                                                                            \
+        /* Qualified: an unqualified call would let argument-dependent lookup                      \
+         * add the underlying overload, which deduces both parameters and so                       \
+         * wins partial ordering, quietly sending this spelling down the slow                       \
+         * path. */                                                                                \
+        return vir::stdx::name(simd<T, Abi>(static_cast<U&&>(x)), y);                              \
+      }                                                                                            \
   }
 
 // available since glibc 2.22

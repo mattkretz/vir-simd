@@ -4,6 +4,8 @@
 
 # Tests for vir-simd extensions to std::experimental::simd
 ext_tests = for_each \
+	    simd_vecmath \
+	    simd_vecmath_disabled \
 	    transform \
 	    transform_reduce
 
