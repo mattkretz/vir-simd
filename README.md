@@ -307,12 +307,9 @@ therefore end up slower than the scalar one it replaced. Where glibc's
 to it instead, by calling its entry points directly. No compiler flags and no
 auto-vectorization are involved.
 
-Covered: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`,
+Covered are: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`,
 `tanh`, `asinh`, `acosh`, `atanh`, `exp`, `exp2`, `expm1`, `log`, `log2`,
-`log10`, `log1p`, `pow`, `cbrt`, `erf` and `erfc`. Measured at width 4 on an
-i9-12900H, per 2^20 evaluations: `sinh` 8.8 ms → 1.2 ms, `exp` 3.9 ms → 0.7 ms,
-`sin` 1.2 ms → 0.7 ms. `sin` and `cos` gain least because libstdc++ already
-vectorizes those two itself.
+`log10`, `log1p`, `pow`, `cbrt`, `erf` and `erfc`.
 
 Call them qualified. An unqualified `sinh(x)` on a `simd` argument resolves to
 the underlying implementation through argument-dependent lookup, and no
@@ -322,7 +319,8 @@ using-declaration changes that.
 evaluate those with SIMD instructions, so use `vir::stdx` for them.
 
 Every name is declared in every configuration. Where no vector math library is
-reachable — a glibc older than 2.22, a different libc, another architecture, or
+reachable — a glibc older than 2.22 (use 2.35+ for full coverage of the list above),
+a different libc, another architecture, or
 a build with `VIR_DISABLE_SIMD_VECMATH` defined — the call forwards to the
 underlying implementation and behaves exactly as before. Note that the relevant
 glibc is the one you *build* against, so a toolchain with an old sysroot
