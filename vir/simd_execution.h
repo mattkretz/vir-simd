@@ -1503,28 +1503,45 @@ case0:
     {
       using T = std::iter_value_t<It>;
       using TV = vir::simdize<T, ExecutionPolicy::_size>;
-      using IV = detail::deduced_simd<int, TV::size()>;
       int count = 0;
-      IV countv = 0;
-      vir::for_each(pol, first, last, [&](auto... x) VIR_LAMBDA_ALWAYS_INLINE {
+
+      /* Counting per lane needs an int simd with one lane per element, and that
+       * ABI stops existing once TV has more lanes than simd_abi::max_fixed_size
+       * <int> allows: simd<char> is 64 lanes wide on AVX-512, where deduce<int,
+       * 64> has no type. Fall back to counting the bits of each mask, which is
+       * what the size-mismatched case below does anyway.
+       */
+      if constexpr (not requires { typename detail::deduced_simd<int, TV::size()>; })
+        {
+          vir::for_each(pol, first, last, [&](auto... x) VIR_LAMBDA_ALWAYS_INLINE {
+            count += (popcount(pred(x)) + ...);
+          });
+          return count;
+        }
+      else
+        {
+          using IV = detail::deduced_simd<int, TV::size()>;
+          IV countv = 0;
+          vir::for_each(pol, first, last, [&](auto... x) VIR_LAMBDA_ALWAYS_INLINE {
 #if __cpp_lib_experimental_parallel_simd >= 201803
-        if (std::is_constant_evaluated())
-          count += (popcount(pred(x)) + ...);
-        else
-#endif
-          if constexpr (sizeof...(x) == 1)
-          {
-            if constexpr ((x.size(), ...) == countv.size())
-              ++where(vir::cvt(pred(x...)), countv);
+            if (std::is_constant_evaluated())
+              count += (popcount(pred(x)) + ...);
             else
-              count += popcount(pred(x...));
-          }
-        else
-          {
-            ((++where(vir::cvt(pred(x)), countv)), ...);
-          }
-      });
-      return count + reduce(countv);
+#endif
+              if constexpr (sizeof...(x) == 1)
+              {
+                if constexpr ((x.size(), ...) == countv.size())
+                  ++where(vir::cvt(pred(x...)), countv);
+                else
+                  count += popcount(pred(x...));
+              }
+            else
+              {
+                ((++where(vir::cvt(pred(x)), countv)), ...);
+              }
+          });
+          return count + reduce(countv);
+        }
     }
 
   /// Count the elements in the input range matching \p pred (range overload)
