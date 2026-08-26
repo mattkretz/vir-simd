@@ -2595,6 +2595,12 @@ namespace vir::stdx
   SIMD_MATH_1ARG(log2, simd)
   SIMD_MATH_1ARG(logb, simd)
 
+  // exponentials and roots
+  SIMD_MATH_1ARG(exp, simd)
+  SIMD_MATH_1ARG(exp2, simd)
+  SIMD_MATH_1ARG(expm1, simd)
+  SIMD_MATH_1ARG(cbrt, simd)
+
 #undef SIMD_MATH_1ARG
 #undef SIMD_MATH_1ARG_FIXED
 #undef SIMD_MATH_2ARG
