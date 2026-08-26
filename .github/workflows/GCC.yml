@@ -65,4 +65,11 @@ jobs:
           diff -r $HOME/vir-simd-cmake/include $HOME/vir-simd-make/include && echo "cmake and make installations match ✅"
 
       - name: Run test suite
-        run: cd vir-simd && make check DRIVEROPTS=-vvf
+        # Pinned below AVX-512, as the Clang jobs are, though for a
+        # different reason. simd_abi::max_fixed_size<int> is 32, so on
+        # AVX-512 a 64-lane simd<char> has no matching int ABI: transform
+        # widening char to int asks for simd<int, fixed_size<64>>, which
+        # libstdc++ gives a deleted destructor. The testsuite otherwise
+        # builds -march=native, and the runner fleet is mixed, so whether a
+        # job saw this came down to which machine it landed on.
+        run: cd vir-simd && make check DRIVEROPTS=-vvf testflags=-march=x86-64-v3

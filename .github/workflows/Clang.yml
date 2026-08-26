@@ -53,7 +53,15 @@ jobs:
           path: vc-testdata
 
       - name: Run test suite
-        run: cd vir-simd && make check DRIVEROPTS=-vvf
+        # Pinned below AVX-512 on purpose. libstdc++'s <experimental/simd> does
+        # not compile under Clang for the AVX-512 mask ABIs: _S_to_bits asserts
+        # is_same_v<_Tp, __int_for_sizeof_t<_Tp>>, and for _Tp = long long that
+        # is false there, so simd<double, _VecBltnBtmsk<N>>::operator== fails to
+        # instantiate. The testsuite otherwise builds with -march=native, so
+        # this job started failing when the runner fleet moved to AVX-512
+        # capable hardware, with nothing in this repository having changed.
+        # GCC compiles the same code, and keeps -march=native.
+        run: cd vir-simd && make check DRIVEROPTS=-vvf testflags=-march=x86-64-v3
 
   clang-libcxx:
     strategy:
