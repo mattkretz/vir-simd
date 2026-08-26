@@ -304,8 +304,7 @@ transcendental functions, so `simd` implementations evaluate `sin`, `exp`,
 `sinh` and friends one lane at a time. A vectorized kernel calling them can
 therefore end up slower than the scalar one it replaced. Where glibc's
 `libmvec` is available, the functions in `vir::vecmath` hand a whole register
-to it instead, by calling its entry points directly. No compiler flags and no
-auto-vectorization are involved.
+to it instead, by calling its entry points directly.
 
 Covered are: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`,
 `tanh`, `asinh`, `acosh`, `atanh`, `exp`, `exp2`, `expm1`, `log`, `log2`,
