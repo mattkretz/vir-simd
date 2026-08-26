@@ -32,6 +32,8 @@ gains a proper implementation provides.
     + [Usable algorithms](#usable-algorithms)
     + [Example](#example)
     + [Execution policy modifiers](#execution-policy-modifiers)
+  - [Vectorized transcendental 
+    math](#vectorized-transcendental-math)
   - [Bitwise operators for floating-point 
     `simd`](#bitwise-operators-for-floating-point-simd)
   - [Conversion between `std::bitset` and 
@@ -288,6 +290,52 @@ its behavior:
   (still testing its viability, may be removed):
   Determine from run-time information (i.e. add a branch) whether a prologue 
   for alignment of the main chunked iteration might be more efficient.
+
+### Vectorized transcendental math
+
+```c++
+#include <vir/simd_vecmath.h>
+
+auto y = vir::vecmath::sinh(x);
+```
+
+SIMD hardware has instructions for `sqrt` and `abs` but not for the
+transcendental functions, so `simd` implementations evaluate `sin`, `exp`,
+`sinh` and friends one lane at a time. A vectorized kernel calling them can
+therefore end up slower than the scalar one it replaced. Where glibc's
+`libmvec` is available, the functions in `vir::vecmath` hand a whole register
+to it instead, by calling its entry points directly.
+
+Covered are: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`,
+`tanh`, `asinh`, `acosh`, `atanh`, `exp`, `exp2`, `expm1`, `log`, `log2`,
+`log10`, `log1p`, `pow`, `cbrt`, `erf` and `erfc`.
+
+Call them qualified. An unqualified `sinh(x)` on a `simd` argument resolves to
+the underlying implementation through argument-dependent lookup, and no
+using-declaration changes that.
+
+`hypot`, `sqrt` and `abs` are deliberately absent: implementations already
+evaluate those with SIMD instructions, so use `vir::stdx` for them.
+
+Every name is declared in every configuration. Where no vector math library is
+reachable — a glibc older than 2.22 (use 2.35+ for full coverage of the list above),
+a different libc, another architecture, or
+a build with `VIR_DISABLE_SIMD_VECMATH` defined — the call forwards to the
+underlying implementation and behaves exactly as before. Note that the relevant
+glibc is the one you *build* against, so a toolchain with an old sysroot
+forwards even on a recent host.
+
+> **Accuracy.** Vector math libraries trade accuracy for speed: glibc documents
+> a maximum error of 4 ULP for `libmvec`, where its scalar routines stay below
+> 1 ULP, and `errno` and the floating-point exception flags become unspecified.
+> Results are therefore not bit-wise reproducible against a scalar evaluation.
+> Define `VIR_DISABLE_SIMD_VECMATH` if your application needs either.
+
+> **C++26.** `std::simd` specifies these functions in `namespace std::simd`
+> ([\[simd.math\]](https://eel.is/c++draft/simd#math)) and implementations are
+> expected to vectorize them, which makes this header unnecessary. It targets
+> the `<experimental/simd>` backend and never interposes on `std::simd`, so
+> call `std::simd::sinh` directly once your standard library provides it.
 
 ### Bitwise operators for floating-point `simd`
 
